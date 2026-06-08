@@ -1,0 +1,17 @@
+services:
+  music-library:
+    build: .
+    container_name: music-library
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: "production"
+      ADMIN_PASSWORD: "change-me"
+      MUSIC_LIBRARY_PATH: "/music"
+      DATA_DIR: "/data"
+      ENABLE_ONLINE_METADATA: "false"
+      PORT: "3000"
+    volumes:
+      - ./data:/data
+      - /path/to/your/music:/music:ro
