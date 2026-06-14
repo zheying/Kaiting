@@ -37,8 +37,12 @@ export const api = {
   search: (q: string) => request<SearchResponse>(`/api/search?q=${encodeURIComponent(q)}`),
   favorite: (trackId: string, favorite: boolean) =>
     request<Track>(`/api/tracks/${trackId}/favorite`, { method: "PATCH", body: JSON.stringify({ favorite }) }),
-  lyrics: (trackId: string) => fetch(`/api/tracks/${trackId}/lyrics`, { credentials: "include" }).then((response) => {
-    if (!response.ok) throw new Error("暂无歌词");
+  lyrics: (trackId: string, search = false) => fetch(`/api/tracks/${trackId}/lyrics${search ? "?search=1" : ""}`, { credentials: "include" }).then((response) => {
+    if (!response.ok) {
+      const error = new Error("暂无歌词") as Error & { status?: number };
+      error.status = response.status;
+      throw error;
+    }
     return response.text();
   }),
   playlists: () => request<Playlist[]>("/api/playlists"),
@@ -53,6 +57,6 @@ export function artworkUrl(trackId: string | null | undefined): string | undefin
 }
 
 export function streamUrl(trackId: string, start?: number): string {
-  const suffix = start && start > 0 ? `?start=${encodeURIComponent(String(Math.max(0, Math.floor(start))))}` : "";
+  const suffix = start && start > 0 ? `?start=${encodeURIComponent(String(Math.max(0, start)))}` : "";
   return `/api/tracks/${trackId}/stream${suffix}`;
 }

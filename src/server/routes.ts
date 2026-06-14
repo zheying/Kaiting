@@ -9,7 +9,7 @@ import type { Scanner } from "./scanner.js";
 import { clearSession, isPasswordValid, setSession } from "./auth.js";
 import { directMimeType, shouldTranscode } from "./audio.js";
 import { safeRealPath } from "./pathSafety.js";
-import { metadataStatus } from "./metadata.js";
+import { lookupLyrics, metadataStatus } from "./metadata.js";
 
 interface Dependencies {
   config: AppConfig;
@@ -123,14 +123,27 @@ export async function registerRoutes(app: FastifyInstance, deps: Dependencies): 
     return reply.send(fs.createReadStream(artworkPath));
   });
 
-  app.get<{ Params: { id: string } }>("/api/tracks/:id/lyrics", async (request, reply) => {
-    const row = database.db.prepare("SELECT lyrics_path FROM tracks WHERE id = ?").get(request.params.id) as { lyrics_path?: string } | undefined;
-    if (!row?.lyrics_path) return reply.status(404).send(notFound());
-    const lyricsPath = row.lyrics_path.startsWith(config.metadataDir)
-      ? safeRealPath(config.metadataDir, row.lyrics_path)
-      : safeRealPath(config.musicLibraryPath, row.lyrics_path);
+  app.get<{ Params: { id: string }; Querystring: { search?: string } }>("/api/tracks/:id/lyrics", async (request, reply) => {
+    const track = database.getTrack(request.params.id);
+    if (!track) return reply.status(404).send(notFound());
+
+    let lyricsPath = database.getTrackLyricsPath(track.id);
+    const shouldSearch = request.query.search === "1" || request.query.search === "true";
+    const canRefreshOnlineLyrics = !lyricsPath || lyricsPath.startsWith(config.metadataDir);
+    if (shouldSearch && config.enableOnlineMetadata && canRefreshOnlineLyrics) {
+      const onlineLyricsPath = await lookupLyrics(config, track, database).catch(() => null);
+      if (onlineLyricsPath) {
+        lyricsPath = onlineLyricsPath;
+        database.setTrackLyricsPath(track.id, lyricsPath);
+      }
+    }
+
+    if (!lyricsPath) return reply.status(404).send(notFound());
+    const safeLyricsPath = lyricsPath.startsWith(config.metadataDir)
+      ? safeRealPath(config.metadataDir, lyricsPath)
+      : safeRealPath(config.musicLibraryPath, lyricsPath);
     reply.type("text/plain; charset=utf-8");
-    return fsp.readFile(lyricsPath, "utf8");
+    return fsp.readFile(safeLyricsPath, "utf8");
   });
 
   app.get<{ Params: { id: string }; Querystring: { mode?: "auto" | "direct" | "transcode"; start?: string } }>("/api/tracks/:id/stream", async (request, reply) => {

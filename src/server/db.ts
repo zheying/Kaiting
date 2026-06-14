@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import fs from "node:fs";
 import Database from "better-sqlite3";
 import type { Album, Artist, LibrarySummary, Playlist, ScanError, ScanJob, Track } from "../shared/types.js";
 
@@ -7,6 +8,8 @@ type TrackRow = Record<string, unknown>;
 export interface DatabaseHandle {
   db: Database.Database;
   getTrack(id: string): Track | null;
+  getTrackLyricsPath(id: string): string | null | undefined;
+  setTrackLyricsPath(id: string, lyricsPath: string): Track | null;
   listTracks(options?: { q?: string; limit?: number; offset?: number; favorite?: boolean }): Track[];
   upsertTrack(track: UpsertTrack): void;
   removeMissingTracks(seenPaths: Set<string>): number;
@@ -58,6 +61,15 @@ export interface UpsertTrack {
 
 function now(): string {
   return new Date().toISOString();
+}
+
+function pathWasSeen(filePath: string, seenPaths: Set<string>): boolean {
+  if (seenPaths.has(filePath)) return true;
+  try {
+    return seenPaths.has(fs.realpathSync(filePath));
+  } catch {
+    return false;
+  }
 }
 
 function rowToTrack(row: TrackRow): Track {
@@ -373,13 +385,22 @@ export function openDatabase(databasePath: string): DatabaseHandle {
       const row = db.prepare("SELECT * FROM tracks WHERE id = ?").get(id) as TrackRow | undefined;
       return row ? rowToTrack(row) : null;
     },
+    getTrackLyricsPath(id) {
+      const row = db.prepare("SELECT lyrics_path FROM tracks WHERE id = ?").get(id) as { lyrics_path?: string | null } | undefined;
+      if (!row) return undefined;
+      return row.lyrics_path ?? null;
+    },
+    setTrackLyricsPath(id, lyricsPath) {
+      db.prepare("UPDATE tracks SET lyrics_path = ?, updated_at = ? WHERE id = ?").run(lyricsPath, now(), id);
+      return this.getTrack(id);
+    },
     listTracks,
     upsertTrack(track) {
       txUpsert(track);
     },
     removeMissingTracks(seenPaths) {
       const rows = db.prepare("SELECT id, path FROM tracks").all() as { id: string; path: string }[];
-      const missing = rows.filter((row) => !seenPaths.has(row.path));
+      const missing = rows.filter((row) => !pathWasSeen(row.path, seenPaths));
       const tx = db.transaction(() => {
         const delFts = db.prepare("DELETE FROM tracks_fts WHERE id = ?");
         const delTrack = db.prepare("DELETE FROM tracks WHERE id = ?");

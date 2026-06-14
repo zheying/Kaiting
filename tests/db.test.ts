@@ -61,6 +61,17 @@ describe("database", () => {
     expect(database.getPlaylist(playlist.id)?.tracks[0]?.id).toBe("track-1");
   });
 
+  it("updates a single track lyrics path", () => {
+    insertTrack("track-1", "First Song");
+    const lyricsPath = path.join(dir, "metadata", "track-1.lrc");
+
+    const updated = database.setTrackLyricsPath("track-1", lyricsPath);
+
+    expect(updated?.hasLyrics).toBe(true);
+    expect(updated?.title).toBe("First Song");
+    expect(database.getTrackLyricsPath("track-1")).toBe(lyricsPath);
+  });
+
   it("stores scan errors and metadata cache entries", () => {
     const job = database.createScanJob();
     database.recordScanError(job.id, "/music/broken.flac", "Invalid data");

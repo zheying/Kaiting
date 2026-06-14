@@ -141,16 +141,30 @@ export function createScanner(config: AppConfig, database: DatabaseHandle): Scan
       try {
         const root = safeRealPath(config.musicLibraryPath, config.musicLibraryPath);
         const files = await walkAudioFiles(root);
+        const existingTrackCount = database.summary().trackCount;
         const seenPaths = new Set<string>();
         database.updateScanJob(job.id, { totalFiles: files.length, message: "正在扫描曲库" });
+
+        if (files.length === 0) {
+          database.updateScanJob(job.id, {
+            status: "failed",
+            scannedFiles: 0,
+            errorCount: 1,
+            finishedAt: new Date().toISOString(),
+            message: existingTrackCount > 0
+              ? "扫描未找到音频文件，已保留现有索引。请确认 NAS 音乐目录已挂载。"
+              : "扫描未找到音频文件。请确认 MUSIC_LIBRARY_PATH 指向已挂载的 NAS 音乐目录。"
+          });
+          return;
+        }
 
         for (const filePath of files) {
           try {
             const realFile = safeRealPath(root, filePath);
+            seenPaths.add(realFile);
             const track = await inspectTrack(config, realFile);
             const enrichedTrack = await enrichTrackMetadata(config, database, track);
             database.upsertTrack(enrichedTrack);
-            seenPaths.add(realFile);
           } catch (error) {
             errorCount += 1;
             database.recordScanError(job.id, filePath, error instanceof Error ? error.message : "未知扫描错误");
@@ -165,6 +179,17 @@ export function createScanner(config: AppConfig, database: DatabaseHandle): Scan
               });
             }
           }
+        }
+
+        if (seenPaths.size === 0 && existingTrackCount > 0) {
+          database.updateScanJob(job.id, {
+            status: "failed",
+            scannedFiles,
+            errorCount: errorCount + 1,
+            finishedAt: new Date().toISOString(),
+            message: "扫描未能确认任何音频文件，已保留现有索引。请检查曲库路径权限。"
+          });
+          return;
         }
 
         const removed = database.removeMissingTracks(seenPaths);
