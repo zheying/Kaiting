@@ -26,11 +26,17 @@ import {
   VolumeX,
   X
 } from "lucide-react";
-import { api, artworkUrl, streamUrl } from "./api.js";
-import type { Album, Artist, LibrarySummary, MetadataStatus, Playlist, ScanError, ScanJob, SearchResponse, Track } from "../shared/types.js";
+import { api, artworkUrl, streamUrl, type ScanOptions } from "./api.js";
+import { createLatestRequest, playbackErrorMessage, scanJustFinished, type PlaybackStatus } from "./async-state.js";
+import { useLibraryPage } from "./library-pages.js";
+import { useSeekInput } from "./seek-input.js";
+import { PlaylistView } from "./PlaylistView.js";
+import { createPlaylistMutationLock, createTrackPlaylistAdder } from "./playlist-state.js";
+import type { Album, Artist, LibrarySummary, MetadataStatus, Playlist, ScanError, ScanJob, Page, Track } from "../shared/types.js";
 
 type View =
   | { name: "home" }
+  | { name: "search"; q: string }
   | { name: "albums" }
   | { name: "artists" }
   | { name: "favorites" }
@@ -80,6 +86,7 @@ declare global {
   interface Window {
     __nasMusicPlayTrack?: (trackId: string) => void;
     __nasMusicResume?: () => void;
+    __nasMusicRetry?: () => void;
   }
 }
 
@@ -91,6 +98,7 @@ function isView(value: unknown): value is View {
   if (!value || typeof value !== "object") return false;
   const view = value as Record<string, unknown>;
   if (["home", "albums", "artists", "favorites", "playlists", "playing"].includes(String(view.name))) return true;
+  if (view.name === "search") return typeof view.q === "string";
   if (view.name === "album") return typeof view.key === "string";
   if (view.name === "artist") return typeof view.nameValue === "string";
   if (view.name === "playlist") return typeof view.id === "string";
@@ -101,7 +109,9 @@ function viewFromHash(): View {
   const hash = window.location.hash.replace(/^#\/?/, "");
   if (!hash) return homeView();
   const [name, value = ""] = hash.split("/");
-  const decoded = decodeURIComponent(value);
+  let decoded: string;
+  try { decoded = decodeURIComponent(value); } catch { return homeView(); }
+  if (name === "search") return { name: "search", q: decoded };
   if (name === "albums") return { name: "albums" };
   if (name === "artists") return { name: "artists" };
   if (name === "favorites") return { name: "favorites" };
@@ -116,6 +126,7 @@ function viewFromHash(): View {
 function viewUrl(view: View): string {
   const base = window.location.pathname;
   if (view.name === "home") return base;
+  if (view.name === "search") return `${base}#/search/${encodeURIComponent(view.q)}`;
   if (view.name === "album") return `${base}#/album/${encodeURIComponent(view.key)}`;
   if (view.name === "artist") return `${base}#/artist/${encodeURIComponent(view.nameValue)}`;
   if (view.name === "playlist") return `${base}#/playlist/${encodeURIComponent(view.id)}`;
@@ -149,7 +160,13 @@ function readStoredPlayer(): StoredPlayerState | null {
 }
 
 function writeStoredPlayer(state: StoredPlayerState): void {
-  window.sessionStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(state));
+  try {
+    window.sessionStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // A full library can exceed the browser quota. Keep playback running and
+    // discard the stale snapshot so a refresh cannot restore an older queue.
+    try { window.sessionStorage.removeItem(PLAYER_STORAGE_KEY); } catch { /* Storage may be unavailable. */ }
+  }
 }
 
 function readStoredVolume(): number {
@@ -372,7 +389,10 @@ function TrackRow({
   onPlay,
   onAddToPlaylist,
   onCreatePlaylist,
-  onFavorite
+  onFavorite,
+  onRemove,
+  playlistBusy = false,
+  hideAlbum = false
 }: {
   track: Track;
   index?: number;
@@ -380,9 +400,12 @@ function TrackRow({
   playing: boolean;
   playlists: Playlist[];
   onPlay: (track: Track) => void;
-  onAddToPlaylist: (playlistId: string, track: Track) => void;
+  onAddToPlaylist: (playlistId: string, track: Track) => Promise<void>;
   onCreatePlaylist: (name: string, track: Track) => Promise<void>;
   onFavorite: (track: Track) => void;
+  onRemove?: () => Promise<void>;
+  playlistBusy?: boolean;
+  hideAlbum?: boolean;
 }) {
   const activePlaying = active && playing;
   const [menuOpen, setMenuOpen] = useState(false);
@@ -390,6 +413,8 @@ function TrackRow({
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [newPlaylistError, setNewPlaylistError] = useState("");
+  const [playlistMenuBusy, setPlaylistMenuBusy] = useState(false);
+  const playlistMenuPending = useRef(false);
   const [menuPlacement, setMenuPlacement] = useState<"down" | "up">("down");
   const menuRef = useRef<HTMLDivElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -407,6 +432,7 @@ function TrackRow({
       setMenuOpen(false);
       setPlaylistMenuOpen(false);
       setCreatingPlaylist(false);
+      menuButtonRef.current?.focus();
     }
     document.addEventListener("pointerdown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
@@ -416,24 +442,33 @@ function TrackRow({
     };
   }, [menuOpen]);
 
+  async function runPlaylistMenuAction(operation: () => Promise<void>) {
+    if (playlistMenuPending.current || playlistBusy) return;
+    playlistMenuPending.current = true;
+    setPlaylistMenuBusy(true);
+    setNewPlaylistError("");
+    try {
+      await operation();
+      setNewPlaylistName("");
+      setCreatingPlaylist(false);
+      setPlaylistMenuOpen(false);
+      setMenuOpen(false);
+    } catch (error) {
+      setNewPlaylistError(error instanceof Error ? error.message : "操作失败，请重试。");
+    } finally {
+      playlistMenuPending.current = false;
+      setPlaylistMenuBusy(false);
+    }
+  }
+
   async function createPlaylistFromMenu() {
     const name = newPlaylistName.trim();
-    if (!name) {
-      setNewPlaylistError("请输入歌单名称");
-      return;
-    }
-    await onCreatePlaylist(name, track);
-    setNewPlaylistName("");
-    setNewPlaylistError("");
-    setCreatingPlaylist(false);
-    setPlaylistMenuOpen(false);
-    setMenuOpen(false);
+    if (!name) { setNewPlaylistError("请输入歌单名称"); return; }
+    await runPlaylistMenuAction(() => onCreatePlaylist(name, track));
   }
 
   function addToPlaylist(playlistId: string) {
-    onAddToPlaylist(playlistId, track);
-    setPlaylistMenuOpen(false);
-    setMenuOpen(false);
+    void runPlaylistMenuAction(() => onAddToPlaylist(playlistId, track));
   }
 
   function toggleMenu() {
@@ -454,32 +489,32 @@ function TrackRow({
   }
 
   return (
-    <div className={active ? "track-row active" : "track-row"}>
-      <button className={active ? "icon-button now-button" : "icon-button"} title={activePlaying ? "正在播放" : active ? "已暂停" : "播放"} onClick={() => onPlay(track)}>
+    <div className={`track-row${active ? " active" : ""}${hideAlbum ? " hide-album" : ""}`}>
+      <button className={active ? "icon-button now-button" : "icon-button"} title={activePlaying ? "正在播放" : active ? "已暂停" : "播放"} aria-label={`播放《${track.title}》${activePlaying ? "，正在播放" : ""}`} onClick={() => onPlay(track)}>
         {active ? <Equalizer paused={!playing} /> : <Play />}
       </button>
       <span className="track-index">{index ?? ""}</span>
       <div className="track-main">
-        <strong>{track.title}</strong>
+        <strong title={track.title}>{track.title}</strong>
         <span>{track.artist ?? "未知艺人"}</span>
       </div>
-      <span className="track-album">{track.album ?? "未知专辑"}</span>
+      {!hideAlbum ? <span className="track-album" title={track.album ?? "未知专辑"}>{track.album ?? "未知专辑"}</span> : null}
       <span className="track-codec">{track.formatGroup.toUpperCase()}</span>
       <span>{formatDuration(track.duration)}</span>
       <div className={`track-menu-wrap ${menuPlacement === "up" ? "open-up" : "open-down"}`} ref={menuRef}>
-        <button ref={menuButtonRef} className="icon-button track-menu-button" title="更多" aria-expanded={menuOpen} onClick={toggleMenu}>
+        <button ref={menuButtonRef} className="icon-button track-menu-button" title="更多" aria-label={`《${track.title}》的更多操作`} aria-expanded={menuOpen} onClick={toggleMenu}>
           <MoreHorizontal />
         </button>
         {menuOpen ? (
           <div className="track-menu">
             <div className="menu-nested">
-              <button type="button" onClick={() => setPlaylistMenuOpen((value) => !value)}>
+              <button type="button" disabled={playlistMenuBusy || playlistBusy} onClick={() => setPlaylistMenuOpen((value) => !value)}>
                 <span>添加到歌单</span>
                 <ListMusic />
               </button>
               {playlistMenuOpen ? (
                 <div className="track-submenu">
-                  <button className="submenu-create-trigger" onClick={() => setCreatingPlaylist((value) => !value)}>
+                  <button disabled={playlistMenuBusy || playlistBusy} className="submenu-create-trigger" onClick={() => setCreatingPlaylist((value) => !value)}>
                     <span>新歌单</span>
                     <Plus />
                   </button>
@@ -487,6 +522,8 @@ function TrackRow({
                     <div className="submenu-create">
                       <input
                         value={newPlaylistName}
+                        disabled={playlistMenuBusy || playlistBusy}
+                        maxLength={200}
                         onChange={(event) => {
                           setNewPlaylistName(event.currentTarget.value);
                           setNewPlaylistError("");
@@ -497,12 +534,11 @@ function TrackRow({
                         placeholder="歌单名称"
                         autoFocus
                       />
-                      <button onClick={() => void createPlaylistFromMenu()}>创建</button>
-                      {newPlaylistError ? <small>{newPlaylistError}</small> : null}
+                      <button disabled={playlistMenuBusy || playlistBusy} onClick={() => void createPlaylistFromMenu()}>{playlistMenuBusy ? "处理中…" : "创建并添加"}</button>
                     </div>
                   ) : null}
                   {playlists.length > 0 ? playlists.map((playlist) => (
-                    <button key={playlist.id} onClick={() => addToPlaylist(playlist.id)}>
+                    <button key={playlist.id} disabled={playlistMenuBusy || playlistBusy} onClick={() => addToPlaylist(playlist.id)}>
                       <span>{playlist.name}</span>
                     </button>
                   )) : (
@@ -513,6 +549,9 @@ function TrackRow({
                 </div>
               ) : null}
             </div>
+            {playlistMenuBusy ? <p className="playlist-menu-status" role="status">正在更新歌单…</p> : null}
+            {newPlaylistError ? <p className="playlist-menu-error" role="alert">{newPlaylistError} 请再次点击操作按钮重试。</p> : null}
+            {onRemove ? <button type="button" disabled={playlistMenuBusy || playlistBusy} className="danger-action" onClick={() => void runPlaylistMenuAction(onRemove)}><span>从此歌单移除</span><X /></button> : null}
             <button className={track.favorite ? "heart-on" : ""} onClick={() => { onFavorite(track); setPlaylistMenuOpen(false); setMenuOpen(false); }}>
               <span>{track.favorite ? "取消收藏" : "个人收藏"}</span>
               <Heart />
@@ -530,8 +569,9 @@ function AlbumGrid({ albums, onOpen }: { albums: Album[]; onOpen: (album: Album)
       {albums.map((album) => (
         <button className="album-tile" key={album.key} onClick={() => onOpen(album)}>
           <Cover trackId={album.artworkTrackId} title={album.title} />
-          <strong>{album.title}</strong>
-          <span>{album.artist ?? "未知艺人"}</span>
+          <strong title={album.title}>{album.title}</strong>
+          <span title={album.artist ?? "未知艺人"}>{album.artist ?? "未知艺人"}</span>
+          <small className="album-meta">{album.year ? `${album.year} · ` : ""}{album.trackCount} 首</small>
         </button>
       ))}
     </div>
@@ -560,6 +600,7 @@ function Player({
   playing,
   initialPosition,
   seekRequest,
+  onPlaybackStatusChange,
   volume,
   muted,
   onProgressChange,
@@ -585,6 +626,7 @@ function Player({
   playing: boolean;
   initialPosition: number;
   seekRequest: SeekRequest | null;
+  onPlaybackStatusChange: (status: PlaybackStatus) => void;
   volume: number;
   muted: boolean;
   onProgressChange: (position: number) => void;
@@ -609,21 +651,31 @@ function Player({
   const restoredTrackId = useRef<string | null>(null);
   const pendingDirectSeek = useRef(0);
   const streamOffsetRef = useRef(0);
+  const playRequests = useRef(createLatestRequest());
   const playPending = useRef(false);
-  const ignorePauseUntil = useRef(0);
+  const playIntent = useRef(playing);
+  const activeTrackId = useRef<string | null>(null);
+  const statusRef = useRef<PlaybackStatus>({ state: "idle" });
   const volumeControlRef = useRef<HTMLDivElement>(null);
   const queuePanelRef = useRef<HTMLElement>(null);
+  const queueToggleRef = useRef<HTMLButtonElement>(null);
   const [position, setPosition] = useState(0);
+  const positionRef = useRef(position);
+  positionRef.current = position;
   const [duration, setDuration] = useState(0);
-  const [seeking, setSeeking] = useState(false);
+  const seekInput = useSeekInput({ position, duration: Math.max(duration || current?.duration || 0, 1), trackId: current?.id, onSeek: seekTo });
+  const seeking = seekInput.seeking;
   const [progressHover, setProgressHover] = useState(false);
   const [volumeExpanded, setVolumeExpanded] = useState(false);
   const [volumeDragging, setVolumeDragging] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
+  const [queuePageOffset, setQueuePageOffset] = useState(0);
+  useEffect(() => setQueuePageOffset(0), [current?.id, queue.length]);
   const displayArtist = current?.artist ?? current?.albumArtist ?? "未知艺人";
   const displayAlbum = current?.album ?? "未知专辑";
   const currentQueueIndex = current ? queue.findIndex((track) => track.id === current.id) : -1;
   const upcomingQueue = currentQueueIndex >= 0 ? queue.slice(currentQueueIndex + 1) : queue;
+  const queuePage = { items: upcomingQueue.slice(queuePageOffset, queuePageOffset + 50), total: upcomingQueue.length, offset: queuePageOffset, limit: 50 };
   const effectiveVolume = muted ? 0 : volume;
   const volumePercent = Math.round(effectiveVolume * 100);
   const volumeLevel: 1 | 2 | 3 = effectiveVolume < 0.34 ? 1 : effectiveVolume < 0.68 ? 2 : 3;
@@ -632,26 +684,78 @@ function Player({
     streamOffsetRef.current = value;
   }
 
+  function reportPlaybackStatus(status: PlaybackStatus) {
+    statusRef.current = status;
+    onPlaybackStatusChange(status);
+  }
+
   function requestPlay(audio: HTMLAudioElement) {
+    const request = playRequests.current.begin();
+    playIntent.current = true;
     playPending.current = true;
-    ignorePauseUntil.current = window.performance.now() + 1800;
+    if (audio.paused || audio.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) {
+      reportPlaybackStatus({ state: "loading", message: "正在加载音频…" });
+    }
     void audio.play()
       .then(() => {
+        if (!request.isCurrent()) return;
         playPending.current = false;
+        if (!audio.paused) {
+          reportPlaybackStatus({ state: "playing" });
+          onPlayingChange(true);
+        }
       })
       .catch((error) => {
+        if (!request.isCurrent()) return;
         playPending.current = false;
-        console.warn("播放启动失败", error);
+        playIntent.current = false;
+        reportPlaybackStatus({ state: "error", message: playbackErrorMessage(error, audio.error?.code) });
         onPlayingChange(false);
       });
   }
+
+  function replaceSource(audio: HTMLAudioElement, source: string) {
+    playRequests.current.cancel();
+    playPending.current = false;
+    audio.src = source;
+  }
+
+  function retryPlayback() {
+    const audio = audioRef.current;
+    if (!audio || !current) return;
+    const resumePosition = Math.max(0, positionRef.current);
+    if (usesTranscodedStream(current)) {
+      pendingDirectSeek.current = 0;
+      updateStreamOffset(resumePosition);
+      replaceSource(audio, streamUrl(current.id, resumePosition));
+    } else {
+      pendingDirectSeek.current = resumePosition;
+      updateStreamOffset(0);
+      replaceSource(audio, streamUrl(current.id));
+    }
+    audio.load();
+    onPlayingChange(true);
+    requestPlay(audio);
+  }
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    return () => {
+      playRequests.current.cancel();
+      playPending.current = false;
+      playIntent.current = false;
+      audio?.pause();
+    };
+  }, []);
 
   useEffect(() => {
     function playTrackFromGesture(trackId: string) {
       const audio = audioRef.current;
       if (!audio) return;
       const nextSrc = streamUrl(trackId);
-      if (audio.getAttribute("src") !== nextSrc) audio.src = nextSrc;
+      // Keep this synchronous with the gesture for mobile autoplay policies.
+      activeTrackId.current = trackId;
+      replaceSource(audio, nextSrc);
       pendingDirectSeek.current = 0;
       setPosition(0);
       updateStreamOffset(0);
@@ -663,26 +767,39 @@ function Player({
     function resumeFromGesture() {
       const audio = audioRef.current;
       if (!audio || !current) return;
+      if (statusRef.current.state === "error") {
+        retryPlayback();
+        return;
+      }
       onPlayingChange(true);
       requestPlay(audio);
     }
 
     window.__nasMusicPlayTrack = playTrackFromGesture;
     window.__nasMusicResume = resumeFromGesture;
+    window.__nasMusicRetry = retryPlayback;
     return () => {
       if (window.__nasMusicPlayTrack === playTrackFromGesture) delete window.__nasMusicPlayTrack;
       if (window.__nasMusicResume === resumeFromGesture) delete window.__nasMusicResume;
+      if (window.__nasMusicRetry === retryPlayback) delete window.__nasMusicRetry;
     };
   }, [current?.id]);
 
   function handleTogglePlayback() {
     if (playing) {
-      ignorePauseUntil.current = 0;
+      playRequests.current.cancel();
+      playPending.current = false;
+      playIntent.current = false;
+      audioRef.current?.pause();
       onToggle();
       return;
     }
     const audio = audioRef.current;
     if (audio && current) {
+      if (statusRef.current.state === "error") {
+        retryPlayback();
+        return;
+      }
       onPlayingChange(true);
       requestPlay(audio);
       return;
@@ -693,31 +810,38 @@ function Player({
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !current) return;
+    setDuration(current.duration ?? 0);
+    if (activeTrackId.current === current.id) return;
+    activeTrackId.current = current.id;
     const restorePosition = restoredTrackId.current === current.id ? 0 : Math.max(0, initialPosition || 0);
     restoredTrackId.current = current.id;
     setPosition(restorePosition);
-    setDuration(current.duration ?? 0);
     if (usesTranscodedStream(current) && restorePosition > 0) {
       pendingDirectSeek.current = 0;
       updateStreamOffset(restorePosition);
-      audio.src = streamUrl(current.id, restorePosition);
+      replaceSource(audio, streamUrl(current.id, restorePosition));
     } else {
       pendingDirectSeek.current = restorePosition;
       updateStreamOffset(0);
-      audio.src = streamUrl(current.id);
+      replaceSource(audio, streamUrl(current.id));
     }
+    reportPlaybackStatus(playing ? { state: "loading", message: "正在加载音频…" } : { state: "paused" });
     if (playing) requestPlay(audio);
   }, [current?.id]);
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !current) return;
-    if (playing) requestPlay(audio);
-    else {
-      ignorePauseUntil.current = 0;
+    playIntent.current = playing;
+    if (playing) {
+      if (!playPending.current && audio.paused) requestPlay(audio);
+    } else {
+      playRequests.current.cancel();
+      playPending.current = false;
       audio.pause();
+      if (statusRef.current.state !== "error") reportPlaybackStatus({ state: "paused" });
     }
-  }, [playing, current]);
+  }, [playing, current?.id]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -765,7 +889,10 @@ function Player({
       setQueueOpen(false);
     }
     function closeQueueOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setQueueOpen(false);
+      if (event.key === "Escape") {
+        setQueueOpen(false);
+        queueToggleRef.current?.focus();
+      }
     }
     window.addEventListener("pointerdown", closeQueueOnOutside, true);
     window.addEventListener("keydown", closeQueueOnEscape);
@@ -781,7 +908,7 @@ function Player({
 
   function handleTimeUpdate() {
     const audio = audioRef.current;
-    if (!audio || seeking) return;
+    if (!audio || seeking || pendingDirectSeek.current > 0) return;
     const next = mediaPosition(audio);
     setPosition(next);
     onProgressChange(next);
@@ -790,7 +917,9 @@ function Player({
   function handleLoadedMetadata() {
     const audio = audioRef.current;
     if (!audio) return;
-    const nextDuration = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : current?.duration ?? 0;
+    const nextDuration = current && usesTranscodedStream(current)
+      ? current.duration ?? streamOffsetRef.current + (Number.isFinite(audio.duration) ? audio.duration : 0)
+      : Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : current?.duration ?? 0;
     setDuration(nextDuration);
     if (pendingDirectSeek.current > 0) {
       const nextSeek = pendingDirectSeek.current;
@@ -816,7 +945,7 @@ function Player({
     if (usesTranscodedStream(current)) {
       pendingDirectSeek.current = 0;
       updateStreamOffset(next);
-      audio.src = streamUrl(current.id, next);
+      replaceSource(audio, streamUrl(current.id, next));
       if (playing) requestPlay(audio);
       return;
     }
@@ -832,15 +961,35 @@ function Player({
 
     pendingDirectSeek.current = next;
     updateStreamOffset(0);
-    audio.src = streamUrl(current.id);
+    replaceSource(audio, streamUrl(current.id));
     if (playing) requestPlay(audio);
   }
 
   function handlePause() {
     const audio = audioRef.current;
-    if (audio?.ended) return;
-    if (playPending.current) return;
-    if (window.performance.now() < ignorePauseUntil.current) return;
+    // A queued pause from replacing src is obsolete once play() has resumed it.
+    if (!audio?.paused || audio.ended) return;
+    playRequests.current.cancel();
+    playPending.current = false;
+    playIntent.current = false;
+    if (statusRef.current.state !== "error") reportPlaybackStatus({ state: "paused" });
+    onPlayingChange(false);
+  }
+
+  function handleBuffering() {
+    const audio = audioRef.current;
+    if (playIntent.current && audio && !audio.error) {
+      reportPlaybackStatus({ state: "buffering", message: "正在缓冲，若长时间无响应可重试。" });
+    }
+  }
+
+  function handleMediaError() {
+    const audio = audioRef.current;
+    if (!audio?.error) return;
+    playRequests.current.cancel();
+    playPending.current = false;
+    playIntent.current = false;
+    reportPlaybackStatus({ state: "error", message: playbackErrorMessage(null, audio.error.code) });
     onPlayingChange(false);
   }
 
@@ -859,10 +1008,36 @@ function Player({
     onMutedChange(true);
   }
 
+  const audioElement = (
+    <audio
+      ref={audioRef}
+      onEnded={() => {
+        playRequests.current.cancel();
+        playPending.current = false;
+        reportPlaybackStatus({ state: "paused" });
+        onEnded();
+      }}
+      onLoadedMetadata={handleLoadedMetadata}
+      onPause={handlePause}
+      onPlaying={() => {
+        const audio = audioRef.current;
+        if (audio && !audio.paused && audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+          reportPlaybackStatus({ state: "playing" });
+          onPlayingChange(true);
+        }
+      }}
+      onWaiting={handleBuffering}
+      onStalled={handleBuffering}
+      onError={handleMediaError}
+      onTimeUpdate={handleTimeUpdate}
+    />
+  );
+
   if (!current) {
     return (
+      <>
+      {audioElement}
       <footer className="player empty-player">
-        <audio ref={audioRef} />
         <div className="player-controls idle-controls" aria-hidden="true">
           <span className="player-mode-button"><PlayerShuffleIcon /></span>
           <span className="mini-transport-button"><SkipBack /></span>
@@ -879,24 +1054,18 @@ function Player({
           <span className="player-utility-button"><PlayerVolumeIcon level={3} /></span>
         </div>
       </footer>
+      </>
     );
   }
 
   const playbackDuration = Math.max(duration || current.duration || 0, 1);
-  const playbackPosition = Math.min(position, playbackDuration);
+  const playbackPosition = seekInput.value;
   const progressPercent = (playbackPosition / playbackDuration) * 100;
 
   return (
     <>
+    {audioElement}
     <footer className="player">
-      <audio
-        ref={audioRef}
-        onEnded={onEnded}
-        onLoadedMetadata={handleLoadedMetadata}
-        onPause={handlePause}
-        onPlay={() => onPlayingChange(true)}
-        onTimeUpdate={handleTimeUpdate}
-      />
       <div className="player-controls">
         <button
           className={`player-mode-button ${shuffleEnabled ? "active" : ""}`}
@@ -937,16 +1106,16 @@ function Player({
           </span>
         </button>
         <div className="now-playing">
-          <strong>{current.title}</strong>
+          <strong title={current.title}>{current.title}</strong>
           <span className="now-links">
-            <button onClick={() => onOpenArtist(current)}>{displayArtist}</button>
+            <button title={displayArtist} onClick={() => onOpenArtist(current)}>{displayArtist}</button>
             <span aria-hidden="true"> - </span>
-            <button onClick={() => onOpenAlbum(current)}>{displayAlbum}</button>
+            <button title={displayAlbum} onClick={() => onOpenAlbum(current)}>{displayAlbum}</button>
             <span aria-hidden="true"> · 队列 {queue.length} 首</span>
           </span>
         </div>
-        <span className="mini-progress-time current-time">{formatDuration(position)}</span>
-        <span className="mini-progress-time remaining-time">{formatRemaining(position, duration || current.duration)}</span>
+        <span className="mini-progress-time current-time">{formatDuration(playbackPosition)}</span>
+        <span className="mini-progress-time remaining-time">{formatRemaining(playbackPosition, duration || current.duration)}</span>
         <input
           className="mini-progress"
           style={{ "--progress": `${progressPercent}%` } as CSSProperties}
@@ -956,27 +1125,23 @@ function Player({
           max={playbackDuration}
           step="1"
           value={playbackPosition}
-          onChange={(event) => setPosition(Number(event.currentTarget.value))}
+          {...seekInput.inputProps}
           onMouseEnter={() => setProgressHover(true)}
           onMouseLeave={() => setProgressHover(false)}
           onPointerEnter={() => setProgressHover(true)}
           onPointerLeave={() => setProgressHover(false)}
-          onPointerDown={() => {
+          onPointerDown={(event) => {
             setProgressHover(true);
-            setSeeking(true);
+            seekInput.inputProps.onPointerDown?.(event);
           }}
-          onPointerUp={(event) => {
-            setSeeking(false);
-            seekTo(Number(event.currentTarget.value));
-          }}
-          onFocus={() => setProgressHover(true)}
-          onBlur={() => setProgressHover(false)}
-          onKeyUp={(event) => seekTo(Number(event.currentTarget.value))}
+          onFocus={(event) => { setProgressHover(true); seekInput.inputProps.onFocus?.(event); }}
+          onBlur={(event) => { setProgressHover(false); seekInput.inputProps.onBlur?.(event); }}
         />
       </div>
 
       <div className="player-actions">
         <button
+          ref={queueToggleRef}
           className={`player-utility-button queue-toggle-button ${queueOpen ? "active" : ""}`}
           type="button"
           aria-expanded={queueOpen}
@@ -1037,13 +1202,14 @@ function Player({
           >
             清除
           </button>
+          <button className="icon-button queue-close-button" type="button" aria-label="关闭待播清单" onClick={() => { setQueueOpen(false); queueToggleRef.current?.focus(); }}><X /></button>
           <span className="queue-repeat-indicator" aria-label={repeatMode === "all" ? "列表循环" : "队列"}>
             {repeatMode === "all" ? "∞" : ""}
           </span>
         </header>
         {upcomingQueue.length > 0 ? (
           <div className="queue-list">
-            {upcomingQueue.map((track) => (
+            {queuePage.items.map((track) => (
               <button
                 className="queue-item"
                 type="button"
@@ -1055,12 +1221,13 @@ function Player({
               >
                 <Cover trackId={track.id} title={track.title} />
                 <span className="queue-item-text">
-                  <strong>{track.title}</strong>
+                  <strong title={track.title}>{track.title}</strong>
                   <span>{track.artist ?? track.albumArtist ?? "未知艺人"}</span>
                 </span>
                 <span className="queue-duration">{formatDuration(track.duration)}</span>
               </button>
             ))}
+            <Pagination page={queuePage} loading={false} onChange={setQueuePageOffset} label="待播清单" />
           </div>
         ) : (
           <div className="queue-empty">没有待播歌曲</div>
@@ -1110,7 +1277,7 @@ function FullscreenPlayer({
   volume: number;
   muted: boolean;
   playlists: Playlist[];
-  onAddToPlaylist: (playlistId: string, track: Track) => void;
+  onAddToPlaylist: (playlistId: string, track: Track) => Promise<void>;
   onClose: () => void;
   onCreatePlaylistForTrack: (name: string, track: Track) => Promise<void>;
   onFavorite: (track: Track) => void;
@@ -1133,9 +1300,15 @@ function FullscreenPlayer({
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
   const [newPlaylistNameInline, setNewPlaylistNameInline] = useState("");
   const [newPlaylistError, setNewPlaylistError] = useState("");
-  const [seeking, setSeeking] = useState(false);
-  const [draftPosition, setDraftPosition] = useState(position);
+  const [playlistMenuBusy, setPlaylistMenuBusy] = useState(false);
+  const playlistMenuPending = useRef(false);
+  const menuTrackId = useRef(current?.id);
+  menuTrackId.current = current?.id;
+  const duration = Math.max(current?.duration ?? 0, 1);
+  const seekInput = useSeekInput({ position, duration, trackId: current?.id, onSeek });
   const [mobileQueueOpen, setMobileQueueOpen] = useState(false);
+  const [queuePageOffset, setQueuePageOffset] = useState(0);
+  useEffect(() => setQueuePageOffset(0), [current?.id, queue.length]);
   const [closing, setClosing] = useState(false);
   const closeTimeoutRef = useRef<number | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -1146,15 +1319,9 @@ function FullscreenPlayer({
     setCreatingPlaylist(false);
     setNewPlaylistNameInline("");
     setNewPlaylistError("");
-    setSeeking(false);
-    setDraftPosition(0);
     setMobileQueueOpen(false);
     setLyricsOpen(false);
   }, [current?.id]);
-
-  useEffect(() => {
-    if (!seeking) setDraftPosition(position);
-  }, [position, seeking]);
 
   useEffect(() => {
     return () => {
@@ -1190,13 +1357,13 @@ function FullscreenPlayer({
 
   if (!current) return null;
 
-  const duration = Math.max(current.duration ?? 0, 1);
-  const displayPosition = Math.min(seeking ? draftPosition : position, duration);
+  const displayPosition = seekInput.value;
   const displayArtist = current.artist ?? current.albumArtist ?? "未知艺人";
   const displayAlbum = current.album ?? "未知专辑";
   const background = artworkUrl(current.id);
   const currentQueueIndex = queue.findIndex((track) => track.id === current.id);
   const upcomingQueue = currentQueueIndex >= 0 ? queue.slice(currentQueueIndex + 1) : queue.filter((track) => track.id !== current.id);
+  const queuePage = { items: upcomingQueue.slice(queuePageOffset, queuePageOffset + 50), total: upcomingQueue.length, offset: queuePageOffset, limit: 50 };
   const fullscreenClassName = [
     "fullscreen-player",
     playing ? "is-playing" : "is-paused",
@@ -1219,25 +1386,30 @@ function FullscreenPlayer({
     lyricsStatus === "loading" ? "lyrics-loading-state" : ""
   ].filter(Boolean).join(" ");
 
-  function commitSeek(value: number) {
-    const next = Math.max(0, Math.min(value, duration));
-    setDraftPosition(next);
-    setSeeking(false);
-    onSeek(next);
+  async function runPlaylistMenuAction(track: Track, operation: () => Promise<void>) {
+    if (playlistMenuPending.current) return;
+    playlistMenuPending.current = true;
+    setPlaylistMenuBusy(true);
+    setNewPlaylistError("");
+    try {
+      await operation();
+      if (menuTrackId.current !== track.id) return;
+      setNewPlaylistNameInline("");
+      setCreatingPlaylist(false);
+      setPlaylistMenuOpen(false);
+      setMenuOpen(false);
+    } catch (error) {
+      if (menuTrackId.current === track.id) setNewPlaylistError(error instanceof Error ? error.message : "操作失败，请重试。");
+    } finally {
+      playlistMenuPending.current = false;
+      setPlaylistMenuBusy(false);
+    }
   }
 
   async function createPlaylistFromMenu(track: Track) {
     const name = newPlaylistNameInline.trim();
-    if (!name) {
-      setNewPlaylistError("请输入歌单名称");
-      return;
-    }
-    await onCreatePlaylistForTrack(name, track);
-    setNewPlaylistNameInline("");
-    setNewPlaylistError("");
-    setCreatingPlaylist(false);
-    setPlaylistMenuOpen(false);
-    setMenuOpen(false);
+    if (!name) { setNewPlaylistError("请输入歌单名称"); return; }
+    await runPlaylistMenuAction(track, () => onCreatePlaylistForTrack(name, track));
   }
 
   function loadLyrics(track: Track) {
@@ -1314,11 +1486,11 @@ function FullscreenPlayer({
           <Cover trackId={current.id} title={current.title} large />
           <div className="fullscreen-title-row">
             <div>
-              <h2>{current.title}</h2>
+              <h2 title={current.title}>{current.title}</h2>
               <p>
-                <button onClick={() => onOpenArtist(current)}>{displayArtist}</button>
+                <button title={displayArtist} onClick={() => onOpenArtist(current)}>{displayArtist}</button>
                 <span> - </span>
-                <button onClick={() => onOpenAlbum(current)}>{displayAlbum}</button>
+                <button title={displayAlbum} onClick={() => onOpenAlbum(current)}>{displayAlbum}</button>
               </p>
             </div>
             <div className="fullscreen-actions">
@@ -1338,7 +1510,7 @@ function FullscreenPlayer({
                       </button>
                       {playlistMenuOpen ? (
                         <div className="fullscreen-submenu">
-                          <button className="submenu-create-trigger" onClick={() => setCreatingPlaylist((value) => !value)}>
+                          <button disabled={playlistMenuBusy} className="submenu-create-trigger" onClick={() => setCreatingPlaylist((value) => !value)}>
                             <span>新歌单</span>
                             <Plus />
                           </button>
@@ -1346,6 +1518,8 @@ function FullscreenPlayer({
                             <div className="submenu-create">
                               <input
                                 value={newPlaylistNameInline}
+                                disabled={playlistMenuBusy}
+                                maxLength={200}
                                 onChange={(event) => {
                                   setNewPlaylistNameInline(event.currentTarget.value);
                                   setNewPlaylistError("");
@@ -1356,18 +1530,14 @@ function FullscreenPlayer({
                                 placeholder="歌单名称"
                                 autoFocus
                               />
-                              <button onClick={() => void createPlaylistFromMenu(current)}>创建</button>
-                              {newPlaylistError ? <small>{newPlaylistError}</small> : null}
+                              <button disabled={playlistMenuBusy} onClick={() => void createPlaylistFromMenu(current)}>{playlistMenuBusy ? "处理中…" : "创建并添加"}</button>
                             </div>
                           ) : null}
                           {playlists.length > 0 ? playlists.map((playlist) => (
                             <button
                               key={playlist.id}
-                              onClick={() => {
-                                onAddToPlaylist(playlist.id, current);
-                                setPlaylistMenuOpen(false);
-                                setMenuOpen(false);
-                              }}
+                              disabled={playlistMenuBusy}
+                              onClick={() => void runPlaylistMenuAction(current, () => onAddToPlaylist(playlist.id, current))}
                             >
                               <span>{playlist.name}</span>
                             </button>
@@ -1379,6 +1549,8 @@ function FullscreenPlayer({
                         </div>
                       ) : null}
                     </div>
+                    {playlistMenuBusy ? <p className="playlist-menu-status" role="status">正在更新歌单…</p> : null}
+                    {newPlaylistError ? <p className="playlist-menu-error" role="alert">{newPlaylistError} 请再次点击操作按钮重试。</p> : null}
                     <button className={current.favorite ? "heart-on" : ""} onClick={() => { onFavorite(current); setPlaylistMenuOpen(false); setMenuOpen(false); }}>
                       <span>{current.favorite ? "取消收藏" : "个人收藏"}</span>
                       <Heart />
@@ -1405,21 +1577,7 @@ function FullscreenPlayer({
               max={duration}
               step="1"
               value={displayPosition}
-              onChange={(event) => {
-                setSeeking(true);
-                setDraftPosition(Number(event.currentTarget.value));
-              }}
-              onPointerDown={(event) => {
-                setSeeking(true);
-                setDraftPosition(Number(event.currentTarget.value));
-              }}
-              onPointerUp={(event) => commitSeek(Number(event.currentTarget.value))}
-              onPointerCancel={(event) => commitSeek(Number(event.currentTarget.value))}
-              onKeyDown={() => setSeeking(true)}
-              onKeyUp={(event) => commitSeek(Number(event.currentTarget.value))}
-              onBlur={(event) => {
-                if (seeking) commitSeek(Number(event.currentTarget.value));
-              }}
+              {...seekInput.inputProps}
             />
             <div>
               <span>{formatDuration(displayPosition)}</span>
@@ -1487,7 +1645,7 @@ function FullscreenPlayer({
             <div className="mobile-current-track">
               <Cover trackId={current.id} title={current.title} />
               <div>
-                <strong>{current.title}</strong>
+                <strong title={current.title}>{current.title}</strong>
                 <span>{displayArtist} - {displayAlbum}</span>
               </div>
             </div>
@@ -1502,7 +1660,7 @@ function FullscreenPlayer({
             <div className="mobile-current-track">
               <Cover trackId={current.id} title={current.title} />
               <div>
-                <strong>{current.title}</strong>
+                <strong title={current.title}>{current.title}</strong>
                 <span>{displayArtist} - {displayAlbum}</span>
               </div>
             </div>
@@ -1515,13 +1673,13 @@ function FullscreenPlayer({
               </span>
             </div>
             <div className="mobile-queue-list">
-              {upcomingQueue.length > 0 ? upcomingQueue.map((track) => (
+              {upcomingQueue.length > 0 ? queuePage.items.map((track) => (
                 <button key={track.id} type="button" className="mobile-queue-item" onClick={() => {
                   onSelectQueueTrack(track);
                 }}>
                   <Cover trackId={track.id} title={track.title} />
                   <span>
-                    <strong>{track.title}</strong>
+                    <strong title={track.title}>{track.title}</strong>
                     <em>{track.artist ?? track.albumArtist ?? "未知艺人"}</em>
                   </span>
                   <time>{formatDuration(track.duration)}</time>
@@ -1529,6 +1687,7 @@ function FullscreenPlayer({
               )) : (
                 <p className="mobile-queue-empty">没有待播歌曲</p>
               )}
+              {upcomingQueue.length > 0 ? <Pagination page={queuePage} loading={false} onChange={setQueuePageOffset} label="待播清单" /> : null}
             </div>
           </div>
         </div>
@@ -1622,6 +1781,35 @@ function EmptyState({ onScan }: { onScan: () => void }) {
   );
 }
 
+type QueuePreparation = {
+  state: "loading" | "ready" | "error";
+  label: string;
+  filter: { q?: string; favorite?: boolean };
+  loaded: number;
+  total: number;
+  tracks?: Track[];
+  message?: string;
+};
+
+function Pagination({ page, loading, onChange, label }: { page: Page<unknown>; loading: boolean; onChange: (offset: number) => void; label: string }) {
+  const count = Math.max(1, Math.ceil(page.total / page.limit));
+  const number = Math.min(count, Math.floor(page.offset / page.limit) + 1);
+  return <nav className="collection-pagination" aria-label={`${label}分页`}>
+    <span>{loading ? "正在加载…" : `共 ${page.total} 项 · 第 ${number} / ${count} 页`}</span>
+    <div>
+      <button type="button" disabled={loading || page.offset === 0} onClick={() => onChange(page.offset - page.limit)}>上一页</button>
+      <button type="button" disabled={loading || page.offset + page.limit >= page.total} onClick={() => onChange(page.offset + page.limit)}>下一页</button>
+    </div>
+  </nav>;
+}
+
+function PageFeedback({ loading, error, empty, onRetry }: { loading: boolean; error: string; empty: boolean; onRetry: () => void }) {
+  if (loading) return <p className="request-feedback" role="status"><Loader2 className="spin" /> 正在加载…</p>;
+  if (error) return <div className="request-feedback error-text" role="alert"><span>{error}</span><button type="button" onClick={onRetry}>重试</button></div>;
+  if (empty) return <p className="collection-empty">暂无结果</p>;
+  return null;
+}
+
 export function App() {
   const isMobileShell = useMemo(() => isMobileBrowserUA(), []);
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
@@ -1629,22 +1817,34 @@ export function App() {
   const [scan, setScan] = useState<ScanJob | null>(null);
   const [scanErrors, setScanErrors] = useState<ScanError[]>([]);
   const [metadata, setMetadata] = useState<MetadataStatus | null>(null);
-  const [tracks, setTracks] = useState<Track[]>([]);
-  const [albums, setAlbums] = useState<Album[]>([]);
-  const [artists, setArtists] = useState<Artist[]>([]);
+  const [recentAlbums, setRecentAlbums] = useState<Album[]>([]);
+  const [libraryRevision, setLibraryRevision] = useState(0);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [view, setView] = useState<View>(() => viewFromHash());
   const [backgroundView, setBackgroundView] = useState<View>(() => {
     const initialView = viewFromHash();
     return initialView.name === "playing" ? homeView() : initialView;
   });
-  const [search, setSearch] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchResponse | null>(null);
+  const [search, setSearch] = useState(() => { const initial = viewFromHash(); return initial.name === "search" ? initial.q : ""; });
   const [detailTracks, setDetailTracks] = useState<Track[]>([]);
   const [detailTitle, setDetailTitle] = useState("");
+  const [detailAlbum, setDetailAlbum] = useState<Album | null>(null);
+  const [searchCategory, setSearchCategory] = useState<{ query: string; name: "tracks" | "albums" | "artists" }>({ query: "", name: "tracks" });
+  const [actionError, setActionError] = useState("");
+  const [queuePreparation, setQueuePreparation] = useState<QueuePreparation | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
+  const [detailRetry, setDetailRetry] = useState(0);
+  const [libraryError, setLibraryError] = useState("");
+  const [scanError, setScanError] = useState("");
+  const [scanPollError, setScanPollError] = useState("");
+  const [scanStarting, setScanStarting] = useState(false);
+  const [scanOptionsOpen, setScanOptionsOpen] = useState(false);
+  const [confirmScanPrune, setConfirmScanPrune] = useState(false);
   const [current, setCurrent] = useState<Track | null>(null);
   const [queue, setQueue] = useState<Track[]>([]);
   const [playing, setPlaying] = useState(false);
+  const [playbackStatus, setPlaybackStatus] = useState<PlaybackStatus>({ state: "idle" });
   const [shuffleEnabled, setShuffleEnabled] = useState(false);
   const [repeatMode, setRepeatMode] = useState<RepeatMode>("off");
   const [playerPosition, setPlayerPosition] = useState(0);
@@ -1654,12 +1854,50 @@ export function App() {
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [playlistError, setPlaylistError] = useState("");
   const [playlistMessage, setPlaylistMessage] = useState("");
+  const [playlistCreating, setPlaylistCreating] = useState(false);
+  const playlistCreatePending = useRef(false);
+  const [playlistRefresh, setPlaylistRefresh] = useState(0);
+  const [busyPlaylistIds, setBusyPlaylistIds] = useState<Set<string>>(() => new Set());
+  const playlistMutationLock = useRef(createPlaylistMutationLock());
+  const playlistTrackCreator = useRef<ReturnType<typeof createTrackPlaylistAdder> | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const viewRef = useRef<View>(view);
   const historyReady = useRef(false);
+  const lastStoredPlayer = useRef<{ current: Track; queue: Track[]; playing: boolean; savedAt: number } | null>(null);
   const lastAudibleVolume = useRef(volume > 0 ? volume : 0.8);
+  const libraryRequests = useRef(createLatestRequest());
+  const queueRequests = useRef(createLatestRequest());
+  const albumNavigationRequests = useRef(createLatestRequest());
+  const favoritePending = useRef(new Set<string>());
+  const detailRequests = useRef(createLatestRequest());
+  const scanSnapshot = useRef<ScanJob | null | undefined>(undefined);
+  const scanSubmissionPending = useRef(false);
+  const scanSubmissions = useRef(createLatestRequest());
+  const scanPruneConfirmRef = useRef<HTMLDivElement>(null);
+  const detailView = view.name === "playing" ? backgroundView : view;
+  const detailViewKey = JSON.stringify(detailView);
+  const searchQuery = detailView.name === "search" ? detailView.q.trim() : "";
+  const trackPage = useLibraryPage(Boolean(authenticated && detailView.name === "home"), "tracks", libraryRevision, 60,
+    (offset, signal) => api.trackPage({ offset, limit: 60 }, signal));
+  const albumPage = useLibraryPage(Boolean(authenticated && detailView.name === "albums"), "albums", libraryRevision, 24,
+    (offset, signal) => api.albumPage({ offset, limit: 24 }, signal));
+  const artistPage = useLibraryPage(Boolean(authenticated && detailView.name === "artists"), "artists", libraryRevision, 30,
+    (offset, signal) => api.artistPage({ offset, limit: 30 }, signal));
+  const favoritePage = useLibraryPage(Boolean(authenticated && detailView.name === "favorites"), "favorites", libraryRevision, 60,
+    (offset, signal) => api.trackPage({ favorite: true, offset, limit: 60 }, signal));
+  const searchTracks = useLibraryPage(Boolean(authenticated && searchQuery), `tracks:${searchQuery}`, libraryRevision, 25,
+    (offset, signal) => api.trackPage({ q: searchQuery, offset, limit: 25 }, signal), 250);
+  const searchAlbums = useLibraryPage(Boolean(authenticated && searchQuery), `albums:${searchQuery}`, libraryRevision, 12,
+    (offset, signal) => api.albumPage({ q: searchQuery, offset, limit: 12 }, signal), 250);
+  const searchArtists = useLibraryPage(Boolean(authenticated && searchQuery), `artists:${searchQuery}`, libraryRevision, 12,
+    (offset, signal) => api.artistPage({ q: searchQuery, offset, limit: 12 }, signal), 250);
+  const tracks = trackPage.page.items;
+  const albums = albumPage.page.items;
+  const artists = artistPage.page.items;
+
 
   function navigateView(nextView: View) {
+    albumNavigationRequests.current.cancel();
     const previousView = viewRef.current;
     viewRef.current = nextView;
     if (nextView.name === "playing") {
@@ -1668,11 +1906,24 @@ export function App() {
       setBackgroundView(nextView);
     }
     setView(nextView);
-    setSearch("");
-    setSearchResults(null);
+    setSearch(nextView.name === "search" ? nextView.q : nextView.name === "playing" ? search : "");
     if (!sameView(previousView, nextView)) {
       window.history.pushState(viewHistoryState(nextView, "view"), "", viewUrl(nextView));
     }
+  }
+
+  function updateSearch(value: string) {
+    const nextView: View = value ? { name: "search", q: value } : homeView();
+    if (viewRef.current.name !== "search") {
+      navigateView(nextView);
+      return;
+    }
+    albumNavigationRequests.current.cancel();
+    viewRef.current = nextView;
+    setView(nextView);
+    setBackgroundView(nextView);
+    setSearch(value);
+    window.history.replaceState(viewHistoryState(nextView, "view"), "", viewUrl(nextView));
   }
 
   function navigateAndClose(nextView: View) {
@@ -1680,32 +1931,50 @@ export function App() {
     navigateView(nextView);
   }
 
+  function recordScanStatus(next: ScanJob | null, submitted = false): boolean {
+    const previous = scanSnapshot.current;
+    const finished = scanJustFinished(submitted && previous === undefined ? null : previous, next);
+    scanSnapshot.current = next;
+    setScan(next);
+    if (finished) {
+      setLibraryRevision((value) => value + 1);
+      cancelQueuePreparation();
+    }
+    return finished;
+  }
+
   async function loadAll() {
-    const [nextSummary, nextScan, nextErrors, nextMetadata, nextTracks, nextAlbums, nextArtists, nextPlaylists] = await Promise.all([
-      api.summary(),
-      api.scanStatus(),
-      api.scanErrors().catch(() => []),
-      api.metadataStatus().catch(() => null),
-      api.tracks("?limit=60"),
-      api.albums(),
-      api.artists(),
-      api.playlists()
-    ]);
-    setSummary(nextSummary);
-    setScan(nextScan);
-    setScanErrors(nextErrors);
-    setMetadata(nextMetadata);
-    setTracks(nextTracks);
-    setAlbums(nextAlbums);
-    setArtists(nextArtists);
-    setPlaylists(nextPlaylists);
+    const request = libraryRequests.current.begin();
+    const scanAtStart = scanSnapshot.current;
+    const { signal } = request;
+    try {
+      const [nextSummary, nextScan, nextErrors, nextMetadata, nextAlbums, nextPlaylists] = await Promise.all([
+        api.summary(signal),
+        api.scanStatus(signal),
+        api.scanErrors(signal),
+        api.metadataStatus(signal),
+        api.albumPage({ limit: 12 }, signal),
+        api.playlists(signal)
+      ]);
+      if (!request.isCurrent()) return;
+      setSummary(nextSummary);
+      // A newer submission or poll may have completed while these reads ran.
+      if (!scanSubmissionPending.current && scanSnapshot.current === scanAtStart) recordScanStatus(nextScan);
+      setScanErrors(nextErrors);
+      setMetadata(nextMetadata);
+      setRecentAlbums(nextAlbums.items);
+      setPlaylists(nextPlaylists);
+      setLibraryError("");
+    } catch (error) {
+      if (request.isCurrent()) setLibraryError(error instanceof Error ? `曲库加载失败：${error.message}` : "曲库加载失败，请重试。");
+    }
   }
 
   useEffect(() => {
-    api.me()
-      .then(async () => {
-        setAuthenticated(true);
-        await loadAll();
+    const controller = new AbortController();
+    api.me(controller.signal)
+      .then(() => {
+        if (controller.signal.aborted) return;
         const stored = readStoredPlayer();
         if (stored) {
           setCurrent(stored.current);
@@ -1713,9 +1982,27 @@ export function App() {
           setPlaying(stored.playing);
           setPlayerPosition(stored.position ?? 0);
         }
+        setAuthenticated(true);
       })
-      .catch(() => setAuthenticated(false));
+      .catch(() => { if (!controller.signal.aborted) setAuthenticated(false); });
+    return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    if (authenticated) {
+      setScanStarting(false);
+      void loadAll();
+    }
+    return () => {
+      libraryRequests.current.cancel();
+      scanSubmissions.current.cancel();
+      scanSubmissionPending.current = false;
+    };
+  }, [authenticated]);
+
+  useEffect(() => {
+    if (confirmScanPrune) scanPruneConfirmRef.current?.focus();
+  }, [confirmScanPrune]);
 
   useEffect(() => {
     document.body.classList.toggle("mobile-ua", isMobileShell);
@@ -1748,13 +2035,13 @@ export function App() {
     }
 
     function handlePopState(event: PopStateEvent) {
+      albumNavigationRequests.current.cancel();
       const state = event.state as ViewHistoryState | null;
       if (state?.[VIEW_HISTORY_KEY] === "view" && isView(state.view)) {
         viewRef.current = state.view;
         if (state.view.name !== "playing") setBackgroundView(state.view);
         setView(state.view);
-        setSearch("");
-        setSearchResults(null);
+        setSearch(state.view.name === "search" ? state.view.q : "");
         return;
       }
 
@@ -1762,18 +2049,17 @@ export function App() {
       setBackgroundView(baseView);
       setView(baseView);
       setSearch("");
-      setSearchResults(null);
       window.history.pushState(viewHistoryState(baseView, "view"), "", viewUrl(baseView));
     }
 
     function handleHashChange() {
+      albumNavigationRequests.current.cancel();
       const nextView = viewFromHash();
       if (sameView(viewRef.current, nextView)) return;
       viewRef.current = nextView;
       if (nextView.name !== "playing") setBackgroundView(nextView);
       setView(nextView);
-      setSearch("");
-      setSearchResults(null);
+      setSearch(nextView.name === "search" ? nextView.q : "");
     }
 
     window.addEventListener("popstate", handlePopState);
@@ -1786,6 +2072,10 @@ export function App() {
 
   useEffect(() => {
     if (!current) return;
+    const previous = lastStoredPlayer.current;
+    const now = Date.now();
+    if (previous && previous.current === current && previous.queue === queue && previous.playing === playing && now - previous.savedAt < 1000) return;
+    lastStoredPlayer.current = { current, queue, playing, savedAt: now };
     writeStoredPlayer({
       current,
       queue: queue.length > 0 ? queue : [current],
@@ -1802,63 +2092,122 @@ export function App() {
 
   useEffect(() => {
     if (!authenticated) return;
-    const timer = window.setInterval(async () => {
-      const nextScan = await api.scanStatus().catch(() => null);
-      setScan(nextScan);
-      if (nextScan?.status === "completed") void loadAll();
-    }, 3000);
-    return () => window.clearInterval(timer);
+    const controller = new AbortController();
+    let timer: number;
+    async function poll() {
+      const scanAtStart = scanSnapshot.current;
+      try {
+        const nextScan = await api.scanStatus(controller.signal);
+        if (controller.signal.aborted) return;
+        setScanPollError("");
+        if (!scanSubmissionPending.current && scanSnapshot.current === scanAtStart) {
+          if (recordScanStatus(nextScan)) await loadAll();
+        }
+      } catch {
+        if (!controller.signal.aborted) setScanPollError("暂时无法获取扫描状态，正在重试连接。");
+      } finally {
+        if (!controller.signal.aborted) timer = window.setTimeout(() => void poll(), 3000);
+      }
+    }
+    timer = window.setTimeout(() => void poll(), 3000);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
   }, [authenticated]);
 
   useEffect(() => {
-    if (!authenticated) return;
-    const q = search.trim();
-    if (!q) {
-      setSearchResults(null);
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      void api.search(q).then(setSearchResults);
-    }, 250);
-    return () => window.clearTimeout(timer);
-  }, [search, authenticated]);
-
-  useEffect(() => {
+    const request = detailRequests.current.begin();
+    setDetailTracks([]);
+    setDetailTitle("");
+    setDetailAlbum(null);
+    setDetailError("");
+    const isDetail = ["album", "artist"].includes(detailView.name);
+    setDetailLoading(Boolean(authenticated && isDetail));
     async function loadDetail() {
-      if (view.name === "album") {
-        const detail = await api.album(view.key);
-        setDetailTitle(detail.album.title);
-        setDetailTracks(detail.tracks);
-      } else if (view.name === "artist") {
-        const detail = await api.artist(view.nameValue);
-        setDetailTitle(detail.artist.name);
-        setDetailTracks(detail.tracks);
-      } else if (view.name === "playlist") {
-        const detail = await api.playlist(view.id);
-        setDetailTitle(detail.playlist.name);
-        setDetailTracks(detail.tracks);
-      } else if (view.name === "favorites") {
-        const favoriteTracks = await api.tracks("?favorite=true&limit=200");
-        setDetailTitle("收藏");
-        setDetailTracks(favoriteTracks);
+      try {
+        let title = "";
+        let nextTracks: Track[] = [];
+        let nextAlbum: Album | null = null;
+        if (detailView.name === "album") {
+          const detail = await api.album(detailView.key, request.signal);
+          title = detail.album.title;
+          nextAlbum = detail.album;
+          nextTracks = detail.tracks;
+        } else if (detailView.name === "artist") {
+          const detail = await api.artist(detailView.nameValue, request.signal);
+          title = detail.artist.name;
+          nextTracks = detail.tracks;
+        }
+        if (!request.isCurrent()) return;
+        setDetailTitle(title);
+        setDetailAlbum(nextAlbum);
+        setDetailTracks(nextTracks);
+      } catch (error) {
+        if (request.isCurrent()) setDetailError(error instanceof Error ? `加载失败：${error.message}` : "加载失败，请重试。");
+      } finally {
+        if (request.isCurrent()) setDetailLoading(false);
       }
     }
-    if (authenticated) void loadDetail();
-  }, [view, authenticated]);
+    if (authenticated && isDetail) void loadDetail();
+    return () => detailRequests.current.cancel();
+  }, [detailViewKey, authenticated, detailRetry, libraryRevision]);
 
-  const visibleTracks = useMemo(() => {
-    if (searchResults) return searchResults.tracks;
-    if (["album", "artist", "playlist", "favorites"].includes(view.name)) return detailTracks;
-    return tracks;
-  }, [searchResults, view, detailTracks, tracks]);
+  const visibleTracks = searchQuery ? searchTracks.page.items
+    : detailView.name === "favorites" ? favoritePage.page.items
+    : ["album", "artist"].includes(detailView.name) ? detailTracks : tracks;
 
-  async function startScan() {
-    const nextScan = await api.scan();
-    setScan(nextScan);
-    setScanErrors([]);
+  useEffect(() => () => {
+    queueRequests.current.cancel();
+    albumNavigationRequests.current.cancel();
+  }, [authenticated]);
+
+  function cancelQueuePreparation() {
+    queueRequests.current.cancel();
+    setQueuePreparation(null);
+  }
+
+  async function prepareFullQueue(filter: { q?: string; favorite?: boolean }, label: string) {
+    const request = queueRequests.current.begin();
+    setQueuePreparation({ state: "loading", filter, label, loaded: 0, total: 0 });
+    try {
+      const allTracks = await api.allTracks(filter, request.signal, (loaded, total) => {
+        if (request.isCurrent()) setQueuePreparation({ state: "loading", filter, label, loaded, total });
+      });
+      if (!request.isCurrent()) return;
+      if (!allTracks.length) throw new Error("没有可播放的歌曲，请刷新列表后重试。");
+      setQueuePreparation({ state: "ready", filter, label, tracks: allTracks, loaded: allTracks.length, total: allTracks.length });
+    } catch (error) {
+      if (request.isCurrent()) setQueuePreparation({ state: "error", filter, label, loaded: 0, total: 0, message: error instanceof Error ? error.message : "队列加载失败，请重试。" });
+    }
+  }
+
+  async function startScan(options?: ScanOptions) {
+    if (scanSubmissionPending.current || scanSnapshot.current?.status === "running") return;
+    scanSubmissionPending.current = true;
+    const request = scanSubmissions.current.begin();
+    setScanStarting(true);
+    setScanError("");
+    try {
+      const nextScan = await api.scan(options, request.signal);
+      if (!request.isCurrent()) return;
+      const finished = recordScanStatus(nextScan, true);
+      setScanErrors([]);
+      setScanError("");
+      setConfirmScanPrune(false);
+      if (finished) await loadAll();
+    } catch (error) {
+      if (request.isCurrent()) setScanError(error instanceof Error ? `启动扫描失败：${error.message}` : "启动扫描失败，请重试。");
+    } finally {
+      if (request.isCurrent()) {
+        scanSubmissionPending.current = false;
+        setScanStarting(false);
+      }
+    }
   }
 
   function playTrack(track: Track, source = visibleTracks) {
+    cancelQueuePreparation();
     window.__nasMusicPlayTrack?.(track.id);
     setCurrent(track);
     setQueue(source);
@@ -1867,6 +2216,7 @@ export function App() {
   }
 
   function togglePlayback() {
+    cancelQueuePreparation();
     if (playing) {
       setPlaying(false);
       return;
@@ -1916,6 +2266,7 @@ export function App() {
   }
 
   function playNext(auto = false) {
+    if (!auto) cancelQueuePreparation();
     if (!current || queue.length === 0) return setPlaying(false);
     if (repeatMode === "one") {
       requestSeek(0);
@@ -1954,6 +2305,7 @@ export function App() {
   }
 
   function playPrevious() {
+    cancelQueuePreparation();
     if (!current || queue.length === 0) return;
     const index = queue.findIndex((track) => track.id === current.id);
     const previous = queue[index - 1];
@@ -1966,18 +2318,17 @@ export function App() {
     }
   }
 
-  function albumForTrack(track: Track): Album | undefined {
-    const albumTitle = track.album ?? "未知专辑";
-    const albumArtist = track.albumArtist ?? track.artist ?? "未知艺人";
-    return albums.find((album) =>
-      album.title === albumTitle && ((album.artist ?? "未知艺人") === albumArtist || !track.albumArtist)
-    ) ?? albums.find((album) => album.title === albumTitle);
-  }
-
-  function openAlbumForTrack(track: Track) {
-    const album = albumForTrack(track);
-    if (album) navigateView({ name: "album", key: album.key });
-    else navigateView({ name: "albums" });
+  async function openAlbumForTrack(track: Track) {
+    const request = albumNavigationRequests.current.begin();
+    setActionError("");
+    try {
+      const key = track.albumKey ?? (await api.track(track.id, request.signal)).albumKey;
+      if (!request.isCurrent()) return;
+      if (!key) throw new Error("无法找到这首歌曲的专辑，请刷新曲库后重试。");
+      navigateView({ name: "album", key });
+    } catch (error) {
+      if (request.isCurrent()) setActionError(error instanceof Error ? error.message : "打开专辑失败，请重试。");
+    }
   }
 
   function openArtistForTrack(track: Track) {
@@ -1985,49 +2336,87 @@ export function App() {
     if (artist) navigateView({ name: "artist", nameValue: artist });
   }
 
-  async function addTrackToPlaylist(playlistId: string, track: Track) {
-    const detail = await api.addToPlaylist(playlistId, track.id);
-    setPlaylists(await api.playlists());
-    if (view.name === "playlist" && view.id === playlistId) {
-      setDetailTitle(detail.playlist.name);
-      setDetailTracks(detail.tracks);
-    }
+  function playlistChanged(playlist: Playlist, refreshDetail = true) {
+    setPlaylists((items) => items.some((item) => item.id === playlist.id) ? items.map((item) => item.id === playlist.id ? playlist : item) : [playlist, ...items]);
+    if (refreshDetail) setPlaylistRefresh((value) => value + 1);
+    void loadAll();
+  }
+
+  async function mutatePlaylist<T,>(id: string, operation: () => Promise<T>): Promise<T> {
+    return playlistMutationLock.current(id, async () => {
+      setBusyPlaylistIds((items) => new Set(items).add(id));
+      try { return await operation(); }
+      finally { setBusyPlaylistIds((items) => { const next = new Set(items); next.delete(id); return next; }); }
+    });
+  }
+
+  async function addPlaylistTrack(playlistId: string, trackId: string) {
+    const detail = await mutatePlaylist(playlistId, () => api.addToPlaylist(playlistId, trackId));
+    playlistChanged(detail.playlist);
     setPlaylistError("");
     setPlaylistMessage(`已添加到「${detail.playlist.name}」`);
   }
 
-  async function createPlaylistForTrack(name: string, track: Track) {
-    const playlist = await api.createPlaylist(name);
-    await addTrackToPlaylist(playlist.id, track);
-    setPlaylistMessage(`已创建「${playlist.name}」并添加歌曲`);
+  async function addTrackToPlaylist(playlistId: string, track: Track) {
+    await addPlaylistTrack(playlistId, track.id);
   }
 
-  async function toggleFavorite(track: Track) {
-    const updated = await api.favorite(track.id, !track.favorite);
-    const replace = (item: Track) => (item.id === updated.id ? updated : item);
-    setTracks((items) => items.map(replace));
-    setDetailTracks((items) => items.map(replace));
-    setQueue((items) => items.map(replace));
-    if (current?.id === updated.id) setCurrent(updated);
+  async function createPlaylistForTrack(name: string, track: Track) {
+    if (!playlistTrackCreator.current) playlistTrackCreator.current = createTrackPlaylistAdder(api.createPlaylist, addPlaylistTrack, playlistChanged);
+    await playlistTrackCreator.current(name, track.id);
+    setPlaylistMessage(`已创建「${name.trim()}」并添加歌曲`);
+  }
+
+  function playlistDeleted(id: string) {
+    setPlaylists((items) => items.filter((item) => item.id !== id));
+    setPlaylistMessage("歌单已删除，音乐文件仍保留。");
+    setPlaylistRefresh((value) => value + 1);
+    const active = viewRef.current;
+    if (active.name === "playlist" && active.id === id) navigateView({ name: "playlists" });
     void loadAll();
   }
 
-  async function createPlaylist() {
-    const name = newPlaylistName.trim();
-    if (!name) {
-      setPlaylistError("请输入歌单名称");
-      setPlaylistMessage("");
-      return;
+  async function toggleFavorite(track: Track) {
+    if (favoritePending.current.has(track.id)) return;
+    favoritePending.current.add(track.id);
+    setActionError("");
+    try {
+      const updated = await api.favorite(track.id, !track.favorite);
+      const replace = (item: Track) => (item.id === updated.id ? updated : item);
+      trackPage.replaceItems((items) => items.map(replace));
+      searchTracks.replaceItems((items) => items.map(replace));
+      favoritePage.replaceItems((items) => items.map(replace).filter((item) => item.favorite));
+      setDetailTracks((items) => items.map(replace));
+      setQueue((items) => items.map(replace));
+      setCurrent((item) => item?.id === updated.id ? updated : item);
+      cancelQueuePreparation();
+      setLibraryRevision((value) => value + 1);
+      void loadAll();
+    } catch (error) {
+      setActionError(error instanceof Error ? `收藏更新失败：${error.message}` : "收藏更新失败，请重试。");
+    } finally {
+      favoritePending.current.delete(track.id);
     }
+  }
+
+  async function createPlaylist() {
+    if (playlistCreatePending.current) return;
+    const name = newPlaylistName.trim();
+    if (!name) { setPlaylistError("请输入歌单名称"); setPlaylistMessage(""); return; }
+    playlistCreatePending.current = true;
+    setPlaylistCreating(true);
+    setPlaylistError("");
     try {
       const playlist = await api.createPlaylist(name);
       setNewPlaylistName("");
-      setPlaylistError("");
       setPlaylistMessage(`已创建「${playlist.name}」`);
-      setPlaylists(await api.playlists());
+      playlistChanged(playlist);
     } catch (err) {
-      setPlaylistError(err instanceof Error ? err.message : "创建歌单失败");
+      setPlaylistError(err instanceof Error ? err.message : "创建歌单失败，请重试。");
       setPlaylistMessage("");
+    } finally {
+      playlistCreatePending.current = false;
+      setPlaylistCreating(false);
     }
   }
 
@@ -2036,11 +2425,16 @@ export function App() {
   }
 
   if (!authenticated) {
-    return <Login onLogin={() => { setAuthenticated(true); void loadAll(); }} />;
+    return <Login onLogin={() => setAuthenticated(true)} />;
   }
 
   const contentView = view.name === "playing" && isMobileShell ? backgroundView : view;
-  const showLibraryHero = contentView.name === "home" || Boolean(searchResults);
+  const scanBusy = scanStarting || scan?.status === "running";
+  const showScanPanel = scanOptionsOpen || scanBusy || scan?.status === "failed";
+  const hasSearch = contentView.name === "search";
+  const showLibraryHero = contentView.name === "home";
+  const selectedSearchCategory = searchCategory.query === searchQuery ? searchCategory.name : "tracks";
+  const scanIssueCount = scan?.errorCount ?? scanErrors.length;
   const shellClassName = [
     "app-shell",
     isMobileShell ? "mobile-shell" : "",
@@ -2070,7 +2464,17 @@ export function App() {
 
       <aside className="sidebar" aria-hidden={isMobileShell && !mobileMenuOpen ? "true" : undefined}>
         {!isMobileShell ? (
-          <div className="brand desktop-brand"><Disc3 /> Music Library</div>
+          <div className="brand desktop-brand">
+            <Disc3 />
+            <span className="brand-full">Music Library</span>
+            <span className="brand-short">Music</span>
+          </div>
+        ) : null}
+        {!isMobileShell ? (
+          <label className="sidebar-search-box">
+            <Search />
+            <input value={search} onChange={(event) => updateSearch(event.target.value)} placeholder="搜索" />
+          </label>
         ) : null}
         <nav className="sidebar-nav" aria-label="导航">
           <button type="button" className={contentView.name === "home" ? "selected" : ""} onClick={() => navigateAndClose({ name: "home" })}><Library /> 首页</button>
@@ -2088,74 +2492,156 @@ export function App() {
         <header className="topbar">
           <div className="search-box">
             <Search />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索歌曲、专辑、艺人" />
+            <input value={search} onChange={(event) => updateSearch(event.target.value)} placeholder="搜索歌曲、专辑、艺人" />
           </div>
-          <button className="primary" onClick={startScan} disabled={scan?.status === "running"}>
-            {scan?.status === "running" ? <Loader2 className="spin" /> : <RefreshCw />}
-            {scan?.status === "running" ? "扫描中" : "扫描曲库"}
-          </button>
+          <div className="scan-toolbar">
+            <button className="primary" onClick={() => void startScan()} disabled={scanBusy}>
+              {scanBusy ? <Loader2 className="spin" /> : <RefreshCw />}
+              <span className="primary-label">{scanStarting ? "正在启动" : scan?.status === "running" ? "扫描中" : "扫描曲库"}</span>
+            </button>
+            <button className="scan-options-toggle" type="button" title="扫描选项" aria-label="扫描选项" aria-expanded={scanOptionsOpen} aria-controls="scan-options" onClick={() => { setScanOptionsOpen((value) => !value); setConfirmScanPrune(false); }}><MoreHorizontal /></button>
+          </div>
         </header>
 
+        {libraryError ? <div className="request-feedback error-text" role="alert"><span>{libraryError}</span><button onClick={() => void loadAll()}>重试</button></div> : null}
+        {scanError ? <div className="request-feedback error-text" role="alert"><span>{scanError}</span><button type="button" disabled={scanBusy} onClick={() => void startScan()}>重试增量扫描</button></div> : null}
+        {scanPollError ? <p className="request-feedback error-text" role="alert">{scanPollError}</p> : null}
+        {showScanPanel ? <section className="scan-panel" aria-label="曲库扫描">
+          {scan ? <>
+            <div className="scan-panel-heading"><strong>{scan.status === "failed" ? "扫描未完成" : scan.status === "running" ? "正在扫描曲库" : "最近扫描"}</strong><span>{scan.force ? "重新解析全部" : "增量扫描"}{scan.prune ? " · 启用缺失索引清理" : ""}</span></div>
+            <dl className="scan-metrics">
+              <div><dt>已检查</dt><dd>{scan.scannedFiles} / {scan.totalFiles}</dd></div>
+              <div><dt>重新解析</dt><dd>{scan.parsedFiles ?? 0}</dd></div>
+              <div><dt>跳过</dt><dd>{scan.skippedFiles ?? 0}</dd></div>
+              <div><dt>错误</dt><dd>{scan.errorCount}</dd></div>
+            </dl>
+            <p className={scan.status === "failed" ? "error-text" : ""} role={scan.status === "failed" ? "alert" : "status"}>{scan.message ?? (scan.status === "failed" ? "扫描未完成，请确认 NAS 连接后重新扫描。" : scan.status === "completed" ? "扫描已完成。" : "正在检查音乐目录。")}</p>
+            {scan.status === "failed" ? <div className="scan-retry"><span>重新发起增量扫描，会跳过已处理且未变化的文件。</span><button type="button" disabled={scanBusy} onClick={() => void startScan()}>重新扫描</button></div> : null}
+          </> : <p>默认仅处理新增或变化的文件，保留暂时找不到的歌曲索引。</p>}
+          {scanOptionsOpen ? <div className="scan-options" id="scan-options">
+            <p>默认扫描保留缺失索引；重新解析会再次读取所有音频的元数据，耗时较长。</p>
+            <div className="scan-option-actions">
+              <button type="button" disabled={scanBusy} onClick={() => void startScan({ force: true })}>重新解析全部</button>
+              <button type="button" disabled={scanBusy} onClick={() => setConfirmScanPrune(true)}>清理缺失索引…</button>
+            </div>
+            {confirmScanPrune ? <div className="scan-prune-confirm" role="alertdialog" aria-labelledby="scan-prune-title" aria-describedby="scan-prune-description" tabIndex={-1} ref={scanPruneConfirmRef}>
+              <h3 id="scan-prune-title">确认清理缺失索引？</h3>
+              <p id="scan-prune-description">请先确认 NAS 音乐目录及所有子目录已完整挂载。只有扫描完整且无错误时，才会从曲库、歌单和收藏中移除此次未找到的歌曲。音乐文件不会被修改。</p>
+              <div className="scan-option-actions"><button type="button" className="danger-action" disabled={scanBusy} onClick={() => void startScan({ prune: true })}>已确认挂载完整，开始清理</button><button type="button" disabled={scanStarting} onClick={() => setConfirmScanPrune(false)}>取消</button></div>
+            </div> : null}
+          </div> : null}
+        </section> : null}
+        {actionError ? <div className="request-feedback action-notice error-text" role="alert"><span>{actionError}</span><button type="button" onClick={() => setActionError("")}>关闭</button></div> : null}
+        {queuePreparation ? <section className="queue-preparation" aria-label="准备播放队列" aria-busy={queuePreparation.state === "loading"}>
+          <div role={queuePreparation.state === "error" ? "alert" : "status"}>
+            {queuePreparation.state === "loading" ? <Loader2 className="spin" /> : null}
+            <span>{queuePreparation.label}：{queuePreparation.state === "loading" ? `加载全部歌曲…${queuePreparation.total ? ` ${queuePreparation.loaded} / ${queuePreparation.total}` : ""}` : queuePreparation.state === "ready" ? `已准备 ${queuePreparation.total} 首，点击开始播放。` : queuePreparation.message}</span>
+          </div>
+          <div className="queue-preparation-actions">
+            {queuePreparation.state === "ready" ? <button className="primary" type="button" onClick={() => { const prepared = queuePreparation.tracks; if (prepared?.[0]) playTrack(prepared[0], prepared); }}><Play /> 开始播放（{queuePreparation.total} 首）</button> : null}
+            {queuePreparation.state === "error" ? <button type="button" onClick={() => void prepareFullQueue(queuePreparation.filter, queuePreparation.label)}>重试</button> : null}
+            <button type="button" onClick={cancelQueuePreparation}>取消</button>
+          </div>
+        </section> : null}
+
         {showLibraryHero ? (
-          <section className="hero">
+          <section className="hero home-hero">
             <div>
               <span className="eyebrow">只读 NAS 曲库</span>
-              <h1>{searchResults ? "搜索结果" : "你的音乐库"}</h1>
-              <p>{scan?.message ?? "本地标签优先，封面和歌词自动索引，M4A/ALAC 按需兼容播放。"}</p>
+              <h1>你的音乐库</h1>
             </div>
             <StatBar summary={summary} />
           </section>
         ) : null}
 
-        {(summary?.trackCount ?? 0) === 0 ? <EmptyState onScan={startScan} /> : null}
+        {summary?.trackCount === 0 && !hasSearch && !scanBusy ? <EmptyState onScan={() => void startScan()} /> : null}
 
-        {!searchResults && contentView.name === "home" ? (
-          <section className="status-strip" aria-label="运行状态">
-            <div>
-              <span>元数据</span>
-              <strong>{metadata?.enabled ? "在线补全" : "本地优先"}</strong>
-              <small>{metadata?.cachedItems ?? 0} 条缓存</small>
-            </div>
-            <div>
-              <span>最近扫描</span>
-              <strong>{scan?.status === "failed" ? "失败" : scan?.status === "running" ? "运行中" : scan?.status === "completed" ? "完成" : "未开始"}</strong>
-              <small>{scan?.errorCount ?? 0} 个错误</small>
-            </div>
-            <div>
-              <span>错误文件</span>
-              <strong>{scanErrors.length}</strong>
-              <small>{scanErrors[0]?.message ?? "无"}</small>
-            </div>
-          </section>
+        {!hasSearch && contentView.name === "home" ? (
+          <details className="library-status">
+            <summary>
+              <span>{metadata?.enabled ? "在线补全已开启" : "本地标签优先"}</span>
+              <span>{scan?.status === "failed" ? "最近扫描未完成" : scan?.status === "running" ? `正在扫描 ${scan.scannedFiles} / ${scan.totalFiles}` : scan?.status === "completed" ? "最近扫描已完成" : "尚未扫描"}</span>
+              {scanIssueCount > 0 ? <strong className="error-text">{scanIssueCount} 首未能读取</strong> : null}
+              <span>查看详情</span>
+            </summary>
+            <p>已检查 {scan?.scannedFiles ?? 0} / {scan?.totalFiles ?? 0} · 解析 {scan?.parsedFiles ?? 0} · 跳过 {scan?.skippedFiles ?? 0} · 元数据缓存 {metadata?.cachedItems ?? 0} 条</p>
+            {scanIssueCount > 0 ? <>
+              <p>部分文件未能读取，其余已入库歌曲可以正常播放。请检查下方文件是否完整、NAS 是否可读，然后重试增量扫描。</p>
+              <div className="scan-error-list">{scanErrors.map((error) => <details className="scan-error-item" key={error.id}>
+                <summary>{error.path.split(/[\\/]/).pop() || "未知文件"}</summary>
+                <p className="scan-error-path">{error.path}</p>
+                <p>错误详情：{error.message}</p>
+              </details>)}</div>
+              {!scanErrors.length ? <p>暂无文件详情，请重试扫描后查看。</p> : null}
+              <button type="button" disabled={scanBusy} onClick={() => void startScan()}>重试增量扫描</button>
+            </> : <p>没有未能读取的文件。</p>}
+          </details>
         ) : null}
 
-        {searchResults ? (
-          <section className="section">
-            <h2>匹配歌曲</h2>
-            <div className="track-list">
-              {searchResults.tracks.map((track, index) => (
-                <TrackRow key={track.id} track={track} index={index + 1} active={current?.id === track.id} playing={playing} playlists={playlists} onPlay={() => playTrack(track, searchResults.tracks)} onAddToPlaylist={addTrackToPlaylist} onCreatePlaylist={createPlaylistForTrack} onFavorite={toggleFavorite} />
-              ))}
-            </div>
-            <h2>匹配专辑</h2>
-            <AlbumGrid albums={searchResults.albums} onOpen={(album) => navigateView({ name: "album", key: album.key })} />
-            <h2>匹配艺人</h2>
-            <ArtistList artists={searchResults.artists} onOpen={(artist) => navigateView({ name: "artist", nameValue: artist.name })} />
-          </section>
+        {hasSearch ? (
+          <>
+            <header className="search-heading">
+              <h1>搜索结果</h1>
+              <p>“{searchQuery}”</p>
+              <nav className="search-categories" aria-label="搜索结果分类">
+                {([['tracks', '歌曲', searchTracks], ['albums', '专辑', searchAlbums], ['artists', '艺人', searchArtists]] as const).map(([name, label, result]) => <button key={name} type="button" aria-pressed={selectedSearchCategory === name} onClick={() => setSearchCategory({ query: searchQuery, name })}>{label} <span>{result.loading ? "…" : result.error ? "暂不可用" : result.page.total}</span></button>)}
+              </nav>
+            </header>
+            {selectedSearchCategory === "tracks" ? <section className="section" aria-busy={searchTracks.loading}>
+              <div className="section-title"><h2>匹配歌曲</h2><button type="button" disabled={!searchTracks.page.total || searchTracks.loading} onClick={() => void prepareFullQueue({ q: searchQuery }, `搜索「${searchQuery}」`)}><Play /> 播放全部结果</button></div>
+              <PageFeedback loading={searchTracks.loading} error={searchTracks.error} empty={!searchTracks.page.items.length} onRetry={searchTracks.retry} />
+              {!searchTracks.loading && !searchTracks.error ? <>
+                {searchTracks.page.items.length ? <p className="collection-hint">点击歌曲会播放当前页；“播放全部结果”包含所有匹配歌曲。</p> : null}
+                <div className="track-list">{searchTracks.page.items.map((track, index) => <TrackRow key={track.id} track={track} index={searchTracks.page.offset + index + 1} active={current?.id === track.id} playing={playing} playlists={playlists} onPlay={() => playTrack(track, searchTracks.page.items)} onAddToPlaylist={addTrackToPlaylist} onCreatePlaylist={createPlaylistForTrack} onFavorite={toggleFavorite} />)}</div>
+              </> : null}
+              <Pagination page={searchTracks.page} loading={searchTracks.loading} onChange={searchTracks.setOffset} label="匹配歌曲" />
+            </section> : null}
+            {selectedSearchCategory === "albums" ? <section className="section" aria-busy={searchAlbums.loading}>
+              <h2>匹配专辑</h2>
+              <PageFeedback loading={searchAlbums.loading} error={searchAlbums.error} empty={!searchAlbums.page.items.length} onRetry={searchAlbums.retry} />
+              <AlbumGrid albums={searchAlbums.page.items} onOpen={(album) => navigateView({ name: "album", key: album.key })} />
+              <Pagination page={searchAlbums.page} loading={searchAlbums.loading} onChange={searchAlbums.setOffset} label="匹配专辑" />
+            </section> : null}
+            {selectedSearchCategory === "artists" ? <section className="section" aria-busy={searchArtists.loading}>
+              <h2>匹配艺人</h2>
+              <PageFeedback loading={searchArtists.loading} error={searchArtists.error} empty={!searchArtists.page.items.length} onRetry={searchArtists.retry} />
+              <ArtistList artists={searchArtists.page.items} onOpen={(artist) => navigateView({ name: "artist", nameValue: artist.name })} />
+              <Pagination page={searchArtists.page} loading={searchArtists.loading} onChange={searchArtists.setOffset} label="匹配艺人" />
+            </section> : null}
+          </>
         ) : contentView.name === "playing" ? null
         : contentView.name === "albums" ? (
-          <section className="section"><h2>专辑</h2><AlbumGrid albums={albums} onOpen={(album) => navigateView({ name: "album", key: album.key })} /></section>
+          <section className="section" aria-busy={albumPage.loading}>
+            <h2>专辑{!albumPage.loading && !albumPage.error ? ` · ${albumPage.page.total}` : ""}</h2>
+            <PageFeedback loading={albumPage.loading} error={albumPage.error} empty={!albums.length} onRetry={albumPage.retry} />
+            <AlbumGrid albums={albums} onOpen={(album) => navigateView({ name: "album", key: album.key })} />
+            <Pagination page={albumPage.page} loading={albumPage.loading} onChange={albumPage.setOffset} label="专辑" />
+          </section>
         ) : contentView.name === "artists" ? (
-          <section className="section"><h2>艺人</h2><ArtistList artists={artists} onOpen={(artist) => navigateView({ name: "artist", nameValue: artist.name })} /></section>
+          <section className="section" aria-busy={artistPage.loading}>
+            <h2>艺人</h2>
+            <PageFeedback loading={artistPage.loading} error={artistPage.error} empty={!artists.length} onRetry={artistPage.retry} />
+            <ArtistList artists={artists} onOpen={(artist) => navigateView({ name: "artist", nameValue: artist.name })} />
+            <Pagination page={artistPage.page} loading={artistPage.loading} onChange={artistPage.setOffset} label="艺人" />
+          </section>
+        ) : contentView.name === "favorites" ? (
+          <section className="section" aria-busy={favoritePage.loading}>
+            <div className="section-title"><h2>收藏</h2><button type="button" disabled={!favoritePage.page.total || favoritePage.loading} onClick={() => void prepareFullQueue({ favorite: true }, "全部收藏")}><Play /> 播放全部收藏</button></div>
+            <PageFeedback loading={favoritePage.loading} error={favoritePage.error} empty={!favoritePage.page.items.length} onRetry={favoritePage.retry} />
+            {favoritePage.page.items.length ? <p className="collection-hint">点击歌曲会播放当前页；“播放全部收藏”包含所有收藏歌曲。</p> : null}
+            <div className="track-list">{favoritePage.page.items.map((track, index) => <TrackRow key={track.id} track={track} index={favoritePage.page.offset + index + 1} active={current?.id === track.id} playing={playing} playlists={playlists} onPlay={() => playTrack(track, favoritePage.page.items)} onAddToPlaylist={addTrackToPlaylist} onCreatePlaylist={createPlaylistForTrack} onFavorite={toggleFavorite} />)}</div>
+            <Pagination page={favoritePage.page} loading={favoritePage.loading} onChange={favoritePage.setOffset} label="收藏" />
+          </section>
         ) : contentView.name === "playlists" ? (
           <section className="section">
             <h2>歌单</h2>
             <div className="playlist-create">
-              <input value={newPlaylistName} onChange={(event) => { setNewPlaylistName(event.target.value); setPlaylistError(""); }} placeholder="新歌单名称" aria-invalid={playlistError ? "true" : "false"} />
-              <button onClick={createPlaylist}><Plus /> 新建</button>
+              <input value={newPlaylistName} disabled={playlistCreating} maxLength={200} onChange={(event) => { setNewPlaylistName(event.target.value); setPlaylistError(""); }} placeholder="新歌单名称" aria-invalid={playlistError ? "true" : "false"} />
+              <button disabled={playlistCreating} onClick={() => void createPlaylist()}>{playlistCreating ? <Loader2 className="spin" /> : <Plus />} {playlistCreating ? "创建中…" : "新建"}</button>
             </div>
-            {playlistError ? <p className="form-message error-text">{playlistError}</p> : null}
-            {playlistMessage ? <p className="form-message">{playlistMessage}</p> : null}
+            {playlistError ? <div className="request-feedback error-text" role="alert"><span>{playlistError}</span><button type="button" disabled={playlistCreating} onClick={() => void createPlaylist()}>重试创建</button></div> : null}
+            {playlistMessage ? <p className="form-message" role="status">{playlistMessage}</p> : null}
+            {!playlists.length ? <div className="playlist-empty"><h3>创建你的第一张歌单</h3><p>先输入名称创建歌单，再从歌曲的“更多”菜单添加音乐。</p></div> : null}
             <div className="playlist-grid">
               {playlists.map((playlist) => (
                 <button key={playlist.id} onClick={() => navigateView({ name: "playlist", id: playlist.id })}>
@@ -2166,19 +2652,25 @@ export function App() {
               ))}
             </div>
           </section>
-        ) : ["album", "artist", "playlist", "favorites"].includes(contentView.name) ? (
-          <section className="section">
+        ) : contentView.name === "playlist" ? (
+          <PlaylistView key={contentView.id} id={contentView.id} refresh={libraryRevision + playlistRefresh} busy={busyPlaylistIds.has(contentView.id)} mutate={mutatePlaylist} onChanged={playlistChanged} onDeleted={playlistDeleted} onBack={() => navigateView({ name: "playlists" })} onBrowse={() => navigateView({ name: "home" })} onPlay={(items) => { if (items[0]) playTrack(items[0], items); }} renderTrack={(track, index, items, remove, busy) => <TrackRow key={track.id} track={track} index={index} active={current?.id === track.id} playing={playing} playlists={playlists} onPlay={() => playTrack(track, items)} onAddToPlaylist={addTrackToPlaylist} onCreatePlaylist={createPlaylistForTrack} onFavorite={toggleFavorite} onRemove={remove} playlistBusy={busy} />} />
+        ) : ["album", "artist"].includes(contentView.name) ? (
+          <section className="section" aria-busy={detailLoading}>
+            {detailLoading ? <p className="request-feedback" role="status"><Loader2 className="spin" /> 正在加载…</p> : null}
+            {detailError ? <div className="request-feedback error-text" role="alert"><span>{detailError}</span><button onClick={() => setDetailRetry((value) => value + 1)}>重试</button></div> : null}
+            <button className="detail-back" type="button" onClick={() => navigateView({ name: contentView.name === "album" ? "albums" : "artists" })}>返回{contentView.name === "album" ? "专辑" : "艺人"}列表</button>
             <div className="detail-heading">
               <Cover trackId={detailTracks.find((track) => track.hasArtwork)?.id} title={detailTitle} large />
               <div>
                 <span className="eyebrow">{detailTracks.length} 首 · {formatHours(detailTracks.reduce((sum, track) => sum + (track.duration ?? 0), 0))}</span>
                 <h2>{detailTitle}</h2>
+                {detailAlbum ? <p className="detail-meta">{detailAlbum.artist ?? "未知艺人"}{detailAlbum.year ? ` · ${detailAlbum.year}` : ""}</p> : null}
                 {detailTracks[0] ? <button className="primary" onClick={() => playTrack(detailTracks[0], detailTracks)}><Play /> 播放</button> : null}
               </div>
             </div>
-            <div className="track-list">
+            <div className={contentView.name === "album" ? "track-list album-track-list" : "track-list"}>
               {detailTracks.map((track, index) => (
-                <TrackRow key={track.id} track={track} index={index + 1} active={current?.id === track.id} playing={playing} playlists={playlists} onPlay={() => playTrack(track, detailTracks)} onAddToPlaylist={addTrackToPlaylist} onCreatePlaylist={createPlaylistForTrack} onFavorite={toggleFavorite} />
+                <TrackRow key={track.id} track={track} hideAlbum={contentView.name === "album"} index={index + 1} active={current?.id === track.id} playing={playing} playlists={playlists} onPlay={() => playTrack(track, detailTracks)} onAddToPlaylist={addTrackToPlaylist} onCreatePlaylist={createPlaylistForTrack} onFavorite={toggleFavorite} />
               ))}
             </div>
           </section>
@@ -2186,15 +2678,18 @@ export function App() {
           <>
             <section className="section">
               <div className="section-title"><h2>最近加入</h2><button onClick={() => navigateView({ name: "albums" })}>查看全部</button></div>
-              <AlbumGrid albums={albums.slice(0, 12)} onOpen={(album) => navigateView({ name: "album", key: album.key })} />
+              <AlbumGrid albums={recentAlbums} onOpen={(album) => navigateView({ name: "album", key: album.key })} />
             </section>
             <section className="section">
-              <div className="section-title"><h2>歌曲</h2><button onClick={() => playTrack(tracks[0], tracks)} disabled={!tracks[0]}><Play /> 播放全部</button></div>
+              <div className="section-title"><h2>歌曲</h2><button type="button" onClick={() => void prepareFullQueue({}, "整个曲库")} disabled={!trackPage.page.total || trackPage.loading}><Play /> 播放全部</button></div>
+              <PageFeedback loading={trackPage.loading} error={trackPage.error} empty={!tracks.length} onRetry={trackPage.retry} />
+              {tracks.length ? <p className="collection-hint">点击歌曲会播放当前页；“播放全部”包含整个曲库。</p> : null}
               <div className="track-list">
                 {visibleTracks.map((track, index) => (
-                  <TrackRow key={track.id} track={track} index={index + 1} active={current?.id === track.id} playing={playing} playlists={playlists} onPlay={() => playTrack(track, visibleTracks)} onAddToPlaylist={addTrackToPlaylist} onCreatePlaylist={createPlaylistForTrack} onFavorite={toggleFavorite} />
+                  <TrackRow key={track.id} track={track} index={trackPage.page.offset + index + 1} active={current?.id === track.id} playing={playing} playlists={playlists} onPlay={() => playTrack(track, visibleTracks)} onAddToPlaylist={addTrackToPlaylist} onCreatePlaylist={createPlaylistForTrack} onFavorite={toggleFavorite} />
                 ))}
               </div>
+              <Pagination page={trackPage.page} loading={trackPage.loading} onChange={trackPage.setOffset} label="歌曲" />
             </section>
           </>
         )}
@@ -2222,11 +2717,7 @@ export function App() {
           onOpenArtist={openArtistForTrack}
           onPrevious={playPrevious}
           onSeek={requestSeek}
-          onSelectQueueTrack={(track) => {
-            setPlayerPosition(0);
-            setCurrent(track);
-            setPlaying(true);
-          }}
+          onSelectQueueTrack={(track) => playTrack(track, queue)}
           onToggleRepeatMode={cycleRepeatMode}
           onToggleShuffle={() => setShuffleEnabled((value) => !value)}
           onToggle={togglePlayback}
@@ -2241,6 +2732,7 @@ export function App() {
         playing={playing}
         initialPosition={playerPosition}
         seekRequest={seekRequest}
+        onPlaybackStatusChange={setPlaybackStatus}
         volume={volume}
         muted={muted}
         onProgressChange={setPlayerPosition}
@@ -2256,17 +2748,21 @@ export function App() {
         shuffleEnabled={shuffleEnabled}
         onToggleRepeatMode={cycleRepeatMode}
         onToggleShuffle={() => setShuffleEnabled((value) => !value)}
-        onSelectQueueTrack={(track) => {
-          setPlayerPosition(0);
-          setCurrent(track);
-          setPlaying(true);
-        }}
+        onSelectQueueTrack={(track) => playTrack(track, queue)}
         onClearUpcoming={() => {
+          cancelQueuePreparation();
           setQueue(current ? [current] : []);
         }}
         onToggle={togglePlayback}
         onEnded={() => playNext(true)}
       />
+      {current && "message" in playbackStatus ? (
+        <div className={`playback-notice ${view.name === "playing" ? "fullscreen-notice" : ""} ${playbackStatus.state === "error" ? "playback-error" : ""}`} role={playbackStatus.state === "error" ? "alert" : "status"}>
+          {playbackStatus.state !== "error" ? <Loader2 className="spin" aria-hidden="true" /> : null}
+          <span>{playbackStatus.message}</span>
+          <button type="button" onClick={() => { cancelQueuePreparation(); window.__nasMusicRetry?.(); }}>重试</button>
+        </div>
+      ) : null}
     </div>
   );
 }

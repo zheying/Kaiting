@@ -6,7 +6,7 @@ export function assertInsideRoot(root: string, target: string): string {
   const resolvedTarget = path.resolve(target);
   const relative = path.relative(resolvedRoot, resolvedTarget);
 
-  if (relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative))) {
+  if (relative === "" || (relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))) {
     return resolvedTarget;
   }
 
@@ -14,8 +14,15 @@ export function assertInsideRoot(root: string, target: string): string {
 }
 
 export function safeRealPath(root: string, target: string): string {
-  const safeTarget = assertInsideRoot(root, target);
   const realRoot = fs.realpathSync.native(root);
+  let safeTarget: string;
+  try {
+    safeTarget = assertInsideRoot(root, target);
+  } catch {
+    // Scanned records store canonical paths even when the configured NAS root
+    // is a symlink or the operating system exposes it through a path alias.
+    safeTarget = assertInsideRoot(realRoot, target);
+  }
   const realTarget = fs.realpathSync.native(safeTarget);
   return assertInsideRoot(realRoot, realTarget);
 }

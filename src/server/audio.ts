@@ -59,7 +59,8 @@ export function directMimeType(track: Pick<Track, "path" | "codec" | "container"
   const codec = (track.codec ?? "").toLowerCase();
 
   if (ext === ".mp3") return "audio/mpeg";
-  if ((ext === ".m4a" || ext === ".aac") && !isM4aAlac(track.path, track.codec, track.container)) return "audio/mp4";
+  if (ext === ".aac") return "audio/aac";
+  if (ext === ".m4a" && !isM4aAlac(track.path, track.codec, track.container)) return "audio/mp4";
   if (ext === ".ogg") return "audio/ogg";
   if (ext === ".opus") return "audio/ogg; codecs=opus";
   if (ext === ".wav") return "audio/wav";

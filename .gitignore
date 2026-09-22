@@ -1,7 +1,13 @@
 node_modules
 dist
 .env
+.env.*
+!.env.example
 .DS_Store
 data
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.sqlite3-*
 coverage
 *.log

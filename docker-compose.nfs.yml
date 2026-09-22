@@ -1,0 +1,17 @@
+# 可选 NFS 部署：先创建只读 NFS Docker 卷，再与 docker-compose.yml 合并使用。
+# 按挂载目标 /music 替换原音乐 bind，保留基础配置中的 /data 持久化挂载。
+# 基础文件在合并前会插值，因此 .env 的 MUSIC_LIBRARY_PATH 仍需非空。
+services:
+  music-library:
+    volumes:
+      - type: volume
+        source: nas-music
+        target: /music
+        read_only: true
+        volume:
+          nocopy: true
+
+volumes:
+  nas-music:
+    external: true
+    name: "${NAS_MUSIC_VOLUME:-music-library-nas-music}"

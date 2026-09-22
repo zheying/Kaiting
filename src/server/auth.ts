@@ -19,10 +19,12 @@ function verifyToken(config: AppConfig, token: string | undefined): boolean {
   if (!token) return false;
   const parts = token.split(".");
   if (parts.length !== 3) return false;
+  if (parts[0] !== "admin" || !/^[1-9]\d*$/.test(parts[1])) return false;
+  const expires = Number(parts[1]);
+  if (!Number.isSafeInteger(expires) || expires <= Date.now()) return false;
   const payload = `${parts[0]}.${parts[1]}`;
   const expected = sign(config, payload);
   const actual = parts[2];
-  if (Number(parts[1]) < Date.now()) return false;
 
   try {
     return timingSafeEqual(Buffer.from(actual), Buffer.from(expected));
@@ -33,8 +35,9 @@ function verifyToken(config: AppConfig, token: string | undefined): boolean {
 
 export async function registerAuth(app: FastifyInstance, config: AppConfig): Promise<void> {
   app.addHook("preHandler", async (request, reply) => {
-    if (!request.url.startsWith("/api")) return;
-    if (request.url === "/api/health" || request.url === "/api/auth/login") return;
+    const routePath = request.routeOptions.url ?? request.url.split("?", 1)[0];
+    if (routePath !== "/api" && !routePath.startsWith("/api/")) return;
+    if (routePath === "/api/health" || routePath === "/api/auth/login") return;
     if (!verifyToken(config, request.cookies[COOKIE_NAME])) {
       return reply.status(401).send({ error: "未登录" });
     }
@@ -45,7 +48,7 @@ export function setSession(reply: FastifyReply, config: AppConfig): void {
   reply.setCookie(COOKIE_NAME, makeToken(config), {
     httpOnly: true,
     sameSite: "lax",
-    secure: config.isProduction,
+    secure: config.cookieSecure ?? config.isProduction,
     path: "/",
     maxAge: SESSION_TTL_MS / 1000
   });
@@ -56,6 +59,7 @@ export function clearSession(reply: FastifyReply): void {
 }
 
 export function isPasswordValid(request: FastifyRequest, config: AppConfig, password: string): boolean {
+  if (typeof password !== "string") return false;
   const provided = Buffer.from(password);
   const expected = Buffer.from(config.adminPassword);
   if (provided.length !== expected.length) return false;

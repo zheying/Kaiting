@@ -1,11 +1,30 @@
 export type ScanStatus = "idle" | "running" | "completed" | "failed";
 
+export interface Page<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+  revision?: string;
+}
+
+export interface PageOptions {
+  q?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface TrackPageOptions extends PageOptions {
+  favorite?: boolean;
+}
+
 export interface Track {
   id: string;
   path: string;
   fileName: string;
   title: string;
   album: string | null;
+  albumKey?: string;
   artist: string | null;
   albumArtist: string | null;
   genre: string | null;
@@ -53,6 +72,17 @@ export interface Playlist {
   updatedAt: string;
 }
 
+export interface PlaylistDetail {
+  playlist: Playlist;
+  tracks: Track[];
+  revision: string;
+}
+
+export interface ScanOptions {
+  force?: boolean;
+  prune?: boolean;
+}
+
 export interface ScanJob {
   id: string;
   status: ScanStatus;
@@ -60,6 +90,10 @@ export interface ScanJob {
   finishedAt: string | null;
   totalFiles: number;
   scannedFiles: number;
+  parsedFiles: number;
+  skippedFiles: number;
+  force: boolean;
+  prune: boolean;
   errorCount: number;
   message: string | null;
 }
@@ -94,6 +128,12 @@ export interface SearchResponse {
   tracks: Track[];
   albums: Album[];
   artists: Artist[];
+}
+
+export interface PagedSearchResponse {
+  tracks: Page<Track>;
+  albums: Page<Album>;
+  artists: Page<Artist>;
 }
 
 export interface MetadataStatus {

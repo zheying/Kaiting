@@ -25,15 +25,11 @@ npm run build
 npm run dev
 ```
 
-本地生产运行：
+本地生产运行（先按 README 配置 `.env` 中的密码、随机密钥、音乐路径和 Cookie 传输方式）：
 
 ```bash
 NODE_ENV=production \
-ADMIN_PASSWORD=admin \
-MUSIC_LIBRARY_PATH="/mnt/library/音乐/Apple Music/媒体/Music" \
-DATA_DIR="./data" \
-PORT=3000 \
-node dist/server/server/index.js
+node --env-file=.env dist/server/server/index.js
 ```
 
 Docker：
@@ -69,9 +65,13 @@ docker compose up --build
 
 - 主要 API 路由位于 `src/server/routes.ts`。
 - 只有在 `NODE_ENV=production` 时才托管前端静态文件；否则 `/*` 会返回 JSON，提示使用 Vite 开发服务。
-- 生产环境必须提供 `ADMIN_PASSWORD`。
+- 生产环境必须提供 `ADMIN_PASSWORD` 和至少 32 字符的私有随机 `COOKIE_SECRET`。
+- 生产环境默认 `COOKIE_SECURE=true`；可信局域网 HTTP 直连必须显式配置 `COOKIE_SECURE=false`，HTTPS 反向代理保持 `true`。
 - 开发环境默认登录密码是 `admin`。
 - 在线元数据补全是可选能力，由 `ENABLE_ONLINE_METADATA` 控制。
+- 扫描默认增量且保留缺失索引；显式 `prune` 也必须通过完整遍历、无错误及挂载检查，不能削弱空库/部分目录丢失保护。
+- 服务和数据维护命令共用 `DATA_DIR/.runtime-lock.sqlite` 的独占锁；仅服务取得锁后执行遗留扫描恢复，不能在普通 `openDatabase()` 时把其他连接的活动扫描标记失败。
+- 备份/恢复实现位于 `src/server/maintenance.ts`；恢复只允许新/空目录，必须验证文件与数据库完整性并重定位缓存路径，不自动迁移音乐路径或歌曲 ID。
 
 ## 验证
 

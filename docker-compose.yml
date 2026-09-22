@@ -1,17 +1,27 @@
 services:
   music-library:
     build: .
+    image: "${MUSIC_LIBRARY_IMAGE:-music-library:local}"
     container_name: music-library
     restart: unless-stopped
+    init: true
+    stop_grace_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     ports:
-      - "3000:3000"
+      - "${PORT:-3000}:3000"
     environment:
       NODE_ENV: "production"
-      ADMIN_PASSWORD: "change-me"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:?请在 .env 中设置 ADMIN_PASSWORD}"
+      COOKIE_SECRET: "${COOKIE_SECRET:?请在 .env 中设置至少 32 字符的随机 COOKIE_SECRET}"
+      COOKIE_SECURE: "${COOKIE_SECURE:-true}"
       MUSIC_LIBRARY_PATH: "/music"
       DATA_DIR: "/data"
-      ENABLE_ONLINE_METADATA: "false"
+      ENABLE_ONLINE_METADATA: "${ENABLE_ONLINE_METADATA:-false}"
       PORT: "3000"
     volumes:
-      - ./data:/data
-      - /path/to/your/music:/music:ro
+      - "${DATA_DIR:-./data}:/data"
+      - "${MUSIC_LIBRARY_PATH:?请在 .env 中设置主机音乐目录 MUSIC_LIBRARY_PATH}:/music:ro"
