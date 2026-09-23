@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Album as AlbumIcon,
   ChevronDown,
@@ -29,6 +29,7 @@ import {
 import { api, artworkUrl, streamUrl, type ScanOptions } from "./api.js";
 import { createLatestRequest, playbackErrorMessage, scanJustFinished, type PlaybackStatus } from "./async-state.js";
 import { useLibraryPage } from "./library-pages.js";
+import { useMobileLayout } from "./mobile-layout.js";
 import { useSeekInput } from "./seek-input.js";
 import { PlaylistView } from "./PlaylistView.js";
 import { createPlaylistMutationLock, createTrackPlaylistAdder } from "./playlist-state.js";
@@ -49,11 +50,13 @@ type View =
 const VIEW_HISTORY_KEY = "__nasMusicLibraryView";
 const PLAYER_STORAGE_KEY = "nas-music-library-player";
 const VOLUME_STORAGE_KEY = "nas-music-library-volume";
-const MOBILE_FULLSCREEN_CLOSE_MS = 360;
+const MOBILE_FULLSCREEN_CLOSE_FALLBACK_MS = 700;
 
 interface ViewHistoryState {
   [VIEW_HISTORY_KEY]: "base" | "view";
   view: View;
+  backgroundView?: View;
+  backgroundScrollY?: number;
 }
 
 interface StoredPlayerState {
@@ -133,15 +136,8 @@ function viewUrl(view: View): string {
   return `${base}#/${view.name}`;
 }
 
-function viewHistoryState(view: View, kind: ViewHistoryState[typeof VIEW_HISTORY_KEY]): ViewHistoryState {
-  return { [VIEW_HISTORY_KEY]: kind, view };
-}
-
-function isMobileBrowserUA() {
-  if (typeof navigator === "undefined") return false;
-  const ua = navigator.userAgent;
-  if (/iPad/i.test(ua)) return false;
-  return /iPhone|iPod|Android.+Mobile|Windows Phone|Mobi/i.test(ua);
+function viewHistoryState(view: View, kind: ViewHistoryState[typeof VIEW_HISTORY_KEY], backgroundView?: View, backgroundScrollY = 0): ViewHistoryState {
+  return { [VIEW_HISTORY_KEY]: kind, view, ...(view.name === "playing" && backgroundView && backgroundView.name !== "playing" ? { backgroundView, backgroundScrollY } : {}) };
 }
 
 function sameView(left: View, right: View): boolean {
@@ -595,6 +591,8 @@ function ArtistList({ artists, onOpen }: { artists: Artist[]; onOpen: (artist: A
 }
 
 function Player({
+  controlsInert = false,
+  isMobileShell,
   current,
   queue,
   playing,
@@ -621,6 +619,8 @@ function Player({
   onToggle,
   onEnded
 }: {
+  controlsInert?: boolean;
+  isMobileShell: boolean;
   current: Track | null;
   queue: Track[];
   playing: boolean;
@@ -1037,7 +1037,7 @@ function Player({
     return (
       <>
       {audioElement}
-      <footer className="player empty-player">
+      <footer className="player empty-player" inert={controlsInert}>
         <div className="player-controls idle-controls" aria-hidden="true">
           <span className="player-mode-button"><PlayerShuffleIcon /></span>
           <span className="mini-transport-button"><SkipBack /></span>
@@ -1061,11 +1061,50 @@ function Player({
   const playbackDuration = Math.max(duration || current.duration || 0, 1);
   const playbackPosition = seekInput.value;
   const progressPercent = (playbackPosition / playbackDuration) * 100;
+  const progressInput = (
+    <input
+      key="playback-progress"
+      className="mini-progress"
+      style={{ "--progress": `${progressPercent}%` } as CSSProperties}
+      aria-label="播放进度"
+      aria-valuetext={`${formatDuration(playbackPosition)} / ${formatDuration(playbackDuration)}`}
+      type="range"
+      min="0"
+      max={playbackDuration}
+      step="1"
+      value={playbackPosition}
+      {...seekInput.inputProps}
+      onMouseEnter={() => setProgressHover(true)}
+      onMouseLeave={() => setProgressHover(false)}
+      onPointerEnter={() => setProgressHover(true)}
+      onPointerLeave={() => setProgressHover(false)}
+      onPointerDown={(event) => {
+        setProgressHover(true);
+        seekInput.inputProps.onPointerDown?.(event);
+      }}
+      onFocus={(event) => { setProgressHover(true); seekInput.inputProps.onFocus?.(event); }}
+      onBlur={(event) => { setProgressHover(false); seekInput.inputProps.onBlur?.(event); }}
+    />
+  );
 
   return (
     <>
     {audioElement}
-    <footer className="player">
+    <footer className="player" inert={controlsInert}>
+      {isMobileShell ? (
+        <button
+          className="mobile-now-playing"
+          type="button"
+          onClick={onOpenNowPlaying}
+          aria-label={`打开播放页：${current.title}，${displayArtist}`}
+        >
+          <Cover trackId={current.id} title={current.title} />
+          <span className="mobile-now-playing-text">
+            <strong>{current.title}</strong>
+            <span>{displayArtist}</span>
+          </span>
+        </button>
+      ) : null}
       <div className="player-controls">
         <button
           className={`player-mode-button ${shuffleEnabled ? "active" : ""}`}
@@ -1098,7 +1137,9 @@ function Player({
         </button>
       </div>
 
-      <div className={`player-center ${progressHover || seeking ? "progress-active" : ""}`}>
+      {isMobileShell ? (
+        <div className="mobile-player-seek">{progressInput}</div>
+      ) : <div className={`player-center ${progressHover || seeking ? "progress-active" : ""}`}>
         <button className="player-cover-button" onClick={onOpenNowPlaying} title="打开播放页">
           <Cover trackId={current.id} title={current.title} />
           <span className="cover-hover-hint" aria-hidden="true">
@@ -1116,28 +1157,8 @@ function Player({
         </div>
         <span className="mini-progress-time current-time">{formatDuration(playbackPosition)}</span>
         <span className="mini-progress-time remaining-time">{formatRemaining(playbackPosition, duration || current.duration)}</span>
-        <input
-          className="mini-progress"
-          style={{ "--progress": `${progressPercent}%` } as CSSProperties}
-          aria-label="播放进度"
-          type="range"
-          min="0"
-          max={playbackDuration}
-          step="1"
-          value={playbackPosition}
-          {...seekInput.inputProps}
-          onMouseEnter={() => setProgressHover(true)}
-          onMouseLeave={() => setProgressHover(false)}
-          onPointerEnter={() => setProgressHover(true)}
-          onPointerLeave={() => setProgressHover(false)}
-          onPointerDown={(event) => {
-            setProgressHover(true);
-            seekInput.inputProps.onPointerDown?.(event);
-          }}
-          onFocus={(event) => { setProgressHover(true); seekInput.inputProps.onFocus?.(event); }}
-          onBlur={(event) => { setProgressHover(false); seekInput.inputProps.onBlur?.(event); }}
-        />
-      </div>
+        {progressInput}
+      </div>}
 
       <div className="player-actions">
         <button
@@ -1310,8 +1331,26 @@ function FullscreenPlayer({
   const [queuePageOffset, setQueuePageOffset] = useState(0);
   useEffect(() => setQueuePageOffset(0), [current?.id, queue.length]);
   const [closing, setClosing] = useState(false);
+  const [scrollbarWidth] = useState(() => Math.max(0, window.innerWidth - document.documentElement.clientWidth));
+  const hasCurrentTrack = current !== null;
+  const closeRequestedRef = useRef(false);
   const closeTimeoutRef = useRef<number | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const menuRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (!isMobileShell || !hasCurrentTrack) return;
+    const style = document.body.style;
+    const property = "--fullscreen-scrollbar-width";
+    const previousValue = style.getPropertyValue(property);
+    const previousPriority = style.getPropertyPriority(property);
+    style.setProperty(property, `${scrollbarWidth}px`);
+    return () => {
+      if (previousValue) style.setProperty(property, previousValue, previousPriority);
+      else style.removeProperty(property);
+    };
+  }, [isMobileShell, hasCurrentTrack, scrollbarWidth]);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -1323,11 +1362,23 @@ function FullscreenPlayer({
     setLyricsOpen(false);
   }, [current?.id]);
 
+  function finishClose() {
+    if (!closeRequestedRef.current) return;
+    closeRequestedRef.current = false;
+    if (closeTimeoutRef.current !== null) window.clearTimeout(closeTimeoutRef.current);
+    closeTimeoutRef.current = null;
+    onCloseRef.current();
+  }
+
   useEffect(() => {
+    if (!closing) return;
+    // The animation owns completion; this only handles cancellation or missing events.
+    closeTimeoutRef.current = window.setTimeout(finishClose, MOBILE_FULLSCREEN_CLOSE_FALLBACK_MS);
     return () => {
       if (closeTimeoutRef.current !== null) window.clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
     };
-  }, []);
+  }, [closing]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -1449,23 +1500,22 @@ function FullscreenPlayer({
   }
 
   function handleClose() {
-    if (!isMobileShell) {
+    if (closeRequestedRef.current) return;
+    closeRequestedRef.current = true;
+    if (!isMobileShell || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       onClose();
       return;
     }
-    if (closing) return;
     setClosing(true);
-    closeTimeoutRef.current = window.setTimeout(() => {
-      closeTimeoutRef.current = null;
-      onClose();
-    }, MOBILE_FULLSCREEN_CLOSE_MS);
   }
 
   return (
-    <section className={fullscreenClassName} aria-label="播放页">
+    <section className={fullscreenClassName} aria-label="播放页" onAnimationEnd={(event) => {
+      if (event.target === event.currentTarget && event.animationName === "mobile-fullscreen-sheet-close") finishClose();
+    }}>
       {background ? <img className="fullscreen-bg" src={background} alt="" aria-hidden="true" /> : null}
       <div className="fullscreen-wash" />
-      <button className="fullscreen-close" onClick={handleClose} title="关闭播放页">
+      <button className="fullscreen-close" onClick={handleClose} title="关闭播放页" disabled={closing}>
         <X className="fullscreen-close-x" />
         <ChevronDown className="fullscreen-close-chevron" />
       </button>
@@ -1811,7 +1861,7 @@ function PageFeedback({ loading, error, empty, onRetry }: { loading: boolean; er
 }
 
 export function App() {
-  const isMobileShell = useMemo(() => isMobileBrowserUA(), []);
+  const isMobileShell = useMobileLayout();
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [summary, setSummary] = useState<LibrarySummary | null>(null);
   const [scan, setScan] = useState<ScanJob | null>(null);
@@ -1861,6 +1911,9 @@ export function App() {
   const playlistMutationLock = useRef(createPlaylistMutationLock());
   const playlistTrackCreator = useRef<ReturnType<typeof createTrackPlaylistAdder> | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuToggleRef = useRef<HTMLButtonElement>(null);
+  const mobileSidebarRef = useRef<HTMLElement>(null);
+  const contentRef = useRef<HTMLElement>(null);
   const viewRef = useRef<View>(view);
   const historyReady = useRef(false);
   const lastStoredPlayer = useRef<{ current: Track; queue: Track[]; playing: boolean; savedAt: number } | null>(null);
@@ -1908,7 +1961,7 @@ export function App() {
     setView(nextView);
     setSearch(nextView.name === "search" ? nextView.q : nextView.name === "playing" ? search : "");
     if (!sameView(previousView, nextView)) {
-      window.history.pushState(viewHistoryState(nextView, "view"), "", viewUrl(nextView));
+      window.history.pushState(viewHistoryState(nextView, "view", previousView, window.scrollY), "", viewUrl(nextView));
     }
   }
 
@@ -1928,6 +1981,7 @@ export function App() {
 
   function navigateAndClose(nextView: View) {
     setMobileMenuOpen(false);
+    mobileMenuToggleRef.current?.focus();
     navigateView(nextView);
   }
 
@@ -2010,13 +2064,40 @@ export function App() {
   }, [isMobileShell]);
 
   useEffect(() => {
-    if (!mobileMenuOpen) return;
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setMobileMenuOpen(false);
+    if (!isMobileShell || !authenticated) setMobileMenuOpen(false);
+  }, [isMobileShell, authenticated]);
+
+  useEffect(() => {
+    if (!authenticated || !isMobileShell || !mobileMenuOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const selected = mobileSidebarRef.current?.querySelector<HTMLButtonElement>("button.selected")
+      ?? mobileSidebarRef.current?.querySelector<HTMLButtonElement>("nav button");
+    selected?.focus();
+    function handleMenuKeys(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMobileMenuOpen(false);
+        mobileMenuToggleRef.current?.focus();
+      }
+      if (event.key !== "Tab") return;
+      const buttons = [mobileMenuToggleRef.current, ...Array.from(mobileSidebarRef.current?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") ?? [])].filter((button): button is HTMLButtonElement => Boolean(button));
+      const first = buttons[0];
+      const last = buttons.at(-1);
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
     }
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [mobileMenuOpen]);
+    window.addEventListener("keydown", handleMenuKeys);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleMenuKeys);
+    };
+  }, [authenticated, isMobileShell, mobileMenuOpen]);
 
   useEffect(() => {
     viewRef.current = view;
@@ -2031,7 +2112,7 @@ export function App() {
       setBackgroundView(initialView.name === "playing" ? baseView : initialView);
       setView(initialView);
       window.history.replaceState(viewHistoryState(baseView, "base"), "", viewUrl(baseView));
-      window.history.pushState(viewHistoryState(initialView, "view"), "", viewUrl(initialView));
+      window.history.pushState(viewHistoryState(initialView, "view", baseView), "", viewUrl(initialView));
     }
 
     function handlePopState(event: PopStateEvent) {
@@ -2039,9 +2120,12 @@ export function App() {
       const state = event.state as ViewHistoryState | null;
       if (state?.[VIEW_HISTORY_KEY] === "view" && isView(state.view)) {
         viewRef.current = state.view;
-        if (state.view.name !== "playing") setBackgroundView(state.view);
+        const restoredBackground = state.view.name === "playing"
+          ? isView(state.backgroundView) && state.backgroundView.name !== "playing" ? state.backgroundView : baseView
+          : state.view;
+        setBackgroundView(restoredBackground);
         setView(state.view);
-        setSearch(state.view.name === "search" ? state.view.q : "");
+        setSearch(restoredBackground.name === "search" ? restoredBackground.q : "");
         return;
       }
 
@@ -2056,10 +2140,13 @@ export function App() {
       albumNavigationRequests.current.cancel();
       const nextView = viewFromHash();
       if (sameView(viewRef.current, nextView)) return;
+      const sourceView = viewRef.current.name !== "playing" ? viewRef.current : baseView;
       viewRef.current = nextView;
-      if (nextView.name !== "playing") setBackgroundView(nextView);
+      setBackgroundView(nextView.name === "playing" ? sourceView : nextView);
+      if (nextView.name === "playing") window.history.replaceState(viewHistoryState(nextView, "view", sourceView, window.scrollY), "", viewUrl(nextView));
       setView(nextView);
-      setSearch(nextView.name === "search" ? nextView.q : "");
+      const visibleView = nextView.name === "playing" ? sourceView : nextView;
+      setSearch(visibleView.name === "search" ? visibleView.q : "");
     }
 
     window.addEventListener("popstate", handlePopState);
@@ -2069,6 +2156,28 @@ export function App() {
       window.removeEventListener("hashchange", handleHashChange);
     };
   }, []);
+
+  useLayoutEffect(() => {
+    const content = contentRef.current;
+    if (!authenticated || !isMobileShell || view.name !== "playing" || !current || !content) return;
+    const savedY = (window.history.state as ViewHistoryState | null)?.backgroundScrollY;
+    const targetY = typeof savedY === "number" && Number.isFinite(savedY) && savedY >= 0 ? savedY : 0;
+    // History can return through a loading state shorter than the original page.
+    // Keep its saved position ready while the background content loads again.
+    const restorePosition = () => {
+      if (document.documentElement.scrollHeight - window.innerHeight >= targetY - 1 && Math.abs(window.scrollY - targetY) > 1) {
+        window.scrollTo({ top: targetY, behavior: "instant" });
+      }
+    };
+    const observer = new ResizeObserver(restorePosition);
+    observer.observe(content);
+    restorePosition();
+    const frame = window.requestAnimationFrame(restorePosition);
+    return () => {
+      observer.disconnect();
+      window.cancelAnimationFrame(frame);
+    };
+  }, [authenticated, isMobileShell, view.name, Boolean(current), detailViewKey]);
 
   useEffect(() => {
     if (!current) return;
@@ -2429,6 +2538,7 @@ export function App() {
   }
 
   const contentView = view.name === "playing" && isMobileShell ? backgroundView : view;
+  const fullscreenVisible = view.name === "playing" && current !== null;
   const scanBusy = scanStarting || scan?.status === "running";
   const showScanPanel = scanOptionsOpen || scanBusy || scan?.status === "failed";
   const hasSearch = contentView.name === "search";
@@ -2444,25 +2554,25 @@ export function App() {
   return (
     <div className={shellClassName}>
       {isMobileShell ? (
-        <header className="mobile-header">
+        <header className="mobile-header" inert={fullscreenVisible}>
           <button
+            ref={mobileMenuToggleRef}
             className={`mobile-icon-button mobile-menu-toggle ${mobileMenuOpen ? "open" : ""}`}
             type="button"
             onClick={() => setMobileMenuOpen((open) => !open)}
             aria-label={mobileMenuOpen ? "关闭侧边栏" : "打开侧边栏"}
             aria-expanded={mobileMenuOpen}
+            aria-controls="library-navigation"
           >
             <span />
             <span />
           </button>
           <div className="mobile-brand"><Disc3 /> Music Library</div>
-          <button className="mobile-icon-button mobile-user-button" type="button" aria-label="账户">
-            <UserRound />
-          </button>
+          <span aria-hidden="true" />
         </header>
       ) : null}
 
-      <aside className="sidebar" aria-hidden={isMobileShell && !mobileMenuOpen ? "true" : undefined}>
+      <aside id="library-navigation" ref={mobileSidebarRef} className="sidebar" aria-hidden={isMobileShell && !mobileMenuOpen ? "true" : undefined} inert={isMobileShell && !mobileMenuOpen}>
         {!isMobileShell ? (
           <div className="brand desktop-brand">
             <Disc3 />
@@ -2488,14 +2598,14 @@ export function App() {
         </div>
       </aside>
 
-      <main className="content">
+      <main ref={contentRef} className="content" inert={isMobileShell && (mobileMenuOpen || fullscreenVisible)}>
         <header className="topbar">
           <div className="search-box">
             <Search />
             <input value={search} onChange={(event) => updateSearch(event.target.value)} placeholder="搜索歌曲、专辑、艺人" />
           </div>
           <div className="scan-toolbar">
-            <button className="primary" onClick={() => void startScan()} disabled={scanBusy}>
+            <button className="primary" title={scanBusy ? "正在扫描曲库" : "扫描曲库"} aria-label={scanBusy ? "正在扫描曲库" : "扫描曲库"} onClick={() => void startScan()} disabled={scanBusy}>
               {scanBusy ? <Loader2 className="spin" /> : <RefreshCw />}
               <span className="primary-label">{scanStarting ? "正在启动" : scan?.status === "running" ? "扫描中" : "扫描曲库"}</span>
             </button>
@@ -2658,7 +2768,7 @@ export function App() {
           <section className="section" aria-busy={detailLoading}>
             {detailLoading ? <p className="request-feedback" role="status"><Loader2 className="spin" /> 正在加载…</p> : null}
             {detailError ? <div className="request-feedback error-text" role="alert"><span>{detailError}</span><button onClick={() => setDetailRetry((value) => value + 1)}>重试</button></div> : null}
-            <button className="detail-back" type="button" onClick={() => navigateView({ name: contentView.name === "album" ? "albums" : "artists" })}>返回{contentView.name === "album" ? "专辑" : "艺人"}列表</button>
+            {contentView.name === "artist" ? <button className="detail-back" type="button" onClick={() => navigateView({ name: "artists" })}>返回艺人列表</button> : null}
             <div className="detail-heading">
               <Cover trackId={detailTracks.find((track) => track.hasArtwork)?.id} title={detailTitle} large />
               <div>
@@ -2709,7 +2819,7 @@ export function App() {
           muted={muted}
           playlists={playlists}
           onAddToPlaylist={addTrackToPlaylist}
-          onClose={() => window.history.back()}
+          onClose={() => { if (viewRef.current.name === "playing") window.history.back(); }}
           onCreatePlaylistForTrack={createPlaylistForTrack}
           onFavorite={toggleFavorite}
           onNext={playNext}
@@ -2727,6 +2837,8 @@ export function App() {
       ) : null}
 
       <Player
+        controlsInert={isMobileShell && (mobileMenuOpen || fullscreenVisible)}
+        isMobileShell={isMobileShell}
         current={current}
         queue={queue}
         playing={playing}

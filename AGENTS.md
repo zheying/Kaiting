@@ -53,7 +53,8 @@ docker compose up --build
 
 - 路由使用 hash URL，例如 `#/albums`、`#/album/:key`、`#/playing`。
 - 底部播放器有意参考 Apple Music Web，包含桌面、紧凑和移动端布局。
-- 移动端布局由 `isMobileBrowserUA()` 基于 UA 决定，不仅仅取决于桌面窗口宽度。iPad 视为桌面/平板。
+- 用户偏好移动端底部播放器的胶囊造型；后续排版与触控优化应保留这一外形。
+- 移动端布局由 `useMobileLayout()` 优先根据手机 UA 决定；非 iPad 浏览器在小于 480 CSS px 时也使用移动布局，并响应窗口宽度变化。iPad（含桌面 UA 的 iPadOS）仍视为桌面/平板。
 - 全屏播放页分桌面和移动端两套样式路径。移动端包含：
 - 封面居中布局。
 - 播放/暂停时的封面尺寸动画。
