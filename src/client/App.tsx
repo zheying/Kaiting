@@ -3,6 +3,7 @@ import {
   Album as AlbumIcon,
   ChevronDown,
   Disc3,
+  FastForward,
   Heart,
   Library,
   ListMusic,
@@ -17,6 +18,7 @@ import {
   Play,
   Plus,
   RefreshCw,
+  Rewind,
   Search,
   SkipBack,
   SkipForward,
@@ -32,6 +34,7 @@ import { useLibraryPage } from "./library-pages.js";
 import { useMobileLayout } from "./mobile-layout.js";
 import { useSeekInput } from "./seek-input.js";
 import { PlaylistView } from "./PlaylistView.js";
+import { PlayerMarquee } from "./PlayerMarquee.js";
 import { createPlaylistMutationLock, createTrackPlaylistAdder } from "./playlist-state.js";
 import type { Album, Artist, LibrarySummary, MetadataStatus, Playlist, ScanError, ScanJob, Page, Track } from "../shared/types.js";
 
@@ -1040,9 +1043,9 @@ function Player({
       <footer className="player empty-player" inert={controlsInert}>
         <div className="player-controls idle-controls" aria-hidden="true">
           <span className="player-mode-button"><PlayerShuffleIcon /></span>
-          <span className="mini-transport-button"><SkipBack /></span>
+          <span className="mini-transport-button"><Rewind /></span>
           <span className="mini-play-button"><Play /></span>
-          <span className="mini-transport-button"><SkipForward /></span>
+          <span className="mini-transport-button"><FastForward /></span>
           <span className="player-mode-button"><PlayerRepeatIcon /></span>
         </div>
         <div className="empty-player-brand" aria-label="Music Library">
@@ -1117,13 +1120,13 @@ function Player({
           <PlayerShuffleIcon />
         </button>
         <button className="mini-transport-button" type="button" onClick={onPrevious} title="上一首">
-          <SkipBack />
+          <Rewind />
         </button>
         <button className="mini-play-button" type="button" onClick={handleTogglePlayback} title={playing ? "暂停" : "播放"}>
           {playing ? <Pause /> : <Play />}
         </button>
         <button className="mini-transport-button" type="button" onClick={onNext} title="下一首">
-          <SkipForward />
+          <FastForward />
         </button>
         <button
           className={`player-mode-button ${repeatMode === "one" ? "repeat-one active" : repeatMode === "all" ? "repeat-all active" : ""}`}
@@ -1137,9 +1140,7 @@ function Player({
         </button>
       </div>
 
-      {isMobileShell ? (
-        <div className="mobile-player-seek">{progressInput}</div>
-      ) : <div className={`player-center ${progressHover || seeking ? "progress-active" : ""}`}>
+      {!isMobileShell ? <div className={`player-center ${progressHover || seeking ? "progress-active" : ""}`}>
         <button className="player-cover-button" onClick={onOpenNowPlaying} title="打开播放页">
           <Cover trackId={current.id} title={current.title} />
           <span className="cover-hover-hint" aria-hidden="true">
@@ -1147,18 +1148,17 @@ function Player({
           </span>
         </button>
         <div className="now-playing">
-          <strong title={current.title}>{current.title}</strong>
-          <span className="now-links">
-            <button title={displayArtist} onClick={() => onOpenArtist(current)}>{displayArtist}</button>
-            <span aria-hidden="true"> - </span>
-            <button title={displayAlbum} onClick={() => onOpenAlbum(current)}>{displayAlbum}</button>
-            <span aria-hidden="true"> · 队列 {queue.length} 首</span>
-          </span>
+          <PlayerMarquee key={`${current.id}-${current.title}`} className="now-title" segments={[{ text: current.title }]} />
+          <PlayerMarquee key={`${current.id}-${displayArtist}-${displayAlbum}`} className="now-links" segments={[
+            { text: displayArtist, onClick: () => onOpenArtist(current) },
+            { text: " — " },
+            { text: displayAlbum, onClick: () => onOpenAlbum(current) }
+          ]} />
         </div>
         <span className="mini-progress-time current-time">{formatDuration(playbackPosition)}</span>
         <span className="mini-progress-time remaining-time">{formatRemaining(playbackPosition, duration || current.duration)}</span>
         {progressInput}
-      </div>}
+      </div> : null}
 
       <div className="player-actions">
         <button
