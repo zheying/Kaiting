@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs";
-import path from "node:path";
 import Database from "better-sqlite3";
+import { albumKey, albumTitle, discNumber, discSort, inferredRelease, legacyAlbumKey } from "./album-identity.js";
 import type { Album, Artist, LibrarySummary, Page, PageOptions, Playlist, PlaylistDetail, ScanError, ScanJob, ScanOptions, Track, TrackPageOptions } from "../shared/types.js";
 
 type TrackRow = Record<string, unknown>;
@@ -89,14 +89,15 @@ function rowToTrack(row: TrackRow): Track {
     path: String(row.path),
     fileName: String(row.file_name),
     title: String(row.title),
-    album: row.album ? String(row.album) : null,
+    album: albumTitle(row.album, row.album_artist, row.path),
     albumKey: albumKey(row.album, row.album_artist, row.artist, row.path),
     artist: row.artist ? String(row.artist) : null,
     albumArtist: row.album_artist ? String(row.album_artist) : null,
     genre: row.genre ? String(row.genre) : null,
     year: row.year === null ? null : Number(row.year),
     trackNo: row.track_no === null ? null : Number(row.track_no),
-    discNo: row.disc_no === null ? null : Number(row.disc_no),
+    discNo: discNumber(row.album, row.album_artist, row.path, row.disc_no),
+    discTitle: inferredRelease(row.album, row.album_artist, row.path)?.disc === "bonus" ? "附赠碟" : null,
     duration: row.duration === null ? null : Number(row.duration),
     bitrate: row.bitrate === null ? null : Number(row.bitrate),
     codec: row.codec ? String(row.codec) : null,
@@ -148,6 +149,7 @@ function rowToAlbum(row: TrackRow): Album {
     artist,
     year: row.year === null ? null : Number(row.year),
     trackCount: Number(row.track_count ?? 0),
+    discCount: Number(row.disc_count ?? 1),
     duration: Number(row.duration ?? 0),
     artworkTrackId: row.artwork_track_id ? String(row.artwork_track_id) : null
   };
@@ -175,22 +177,6 @@ function rowToPlaylist(row: TrackRow): Playlist {
   };
 }
 
-function albumKey(album: unknown, albumArtist: unknown, artist: unknown, filePath?: unknown): string {
-  // Keep keys identical to SQLite lower(), including non-ASCII album/artist names.
-  const lowerAscii = (value: unknown) => String(value).replace(/[A-Z]/g, (letter) => letter.toLowerCase());
-  if (albumArtist == null && filePath != null) {
-    // Missing album-artist tags are common in soundtracks. A shared title alone
-    // cannot identify a release: only combine tracks in the exact same directory.
-    // Do not collapse disc folders or strip edition suffixes without explicit tags.
-    // dirname only reads the indexed string; it never accesses the music files.
-    const identity = [path.dirname(String(filePath)), lowerAscii(album ?? "未知专辑"), album == null ? lowerAscii(artist ?? "未知艺人") : null];
-    return `folder:${createHash("sha256").update(JSON.stringify(identity)).digest("hex")}`;
-  }
-  // Preserve explicit album-artist identities, including multi-disc releases
-  // spanning CD1/CD2 directories and links saved by earlier app versions.
-  return `${lowerAscii(album ?? "未知专辑")}::${lowerAscii(albumArtist ?? artist ?? "未知艺人")}`;
-}
-
 export function openDatabase(databasePath: string): DatabaseHandle {
   const db = new Database(databasePath);
   const instanceId = randomUUID();
@@ -199,6 +185,9 @@ export function openDatabase(databasePath: string): DatabaseHandle {
   // SQLite lower() only folds ASCII; preserve ordinary Unicode substring search.
   db.function("search_lower", { deterministic: true }, (value) => String(value ?? "").toLowerCase());
   db.function("release_album_key", { deterministic: true }, (album, albumArtist, artist, filePath) => albumKey(album, albumArtist, artist, filePath));
+  db.function("legacy_album_key", { deterministic: true }, (album, albumArtist, artist, filePath) => legacyAlbumKey(album, albumArtist, artist, filePath));
+  db.function("release_album_title", { deterministic: true }, (album, albumArtist, filePath) => albumTitle(album, albumArtist, filePath));
+  db.function("release_disc_sort", { deterministic: true }, (album, albumArtist, filePath, taggedDisc) => discSort(album, albumArtist, filePath, taggedDisc));
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS tracks (
@@ -364,7 +353,7 @@ export function openDatabase(databasePath: string): DatabaseHandle {
     return {
       from: "tracks",
       where: favoriteClause,
-      order: "album COLLATE NOCASE, disc_no, track_no, title COLLATE NOCASE, tracks.id",
+      order: "release_album_title(album, album_artist, path) COLLATE NOCASE, release_album_key(album, album_artist, artist, path), release_disc_sort(album, album_artist, path, disc_no), track_no, title COLLATE NOCASE, tracks.id",
       params: {}
     };
   }
@@ -401,12 +390,13 @@ export function openDatabase(databasePath: string): DatabaseHandle {
   const albumSelect = `
       SELECT
         release_album_key(album, album_artist, artist, path) AS album_key,
-        MIN(COALESCE(album, '未知专辑')) AS album,
+        MIN(COALESCE(release_album_title(album, album_artist, path), '未知专辑')) AS album,
         CASE WHEN COUNT(DISTINCT lower(COALESCE(album_artist, artist))) > 1 THEN '多位艺人'
           ELSE MIN(COALESCE(album_artist, artist)) END AS album_artist,
         MIN(artist) AS artist,
         MIN(year) AS year,
         COUNT(*) AS track_count,
+        COUNT(DISTINCT release_disc_sort(album, album_artist, path, disc_no)) AS disc_count,
         COALESCE(SUM(duration), 0) AS duration,
         MIN(CASE WHEN artwork_path IS NOT NULL THEN id END) AS artwork_track_id,
         MAX(added_at) AS newest_added_at
@@ -415,7 +405,7 @@ export function openDatabase(databasePath: string): DatabaseHandle {
   `;
   const albumFilter = `(@q = '' OR instr(search_lower(album), @q) > 0 OR instr(search_lower(album_artist), @q) > 0 OR album_key IN (
     SELECT release_album_key(album, album_artist, artist, path) FROM tracks
-    WHERE instr(search_lower(album_artist), @q) > 0 OR instr(search_lower(artist), @q) > 0
+    WHERE instr(search_lower(album), @q) > 0 OR instr(search_lower(album_artist), @q) > 0 OR instr(search_lower(artist), @q) > 0
   ))`;
 
   const artistSelect = `
@@ -469,14 +459,15 @@ export function openDatabase(databasePath: string): DatabaseHandle {
   const getAlbum = db.transaction((requestedKey: string): { album: Album; tracks: Track[] } | null => {
     let key = requestedKey;
     let row = db.prepare(`SELECT * FROM (${albumSelect}) WHERE album_key = ?`).get(key) as TrackRow | undefined;
-    if (!row && key.includes("::")) {
-      // An old per-performer URL can now resolve to a complete directory album.
+    if (!row && (key.includes("::") || key.startsWith("folder:"))) {
+      // Old per-performer and per-disc URLs resolve to the complete release.
       // If it names more than one release, do not silently select or merge them.
       const matches = db.prepare(`
         SELECT DISTINCT release_album_key(album, album_artist, artist, path) AS album_key FROM tracks
-        WHERE lower(COALESCE(album, '未知专辑')) || '::' || lower(COALESCE(album_artist, artist, '未知艺人')) = ?
+        WHERE legacy_album_key(album, album_artist, artist, path) = @key
+          OR lower(COALESCE(album, '未知专辑')) || '::' || lower(COALESCE(album_artist, artist, '未知艺人')) = @key
         LIMIT 2
-      `).all(key) as { album_key: string }[];
+      `).all({ key }) as { album_key: string }[];
       if (matches.length !== 1) return null;
       key = matches[0].album_key;
       row = db.prepare(`SELECT * FROM (${albumSelect}) WHERE album_key = ?`).get(key) as TrackRow | undefined;
@@ -484,7 +475,7 @@ export function openDatabase(databasePath: string): DatabaseHandle {
     if (!row) return null;
     const tracks = db.prepare(`
       SELECT * FROM tracks WHERE release_album_key(album, album_artist, artist, path) = ?
-      ORDER BY disc_no, track_no, title COLLATE NOCASE, id
+      ORDER BY release_disc_sort(album, album_artist, path, disc_no), track_no, title COLLATE NOCASE, id
     `).all(key).map((track) => rowToTrack(track as TrackRow));
     return { album: rowToAlbum(row), tracks };
   });
@@ -637,7 +628,7 @@ export function openDatabase(databasePath: string): DatabaseHandle {
       const tracks = db.prepare(`
         SELECT * FROM tracks
         WHERE COALESCE(album_artist, artist, '未知艺人') = ?
-        ORDER BY album COLLATE NOCASE, disc_no, track_no, title COLLATE NOCASE, id
+        ORDER BY release_album_title(album, album_artist, path) COLLATE NOCASE, release_album_key(album, album_artist, artist, path), release_disc_sort(album, album_artist, path, disc_no), track_no, title COLLATE NOCASE, id
       `).all(name).map((row) => rowToTrack(row as TrackRow));
       return { artist, albums, tracks };
     },

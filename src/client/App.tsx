@@ -35,6 +35,7 @@ import { useMobileLayout } from "./mobile-layout.js";
 import { useSeekInput } from "./seek-input.js";
 import { PlaylistView } from "./PlaylistView.js";
 import { PlayerMarquee } from "./PlayerMarquee.js";
+import { groupAlbumDiscs } from "./album-discs.js";
 import { createPlaylistMutationLock, createTrackPlaylistAdder } from "./playlist-state.js";
 import type { Album, Artist, LibrarySummary, MetadataStatus, Playlist, ScanError, ScanJob, Page, Track } from "../shared/types.js";
 
@@ -570,7 +571,7 @@ function AlbumGrid({ albums, onOpen }: { albums: Album[]; onOpen: (album: Album)
           <Cover trackId={album.artworkTrackId} title={album.title} />
           <strong title={album.title}>{album.title}</strong>
           <span title={album.artist ?? "未知艺人"}>{album.artist ?? "未知艺人"}</span>
-          <small className="album-meta">{album.year ? `${album.year} · ` : ""}{album.trackCount} 首</small>
+          <small className="album-meta">{album.year ? `${album.year} · ` : ""}{(album.discCount ?? 1) > 1 ? `${album.discCount} 碟 · ` : ""}{album.trackCount} 首</small>
         </button>
       ))}
     </div>
@@ -1877,6 +1878,7 @@ export function App() {
   });
   const [search, setSearch] = useState(() => { const initial = viewFromHash(); return initial.name === "search" ? initial.q : ""; });
   const [detailTracks, setDetailTracks] = useState<Track[]>([]);
+  const detailDiscs = useMemo(() => groupAlbumDiscs(detailTracks), [detailTracks]);
   const [detailTitle, setDetailTitle] = useState("");
   const [detailAlbum, setDetailAlbum] = useState<Album | null>(null);
   const [searchCategory, setSearchCategory] = useState<{ query: string; name: "tracks" | "albums" | "artists" }>({ query: "", name: "tracks" });
@@ -2772,17 +2774,30 @@ export function App() {
             <div className="detail-heading">
               <Cover trackId={detailTracks.find((track) => track.hasArtwork)?.id} title={detailTitle} large />
               <div>
-                <span className="eyebrow">{detailTracks.length} 首 · {formatHours(detailTracks.reduce((sum, track) => sum + (track.duration ?? 0), 0))}</span>
+                <span className="eyebrow">{contentView.name === "album" && detailDiscs.length > 1 ? `${detailDiscs.length} 碟 · ` : ""}{detailTracks.length} 首 · {formatHours(detailTracks.reduce((sum, track) => sum + (track.duration ?? 0), 0))}</span>
                 <h2>{detailTitle}</h2>
                 {detailAlbum ? <p className="detail-meta">{detailAlbum.artist ?? "未知艺人"}{detailAlbum.year ? ` · ${detailAlbum.year}` : ""}</p> : null}
                 {detailTracks[0] ? <button className="primary" onClick={() => playTrack(detailTracks[0], detailTracks)}><Play /> 播放</button> : null}
               </div>
             </div>
-            <div className={contentView.name === "album" ? "track-list album-track-list" : "track-list"}>
+            {contentView.name === "album" && detailDiscs.length > 1 ? (
+              <div className="album-discs">
+                {detailDiscs.map((disc) => (
+                  <section className="album-disc" key={disc.key} aria-label={disc.title}>
+                    <div className="disc-heading"><h3>{disc.title}</h3><span>{disc.tracks.length} 首 · {formatHours(disc.tracks.reduce((sum, track) => sum + (track.duration ?? 0), 0))}</span></div>
+                    <div className="track-list album-track-list">
+                      {disc.tracks.map((track, index) => (
+                        <TrackRow key={track.id} track={track} hideAlbum index={track.trackNo ?? index + 1} active={current?.id === track.id} playing={playing} playlists={playlists} onPlay={() => playTrack(track, detailTracks)} onAddToPlaylist={addTrackToPlaylist} onCreatePlaylist={createPlaylistForTrack} onFavorite={toggleFavorite} />
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            ) : <div className={contentView.name === "album" ? "track-list album-track-list" : "track-list"}>
               {detailTracks.map((track, index) => (
                 <TrackRow key={track.id} track={track} hideAlbum={contentView.name === "album"} index={index + 1} active={current?.id === track.id} playing={playing} playlists={playlists} onPlay={() => playTrack(track, detailTracks)} onAddToPlaylist={addTrackToPlaylist} onCreatePlaylist={createPlaylistForTrack} onFavorite={toggleFavorite} />
               ))}
-            </div>
+            </div>}
           </section>
         ) : (
           <>

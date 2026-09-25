@@ -3,6 +3,8 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { makeAlbumKey, openDatabase, type DatabaseHandle, type UpsertTrack } from "../src/server/db.js";
+import { legacyAlbumKey } from "../src/server/album-identity.js";
+import { groupAlbumDiscs } from "../src/client/album-discs.js";
 
 let directory: string;
 let database: DatabaseHandle;
@@ -30,6 +32,79 @@ function insert(id: string, overrides: Partial<UpsertTrack> = {}): UpsertTrack {
 }
 
 describe("conservative album grouping for missing album-artist tags", () => {
+  it("combines corroborated disc titles and folders into a complete 180-track release without rewriting tags", () => {
+    const counts = [20, 22, 24, 29, 23, 25, 13, 24];
+    const originals: UpsertTrack[] = [];
+    database.db.transaction(() => {
+      for (let disc = counts.length; disc >= 1; disc--) {
+        const marker = disc === 8 ? "Bonus Disc" : `Disc ${disc}`;
+        for (let number = counts[disc - 1]; number >= 1; number--) {
+          originals.push(insert(`${disc}-${number}`, {
+            album: `Soundtrack [${marker}]`, artist: `Composer ${number % 3}`,
+            path: path.join(directory, "music", "Soundtrack", marker, `${number}.flac`), trackNo: number, discNo: 1
+          }));
+        }
+      }
+    })();
+    database.toggleFavorite("2-1", true);
+    const playlist = database.createPlaylist("Across discs");
+    database.addTrackToPlaylist(playlist.id, "7-13");
+    database.addTrackToPlaylist(playlist.id, "8-1");
+    const snapshot = () => ["tracks", "tracks_fts", "playlists", "playlist_tracks"].map((table) => database.db.prepare(`SELECT rowid, * FROM ${table} ORDER BY rowid`).all());
+    const before = snapshot();
+
+    const [album] = database.listAlbums();
+    expect(album).toMatchObject({ title: "Soundtrack", trackCount: 180, discCount: 8, artist: "多位艺人" });
+    expect(database.summary()).toMatchObject({ albumCount: 1, trackCount: 180, favoriteCount: 1 });
+    const detail = database.getAlbum(album.key)!;
+    const ids = counts.flatMap((count, index) => Array.from({ length: count }, (_, n) => `${index + 1}-${n + 1}`));
+    expect(detail.tracks.map((track) => track.id)).toEqual(ids);
+    expect(detail.tracks.every((track) => track.albumKey === album.key && track.album === "Soundtrack")).toBe(true);
+    expect(database.getTrack("7-1")).toMatchObject({ discNo: 7, discTitle: null });
+    expect(database.getTrack("8-1")).toMatchObject({ discNo: null, discTitle: "附赠碟" });
+    expect(database.listTracks({ limit: 200 }).map((track) => track.id)).toEqual(ids);
+    expect(groupAlbumDiscs(detail.tracks).map((group) => [group.title, group.tracks.length])).toEqual(counts.map((count, index) => [index === 7 ? "附赠碟" : `第 ${index + 1} 碟`, count]));
+    expect(database.pageAlbums({ q: "[Disc 7]" }).items).toEqual([album]);
+    expect(database.search("Composer 2").albums).toEqual([album]);
+    expect(database.getArtist("Composer 2")?.albums).toEqual([album]);
+    for (const marker of ["1-1", "7-1", "8-1"]) {
+      const raw = originals.find((track) => track.id === marker)!;
+      expect(database.getAlbum(legacyAlbumKey(raw.album, null, raw.artist, raw.path))?.album.key).toBe(album.key);
+      expect(database.getAlbum(makeAlbumKey(raw.album, null, raw.artist))?.tracks).toHaveLength(180);
+    }
+    expect(database.getPlaylist(playlist.id)?.tracks.map((track) => track.id)).toEqual(["7-13", "8-1"]);
+    expect(snapshot()).toEqual(before);
+    database.db.close();
+    database = openDatabase(path.join(directory, "library.sqlite"));
+    expect(database.getAlbum(album.key)).toEqual(detail);
+    expect(snapshot()).toEqual(before);
+  });
+
+  it("sorts numbered discs numerically before bonus and keeps differently located releases and editions separate", () => {
+    for (const marker of ["Disc 10", "Bonus Disc", "CD 2", "Disc 1"]) {
+      insert(marker, { album: `Soundtrack [${marker}]`, path: path.join(directory, "music", "Soundtrack", marker, "song.flac") });
+    }
+    const album = database.listAlbums()[0];
+    expect(database.getAlbum(album.key)?.tracks.map((track) => track.id)).toEqual(["Disc 1", "CD 2", "Disc 10", "Bonus Disc"]);
+    insert("different-location", { album: "Soundtrack [Disc 1]", path: path.join(directory, "other", "Soundtrack", "Disc 1", "song.flac") });
+    insert("plus", { album: "Soundtrack Plus [Disc 1]", path: path.join(directory, "music", "Soundtrack Plus", "Disc 1", "song.flac") });
+    expect(database.summary().albumCount).toBe(3);
+    expect(database.getAlbum(makeAlbumKey("Soundtrack [Disc 1]", null, "Composer A"))).toBeNull();
+    expect(database.getAlbum(album.key)?.tracks).toHaveLength(4);
+  });
+
+  it.each([
+    ["Soundtrack [Disc 1]", "Soundtrack", "Disc 2", null],
+    ["Soundtrack [Disc 1]", "Different release", "Disc 1", null],
+    ["Soundtrack [Disc 0]", "Soundtrack", "Disc 0", null],
+    ["Soundtrack [Deluxe]", "Soundtrack", "Deluxe", null],
+    ["Soundtrack [Disc 1]", "Soundtrack", "Disc 1", "Album Artist"]
+  ])("does not infer a multi-disc identity from conflicting or explicit metadata: %s / %s / %s", (title, root, folder, albumArtist) => {
+    const raw = insert("one", { album: title, albumArtist, path: path.join(directory, "music", root!, folder!, "one.flac") });
+    expect(database.getTrack("one")?.album).toBe(title);
+    expect(database.getTrack("one")?.albumKey).toBe(legacyAlbumKey(title, albumArtist, raw.artist, raw.path));
+  });
+
   it("keeps a 98-track multi-composer soundtrack complete across album, track and artist queries", () => {
     database.db.transaction(() => {
       for (let index = 97; index >= 0; index--) {

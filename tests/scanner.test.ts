@@ -102,13 +102,13 @@ describe("scanner cached resources", () => {
     return database.db.prepare("SELECT artwork_path, lyrics_path FROM tracks WHERE id = ?").get(id);
   }
 
-  it("keeps existing cached artwork and lyrics when online metadata is disabled", async () => {
+  it.each([false, true])("keeps existing cached artwork and lyrics when online metadata is disabled (force=%s)", async (force) => {
     const { scanner, track, artworkPath, lyricsPath } = await seedCachedTrack();
     database.toggleFavorite(track.id, true);
     const playlist = database.createPlaylist("Saved songs");
     database.addTrackToPlaylist(playlist.id, track.id);
 
-    await scanner.scan();
+    await scanner.scan({ force });
 
     expect(resourcePaths(track.id)).toEqual({ artwork_path: artworkPath, lyrics_path: lyricsPath });
     expect(database.getTrack(track.id)?.favorite).toBe(true);

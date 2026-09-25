@@ -725,6 +725,34 @@ svg {
   flex: 0 0 auto;
 }
 
+.album-discs {
+  display: grid;
+  gap: 32px;
+  min-width: 0;
+}
+
+.album-disc {
+  min-width: 0;
+}
+
+.disc-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+
+.disc-heading h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.disc-heading span {
+  color: #6e6e73;
+  font-size: 13px;
+}
+
 .track-list {
   position: relative;
   display: grid;

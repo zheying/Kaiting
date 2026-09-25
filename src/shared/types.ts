@@ -31,6 +31,7 @@ export interface Track {
   year: number | null;
   trackNo: number | null;
   discNo: number | null;
+  discTitle?: string | null;
   duration: number | null;
   bitrate: number | null;
   codec: string | null;
@@ -50,6 +51,7 @@ export interface Album {
   artist: string | null;
   year: number | null;
   trackCount: number;
+  discCount?: number;
   duration: number;
   artworkTrackId: string | null;
 }
