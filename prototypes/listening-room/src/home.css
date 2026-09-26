@@ -1,0 +1,106 @@
+/* Home shares the library's surfaces; the record artwork carries the colour. */
+.home-intro { margin: 12px 0 28px; }
+.home-intro .eyebrow { font-size: 11px; letter-spacing: 1px; }
+.home-intro h1 { margin: 10px 0 9px; font-size: 34px; line-height: 1.35; letter-spacing: -.6px; font-weight: 650; }
+.home-intro p { font-size: 12px; line-height: 1.8; color: var(--muted); }
+.home-highlights { display: grid; grid-template-columns: minmax(0, 2.35fr) minmax(220px, 1fr); gap: 24px; }
+.featured-record { display: grid; grid-template-columns: minmax(0, 1fr) minmax(170px, 40%); align-items: center; gap: 24px; min-height: 304px; padding: 28px; }
+.featured-copy { min-width: 0; }
+.featured-kicker { display: flex; gap: 7px; align-items: center; color: var(--muted); font-size: 11px; font-weight: 500; }
+.featured-kicker svg { width: 16px; height: 16px; }
+.featured-copy h2 { font-size: clamp(25px, 2.3vw, 34px); font-weight: 650; letter-spacing: -.5px; line-height: 1.25; margin: 19px 0 10px; text-wrap: balance; }
+.featured-credit { color: var(--muted); font-size: 12px; line-height: 1.6; }
+.featured-description { margin-top: 16px; color: var(--muted); font-size: 12px; line-height: 1.8; }
+.featured-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 22px; }
+.featured-actions .text-button { min-height: 40px; }
+.featured-artwork { width: 100%; aspect-ratio: 1; border-radius: 12px; box-shadow: 0 12px 26px #17171918, 0 1px 3px #17171910; transition: transform .25s; }
+.featured-artwork .cover { border-radius: inherit; }
+.featured-artwork:hover { transform: translateY(-3px); }
+.resume-card { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) 44px; grid-template-rows: auto 152px auto 3px; align-items: center; gap: 16px 10px; padding: 20px; }
+.resume-heading { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 11px; font-weight: 500; }
+.resume-heading svg { width: 16px; height: 16px; }
+.resume-artwork { grid-column: 1 / -1; justify-self: center; width: 152px; height: 152px; border-radius: 10px; overflow: hidden; box-shadow: 0 7px 18px #17171914; }
+.resume-details { min-width: 0; }
+.resume-details strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; line-height: 1.5; font-weight: 600; }
+.resume-details > span { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.library-surface .resume-control { width: 44px; height: 44px; border-radius: 50%; background: var(--surface-subtle); color: var(--ink); }
+.library-surface .resume-control:hover { background: #e7e7ec; }
+.resume-control svg { width: 17px; height: 17px; }
+.resume-progress { grid-column: 1 / -1; height: 3px; border-radius: 3px; background: #1d1d1f12; overflow: hidden; }
+.resume-progress > span { display: block; height: 100%; background: #6e6e73; transition: width .3s linear; }
+.home-surface section + section { margin-top: 34px; }
+.home-surface .section-heading h2 { font-size: 21px; letter-spacing: -.3px; font-weight: 650; }
+.home-surface .section-heading p { font-size: 11px; }
+.home-surface .home-album-grid { gap: 18px; }
+.home-surface .playlist-grid { gap: 18px; }
+.home-collection { display: grid; grid-template-columns: minmax(0, 2.35fr) minmax(220px, 1fr); gap: 24px; align-items: stretch; }
+.home-collection > div { min-width: 0; }
+.home-favorites-list { padding: 6px 14px; }
+.library-summary { padding: 26px; align-self: end; }
+.library-summary .eyebrow { font-size: 10px; letter-spacing: .4px; }
+.library-summary h3 { font-size: 17px; font-weight: 600; line-height: 1.5; margin-top: 9px; }
+.library-summary-stats { display: flex; gap: 30px; margin: 26px 0 18px; }
+.library-summary-stats strong { display: block; font-size: 28px; line-height: 1.25; letter-spacing: -.7px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.library-summary-stats span { display: block; color: var(--muted); font-size: 11px; margin-top: 5px; }
+.library-summary p { color: var(--muted); font-size: 11px; line-height: 1.8; margin-bottom: 20px; }
+
+@media (max-width: 1200px) {
+  .home-highlights, .home-collection { grid-template-columns: minmax(0, 1fr) 220px; gap: 20px; }
+  .featured-record { gap: 18px; padding: 24px; }
+  .featured-copy h2 { font-size: 26px; }
+  .featured-actions { gap: 10px; }
+  .resume-card { padding: 18px; }
+  .library-summary { padding: 22px; }
+}
+@media (max-width: 900px) {
+  .home-highlights, .home-collection { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .featured-record { grid-template-columns: minmax(0, 1fr) minmax(150px, 34%); min-height: 270px; }
+  .resume-card { grid-template-columns: 56px minmax(0, 1fr) 44px; grid-template-rows: auto auto; column-gap: 14px; row-gap: 5px; padding: 16px 20px; }
+  .resume-heading { grid-column: 2; grid-row: 1; align-self: end; }
+  .resume-heading svg { display: none; }
+  .resume-artwork { grid-column: 1; grid-row: 1 / span 2; width: 56px; height: 56px; border-radius: 8px; }
+  .resume-details { grid-column: 2; grid-row: 2; }
+  .resume-control { grid-column: 3; grid-row: 1 / span 2; }
+  .resume-progress { display: none; }
+  .home-surface .home-album-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .home-surface .home-album-grid > .album-card:nth-last-child(-n+2) { display: none; }
+  .home-surface .playlist-grid { grid-template-columns: 1fr; }
+  .library-summary { align-self: auto; }
+}
+.mobile-layout .home-intro { margin: 0 0 24px; }
+.mobile-layout .home-intro h1 { font-size: 30px; }
+.mobile-layout .home-intro .eyebrow { font-size: 10px; }
+.mobile-layout .home-highlights, .mobile-layout .home-collection { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.mobile-layout .featured-record { grid-template-columns: minmax(0, 1fr) 116px; gap: 16px; min-height: 246px; padding: 20px; }
+.mobile-layout .featured-copy h2 { font-size: 23px; margin-top: 16px; }
+.mobile-layout .featured-credit { font-size: 11px; }
+.mobile-layout .featured-description { display: none; }
+.mobile-layout .featured-kicker { font-size: 10px; }
+.mobile-layout .featured-actions { display: grid; justify-items: start; gap: 0; margin-top: 18px; }
+.mobile-layout .featured-actions .button { min-height: 38px; padding-inline: 13px; font-size: 11px; }
+.mobile-layout .featured-actions .text-button { font-size: 11px; min-height: 36px; }
+.mobile-layout .featured-artwork { border-radius: 9px; }
+.mobile-layout .resume-card { grid-template-columns: 56px minmax(0, 1fr) 44px; grid-template-rows: auto auto; padding: 14px; column-gap: 12px; row-gap: 5px; }
+.mobile-layout .resume-heading { grid-column: 2; grid-row: 1; align-self: end; }
+.mobile-layout .resume-heading svg { display: none; }
+.mobile-layout .resume-artwork { grid-column: 1; grid-row: 1 / span 2; width: 56px; height: 56px; border-radius: 8px; }
+.mobile-layout .resume-details { grid-column: 2; grid-row: 2; }
+.mobile-layout .resume-control { grid-column: 3; grid-row: 1 / span 2; }
+.mobile-layout .resume-progress { display: none; }
+.mobile-layout .resume-details strong { font-size: 12px; }
+.mobile-layout.home-surface section + section { margin-top: 28px; }
+.mobile-layout.home-surface .section-heading h2 { font-size: 20px; }
+.mobile-layout.home-surface .section-heading p { font-size: 10px; }
+.mobile-layout.home-surface .home-album-grid { grid-template-columns: none; grid-auto-columns: 48%; gap: 14px; padding-bottom: 8px; }
+.mobile-layout.home-surface .home-album-grid > .album-card:nth-last-child(-n+2) { display: block; }
+.mobile-layout .home-favorites-list { padding-inline: 10px; }
+.mobile-layout .library-summary { padding: 22px; }
+@media (max-width: 350px) {
+  .mobile-layout .featured-record { grid-template-columns: minmax(0, 1fr) 90px; gap: 12px; padding: 16px; }
+  .mobile-layout .featured-copy h2 { font-size: 21px; }
+  .mobile-layout .featured-actions .button { padding-inline: 11px; gap: 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .featured-artwork { transition: none; }
+  .featured-artwork:hover { transform: none; }
+}

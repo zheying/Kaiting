@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import {
   ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, Check, ChevronDown, ChevronLeft,
   ChevronRight, Clock3, Disc3, Grid2X2, Headphones, Heart, House, Info, Library,
@@ -98,6 +98,7 @@ export function App() {
   const [toast, setToast] = useState("");
   const [pageLimit, setPageLimit] = useState(40);
   const [dense, setDense] = useState(false);
+  const [contentScrollbarWidth, setContentScrollbarWidth] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
   const mainRef = useRef<HTMLElement>(null);
   const current = trackMap.get(currentId)!;
@@ -164,6 +165,16 @@ export function App() {
     setQueue((previous) => { const next = [...previous]; [next[index], next[target]] = [next[target], next[index]]; return next; });
   }
 
+  useLayoutEffect(() => {
+    const main = mainRef.current;
+    if (!main) return;
+    // Match the search edge to the content across overlay and classic scrollbars.
+    const syncScrollbarWidth = () => setContentScrollbarWidth(main.offsetWidth - main.clientWidth);
+    const observer = new ResizeObserver(syncScrollbarWidth);
+    observer.observe(main);
+    syncScrollbarWidth();
+    return () => observer.disconnect();
+  }, []);
   useEffect(() => { const update = () => { setRoute(readRoute()); setPageLimit(40); setMenu(null); }; window.addEventListener("hashchange", update); return () => window.removeEventListener("hashchange", update); }, []);
   useEffect(() => { if (route !== "playing" && previousPage.current !== pageRoute) mainRef.current?.scrollTo({ top: 0 }); previousPage.current = pageRoute; }, [route, pageRoute]);
   useEffect(() => { if (!toast) return; const id = window.setTimeout(() => setToast(""), 3200); return () => window.clearTimeout(id); }, [toast]);
@@ -226,8 +237,8 @@ export function App() {
       {!options.limit && list.length > pageLimit && <button className="load-more" onClick={() => setPageLimit((value) => value + 60)}>再显示 {Math.min(60, list.length - pageLimit)} 首 <ChevronDown /></button>}
     </div>;
   }
-  function playlistCard(playlist: Playlist, index: number) {
-    return <button className={`playlist-card playlist-tone-${index % 3}`} key={playlist.id} onClick={() => navigate(`playlist/${playlist.id}`)}>
+  function playlistCard(playlist: Playlist) {
+    return <button className="playlist-card" key={playlist.id} onClick={() => navigate(`playlist/${playlist.id}`)}>
       <PlaylistArt playlist={playlist} /><div><small>私人歌单 · {playlist.trackIds.length} 首</small><h3>{playlist.name}</h3><p>{playlist.description}</p></div><ArrowUpRight className="playlist-arrow" />
     </button>;
   }
@@ -239,18 +250,35 @@ export function App() {
   }
   function renderHome() {
     return <>
-      <div className="home-greeting"><div><span className="eyebrow">YOUR PERSONAL LISTENING ROOM</span><h1>音乐，刚刚好。</h1></div><p>留一点时间，给喜欢的声音。</p></div>
-      <section className="home-feature-grid" aria-label="聆听推荐">
-        <article className="listening-hero">
-          <img className="hero-image" src="listening-room.png" alt="阳光下的唱片收藏与黑胶唱机" />
-          <div className="hero-copy"><span className="hero-kicker"><span /> 今日聆听灵感</span><h2>世界很大，<br />此刻只想听音乐。</h2><p>从熟悉的旋律出发，<br className="mobile-only" />再一次走进那些故事。</p><button className="button hero-button" onClick={() => play(albumTracks(featured.id)[0], albumTracks(featured.id))}><Play size={16} fill="currentColor" />开启今日旋律</button></div>
-          <button className="hero-note" onClick={() => navigate(`album/${featured.id}`)}><Disc3 /><span>今日选辑<span>歧路旅人 II · 西木康智</span></span><ArrowUpRight /></button>
+      <div className="home-intro"><span className="eyebrow">你的音乐空间</span><h1>音乐，刚刚好。</h1><p>留一点时间，给喜欢的声音。</p></div>
+      <section className="home-highlights" aria-label="聆听推荐">
+        <article className="surface-card featured-record">
+          <div className="featured-copy">
+            <span className="featured-kicker"><Disc3 />今日精选</span>
+            <h2>{featured.name}</h2>
+            <p className="featured-credit">{featured.artist} · {featured.year}</p>
+            <p className="featured-description">从熟悉的旋律出发，<br />重返故事里的世界。</p>
+            <div className="featured-actions">
+              <button className="button primary" onClick={() => play(albumTracks(featured.id)[0], albumTracks(featured.id))}><Play size={16} fill="currentColor" />播放专辑</button>
+              <button className="text-button" onClick={() => navigate(`album/${featured.id}`)}>查看专辑<ChevronRight /></button>
+            </div>
+          </div>
+          <button className="featured-artwork" aria-label={`查看今日精选 ${featured.name}`} onClick={() => navigate(`album/${featured.id}`)}><Cover album={featured} lazy={false} /></button>
         </article>
-        <article className="continue-card"><div className="card-eyebrow"><span>接着上次，继续听</span><Headphones size={15} /></div><button className="continue-art" onClick={() => navigate(`album/${currentAlbum.id}`)}><Cover album={currentAlbum} lazy={false} /></button><div className="continue-bottom"><div><strong title={current.title}>{displayTitle(current)}</strong><span>{current.artist}</span></div><IconButton className="continue-play" label={isPlaying ? "暂停当前歌曲" : "继续播放"} onClick={togglePlay}>{isPlaying ? <Pause fill="currentColor" /> : <Play fill="currentColor" />}</IconButton></div><div className="continue-progress"><span style={{ width: `${position / current.duration * 100}%` }} /></div></article>
+        <article className="surface-card resume-card">
+          <div className="resume-heading"><span>继续聆听</span><Headphones /></div>
+          <button className="resume-artwork" aria-label={`查看正在播放的专辑 ${currentAlbum.name}`} onClick={() => navigate(`album/${currentAlbum.id}`)}><Cover album={currentAlbum} lazy={false} /></button>
+          <div className="resume-details"><strong title={current.title}>{displayTitle(current)}</strong><span>{current.artist}</span></div>
+          <IconButton className="resume-control" label={isPlaying ? "暂停当前歌曲" : "继续播放"} onClick={togglePlay}>{isPlaying ? <Pause fill="currentColor" /> : <Play fill="currentColor" />}</IconButton>
+          <div className="resume-progress" aria-hidden="true"><span style={{ width: `${position / current.duration * 100}%` }} /></div>
+        </article>
       </section>
-      <section className="home-albums">{sectionHeading("唱片架上的新朋友", "每一次收藏，都值得认真听见。", <button className="text-button" onClick={() => navigate("albums")}>全部专辑 <ArrowRight /></button>)}<div className="album-grid home-album-grid">{albums.slice(0, 5).map(albumCard)}</div></section>
-      <section>{sectionHeading("为不同的时刻", "你的生活，自己的配乐。", <button className="text-button" onClick={() => navigate("playlists")}>我的歌单 <ArrowRight /></button>)}<div className="playlist-grid">{playlists.slice(0, 3).map(playlistCard)}</div></section>
-      <section className="home-lower"><div>{sectionHeading("一听，就很喜欢", "让这些旋律多陪你一会儿。", <button className="text-button" onClick={() => navigate("favorites")}>全部收藏 <ArrowRight /></button>)}{trackList(tracks.filter((track) => favorites.has(track.id)).slice(0, 4), { compact: true, limit: 4 })}</div><aside className="library-note"><Library /><span className="eyebrow">属于你的音乐收藏</span><h3>好音乐，<br />值得一直留在身边。</h3><p>{tracks.length.toLocaleString()} 首歌曲 · {albums.length} 张专辑<br />{durationLabel(tracks.reduce((sum, track) => sum + track.duration, 0))} 的陪伴</p><button className="text-button" onClick={() => setModal({ type: "info" })}>关于这间音乐室 <ArrowUpRight /></button></aside></section>
+      <section className="home-albums">{sectionHeading("最近加入", "每一次收藏，都值得认真听见。", <button className="text-button" onClick={() => navigate("albums")}>全部专辑<ChevronRight /></button>)}<div className="album-grid home-album-grid">{albums.slice(0, 5).map(albumCard)}</div></section>
+      <section className="home-playlists">{sectionHeading("为不同的时刻", "你的生活，自己的配乐。", <button className="text-button" onClick={() => navigate("playlists")}>我的歌单<ChevronRight /></button>)}<div className="playlist-grid">{playlists.slice(0, 3).map(playlistCard)}</div></section>
+      <section className="home-collection">
+        <div>{sectionHeading("一听，就很喜欢", "让这些旋律多陪你一会儿。", <button className="text-button" onClick={() => navigate("favorites")}>全部收藏<ChevronRight /></button>)}<div className="surface-card home-favorites-list">{trackList(tracks.filter((track) => favorites.has(track.id)).slice(0, 4), { compact: true, limit: 4 })}</div></div>
+        <aside className="surface-card library-summary"><span className="eyebrow">本地音乐库</span><h3>你的音乐，都在这里。</h3><div className="library-summary-stats"><div><strong>{tracks.length.toLocaleString()}</strong><span>首歌曲</span></div><div><strong>{albums.length}</strong><span>张专辑</span></div></div><p>{durationLabel(tracks.reduce((sum, track) => sum + track.duration, 0))}，慢慢听。</p><button className="text-button" onClick={() => setModal({ type: "info" })}>关于这间音乐室<ChevronRight /></button></aside>
+      </section>
       <footer className="page-footer"><Disc3 size={15} /><span>你的音乐，你的节奏。</span><span>Music Library</span></footer>
     </>;
   }
@@ -276,7 +304,7 @@ export function App() {
   function renderArtists() {
     const artistNames = [...new Set(albums.map((album) => album.artist))];
     return <>{pageHeading("BEHIND THE MUSIC", "旋律背后的人", "循着一个名字，听见更多喜欢的声音。")}
-      <div className="artist-grid">{artistNames.map((name) => { const discography = albums.filter((album) => album.artist === name); return <button className="artist-card" key={name} onClick={() => navigate(`artist/${encodeURIComponent(name)}`)}><div className="artist-art"><Cover album={discography[0]} /><span><Music2 /></span></div><h2>{name}</h2><p>{discography.length} 张专辑 · {discography.reduce((sum, album) => sum + album.trackCount, 0)} 首歌曲</p><span className="text-button">走进作品 <ArrowUpRight /></span></button>; })}</div></>;
+      <div className="artist-grid">{artistNames.map((name) => { const discography = albums.filter((album) => album.artist === name); return <button className="artist-card" key={name} onClick={() => navigate(`artist/${encodeURIComponent(name)}`)}><div className="artist-art"><Cover album={discography[0]} /><span><Music2 /></span></div><h2>{name}</h2><p>{discography.length} 张专辑 · {discography.reduce((sum, album) => sum + album.trackCount, 0)} 首歌曲</p></button>; })}</div></>;
   }
   function renderArtist(id: string) {
     let name = ""; try { name = decodeURIComponent(id); } catch { return renderNotFound(); }
@@ -318,18 +346,24 @@ export function App() {
     return <div className="queue-content"><div className="queue-current"><span className="eyebrow">正在播放</span><div><Cover album={currentAlbum} /><span><strong>{displayTitle(current)}</strong><small>{current.artist}</small></span>{isPlaying && <span className="equalizer"><i /><i /><i /></span>}</div></div><div className="queue-section-label"><span>待播清单 <small>{queue.length} 首</small></span><button onClick={() => { setQueue([current]); announce("已清空其他待播歌曲"); }} disabled={queue.length <= 1}>清空</button></div><div className="queue-tracks">{queue.map((track, index) => <div className={`queue-row ${track.id === currentId ? "current" : ""}`} key={track.id}><button className="queue-track-select" onClick={() => play(track)}><span className="queue-number">{track.id === currentId ? <Music2 size={13} /> : String(index + 1).padStart(2, "0")}</span><Cover album={albumMap.get(track.albumId)!} /><span><strong>{displayTitle(track)}</strong><small>{track.artist}</small></span></button><div className="queue-row-actions"><IconButton label={`上移 ${displayTitle(track)}`} disabled={index === 0} onClick={() => moveQueue(index, -1)}><ArrowUp /></IconButton><IconButton label={`下移 ${displayTitle(track)}`} disabled={index === queue.length - 1} onClick={() => moveQueue(index, 1)}><ArrowDown /></IconButton>{track.id !== currentId && <IconButton label={`移除 ${displayTitle(track)}`} onClick={() => setQueue((items) => items.filter((item) => item.id !== track.id))}><X /></IconButton>}</div></div>)}</div></div>;
   }
 
-  return <div className={`app ${isMobile ? "mobile-layout" : "desktop-layout"} ${dense ? "dense-layout" : ""}`}>
+  return <div className={`app ${isMobile ? "mobile-layout" : "desktop-layout"} ${dense ? "dense-layout" : ""} library-surface ${section === "home" && !searching ? "home-surface" : ""}`}>
     <a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); mainRef.current?.focus(); }}>跳到主要内容</a>
     <aside className={`sidebar ${mobileNavOpen ? "sidebar-open" : ""}`} aria-label="音乐库导航" inert={isMobile && !mobileNavOpen}>
-      <button className="brand" aria-label="Music Library 首页" onClick={() => navigate("home")}><span className="brand-mark"><Disc3 /></span><span>Music Library<small>私 人 音 乐 空 间</small></span></button>
+      <button className="brand" aria-label="Music Library 首页" onClick={() => navigate("home")}><span className="brand-mark"><Disc3 /></span><span>Music Library</span></button>
       {isMobile && <IconButton className="close-mobile-nav" label="关闭导航" onClick={() => setMobileNavOpen(false)}><X /></IconButton>}
-      <span className="nav-label">我的音乐</span><nav className="main-nav">{navItems.map(({ route: target, title, icon: Icon }) => <button key={target} aria-label={title} aria-current={!searching && (section === target || section === target.replace(/s$/, "")) ? "page" : undefined} onClick={() => navigate(target)}><Icon /><span>{title}</span>{target === "favorites" && <small>{favorites.size}</small>}</button>)}</nav>
-      <div className="playlist-nav-heading"><button className="nav-label" onClick={() => navigate("playlists")}>我的歌单</button><IconButton label="新建歌单" onClick={() => { setNewPlaylistName(""); setPlaylistError(""); setModal({ type: "create" }); }}><Plus /></IconButton></div>
-      <nav className="playlist-nav">{playlists.map((playlist) => <button key={playlist.id} aria-current={routeId === playlist.id ? "page" : undefined} onClick={() => navigate(`playlist/${playlist.id}`)}><ListMusic /><span>{playlist.name}</span></button>)}</nav>
-      <div className="sidebar-bottom"><div className="local-library"><span className="status-dot" /><div><strong>音乐一直都在</strong><span>{tracks.length.toLocaleString()} 首 · 本地曲库快照</span></div><Disc3 /></div><button className="settings-button" onClick={() => setModal({ type: "settings" })}><Settings2 /> 音乐室设置 <ChevronRight /></button><span className="sidebar-signature">A little space for your music.</span></div>
+      <div className="sidebar-content">
+        <span className="nav-label">我的音乐</span><nav className="main-nav">{navItems.map(({ route: target, title, icon: Icon }) => <button key={target} aria-label={title} aria-current={!searching && (section === target || section === target.replace(/s$/, "")) ? "page" : undefined} onClick={() => navigate(target)}><Icon /><span>{title}</span>{target === "favorites" && <small>{favorites.size}</small>}</button>)}<button className="compact-playlists" aria-label="我的歌单" aria-current={!searching && (section === "playlists" || section === "playlist") ? "page" : undefined} onClick={() => navigate("playlists")}><ListMusic /><span>我的歌单</span></button></nav>
+        <div className="playlist-nav-heading"><button className="nav-label" onClick={() => navigate("playlists")}>我的歌单</button><IconButton label="新建歌单" onClick={() => { setNewPlaylistName(""); setPlaylistError(""); setModal({ type: "create" }); }}><Plus /></IconButton></div>
+        <nav className="playlist-nav">{playlists.map((playlist) => <button key={playlist.id} aria-current={routeId === playlist.id ? "page" : undefined} onClick={() => navigate(`playlist/${playlist.id}`)}><div className="sidebar-playlist-art" aria-hidden="true"><PlaylistArt playlist={playlist} /></div><ListMusic /><span>{playlist.name}</span></button>)}</nav>
+      </div>
+      <div className="sidebar-bottom"><div className="local-library"><span className="status-dot" /><div><strong>本地音乐库</strong><span>{tracks.length.toLocaleString()} 首 · {albums.length} 张专辑</span></div><Disc3 /></div><button className="settings-button" aria-label="音乐室设置" onClick={() => setModal({ type: "settings" })}><Settings2 /> 设置 <ChevronRight /></button></div>
     </aside>
     {isMobile && mobileNavOpen && <button className="nav-backdrop" aria-label="收起导航" onClick={() => setMobileNavOpen(false)} />}
-    <div className="workspace"><header className="topbar"><div className="breadcrumbs">{isMobile ? <IconButton label="打开导航" onClick={() => setMobileNavOpen(true)}><Library /></IconButton> : <><button onClick={() => navigate("home")}>音乐空间</button><ChevronRight size={14} /><span>{searching ? "搜索" : section === "home" ? "现在就听" : section === "album" ? "专辑详情" : section === "playlist" ? "私人歌单" : section === "artist" ? "艺人作品" : section === "playlists" ? "我的歌单" : navItems.find((item) => item.route === section)?.title ?? "音乐库"}</span></>}</div><label className="search-field"><Search /><input ref={searchRef} value={query} placeholder="找一首歌、一张专辑、一位艺人" aria-label="搜索歌曲、专辑、艺人" onChange={(event) => { setQuery(event.target.value); setPageLimit(40); }} />{query ? <button aria-label="清空搜索" onClick={() => { setQuery(""); searchRef.current?.focus(); }}><X /></button> : <kbd>⌘ K</kbd>}</label><div className="topbar-right"><button className="prototype-badge" onClick={() => setModal({ type: "info" })}><span />原型预览</button><button className="profile-button" aria-label="音乐室设置" onClick={() => setModal({ type: "settings" })}><Headphones /></button></div></header>
+    <div className="workspace" style={{ "--content-scrollbar-width": `${contentScrollbarWidth}px` } as CSSProperties}>
+      <header className="topbar">
+        {isMobile && <div className="breadcrumbs"><IconButton label="打开导航" onClick={() => setMobileNavOpen(true)}><Library /></IconButton></div>}
+        <label className="search-field"><Search /><input ref={searchRef} value={query} placeholder="找一首歌、一张专辑、一位艺人" aria-label="搜索歌曲、专辑、艺人" onChange={(event) => { setQuery(event.target.value); setPageLimit(40); }} />{query ? <button aria-label="清空搜索" onClick={() => { setQuery(""); searchRef.current?.focus(); }}><X /></button> : <kbd>⌘ K</kbd>}</label>
+      </header>
       <main ref={mainRef} id="main-content" className="main-content" tabIndex={-1}><div className="page-content" key={searching ? "search" : pageRoute}>{renderPage()}</div></main>
     </div>
     <CapsulePlayer
@@ -344,7 +378,6 @@ export function App() {
       onOpenArtist={() => navigate(`artist/${encodeURIComponent(current.artist)}`)}
       onOpenAlbum={() => navigate(`album/${currentAlbum.id}`)}
     />
-    {isMobile && <nav className="mobile-bottom-nav" aria-label="底部导航">{[{ route: "home", label: "现在就听", icon: House }, { route: "albums", label: "音乐库", icon: Library }, { route: "favorites", label: "收藏", icon: Heart }, { route: "playlists", label: "歌单", icon: ListMusic }].map(({ route: target, label, icon: Icon }) => <button key={target} className={section === target ? "selected" : ""} aria-current={section === target ? "page" : undefined} onClick={() => navigate(target)}><Icon /><span>{label}</span></button>)}</nav>}
     {queueOpen && <Modal className="queue-dialog" label="待播清单" onClose={() => setQueueOpen(false)}><div className="dialog-heading"><div><span className="eyebrow">KEEP THE MUSIC GOING</span><h2>接下来听</h2></div><IconButton label="关闭待播清单" onClick={() => setQueueOpen(false)}><X /></IconButton></div>{queueContent()}</Modal>}
     {route === "playing" && <Modal className="now-playing-dialog" label="沉浸播放器" onClose={closePlayer}>
       <NowPlaying
