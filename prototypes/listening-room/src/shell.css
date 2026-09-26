@@ -220,6 +220,7 @@
   padding: 32px 24px;
   border: 0;
 }
+.library-surface .state-panel.is-error { background: transparent; }
 .library-surface .page-footer { color: var(--muted); }
 .library-surface :is(.standard-dialog, .queue-dialog) { background: var(--paper); color: var(--ink); border-color: var(--line); border-radius: 20px; box-shadow: 0 24px 80px #17171929; }
 .library-surface :is(.standard-dialog, .queue-dialog)::backdrop { background: #17171945; }
@@ -346,7 +347,7 @@ body:has(.library-surface.dark-theme) { background: #111318; color: #f2f3f5; }
 .library-surface.dark-theme .home-collection .home-favorites-list { background: transparent; }
 .library-surface.dark-theme .empty-state > svg { color: #747a86; }
 .library-surface.dark-theme .state-panel { background: linear-gradient(180deg, #e2556d0b, transparent 72%); border-color: #ffffff14; }
-.library-surface.dark-theme .state-panel.is-error { background: linear-gradient(180deg, #e2556d18, transparent 72%); border-color: #e2556d45; }
+.library-surface.dark-theme .state-panel.is-error { background: transparent; border-color: transparent; }
 .library-surface.dark-theme .state-icon { background: #e2556d18; }
 .library-surface.dark-theme :is(.standard-dialog, .queue-dialog) { background: #1b1e25; border-color: #ffffff14; box-shadow: 0 28px 90px #00000070; }
 .library-surface.dark-theme :is(.standard-dialog, .queue-dialog)::backdrop { background: #05060ab8; }
