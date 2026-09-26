@@ -35,10 +35,24 @@
 .home-surface .section-heading p { font-size: 11px; }
 .home-surface .home-album-grid { gap: 18px; }
 .home-surface .playlist-collection-grid { gap: 18px; }
+/* The favorites block follows the open media-list language used across catalog pages. */
 .home-collection { display: grid; grid-template-columns: minmax(0, 2.35fr) minmax(220px, 1fr); gap: 24px; align-items: stretch; }
 .home-collection > div { min-width: 0; }
-.home-favorites-list { padding: 6px 14px; }
-.library-summary { padding: 26px; align-self: end; }
+.home-favorites-list { padding: 0; }
+.home-favorites-list .track-list { padding: 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.home-favorites-list .track-row { min-height: 72px; padding: 9px 4px; gap: 12px; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; }
+.home-favorites-list .track-row:last-child { border-bottom: 0; }
+.home-favorites-list .track-row:nth-of-type(odd),
+.home-favorites-list .track-row.current-track { background: transparent; }
+.home-favorites-list .track-row:hover { background: linear-gradient(90deg, #17171905, transparent 84%); }
+.home-favorites-list .track-identity { gap: 11px; }
+.home-favorites-list .track-identity .cover { width: 40px; height: 40px; border-radius: 6px; }
+.home-favorites-list .track-identity strong { font-size: 12px; }
+.home-favorites-list .track-identity small { font-size: 10px; margin-top: 4px; }
+.home-favorites-list .track-number { min-height: 40px; color: var(--muted); }
+.home-favorites-list .track-duration { font-size: 11px; color: var(--muted); }
+.home-favorites-list .track-actions .icon-button { width: 31px; height: 36px; }
+.library-summary { padding: 12px 0 12px 24px; align-self: stretch; border-left: 1px solid var(--line); }
 .library-summary .eyebrow { font-size: 10px; letter-spacing: .4px; }
 .library-summary h3 { font-size: 17px; font-weight: 600; line-height: 1.5; margin-top: 9px; }
 .library-summary-stats { display: flex; gap: 30px; margin: 26px 0 18px; }
@@ -54,7 +68,7 @@
   .featured-actions { gap: 10px; }
   .resume-card { grid-template-columns: 72px minmax(0, 1fr) 40px; gap: 14px 10px; padding-left: 22px; }
   .resume-artwork { width: 72px; height: 72px; border-radius: 10px; }
-  .library-summary { padding: 22px; }
+  .library-summary { padding: 12px 0 12px 22px; }
 }
 @media (max-width: 900px) {
   .home-highlights, .home-collection { grid-template-columns: minmax(0, 1fr); gap: 18px; }
@@ -69,7 +83,7 @@
   .resume-progress { grid-row: 3; margin-top: 10px; }
   .home-surface .home-album-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .home-surface .home-album-grid > .album-card:nth-last-child(-n+2) { display: none; }
-  .library-summary { align-self: auto; }
+  .library-summary { align-self: auto; padding: 20px 0 0; border-top: 1px solid var(--line); border-left: 0; }
 }
 .mobile-layout .home-intro { margin: 0 0 24px; }
 .mobile-layout .home-intro h1 { font-size: 30px; }
@@ -98,8 +112,8 @@
 .mobile-layout.home-surface .section-heading p { font-size: 10px; }
 .mobile-layout.home-surface .home-album-grid { grid-template-columns: none; grid-auto-columns: 48%; gap: 14px; padding-bottom: 8px; }
 .mobile-layout.home-surface .home-album-grid > .album-card:nth-last-child(-n+2) { display: block; }
-.mobile-layout .home-favorites-list { padding-inline: 10px; }
-.mobile-layout .library-summary { padding: 22px; }
+.mobile-layout .home-favorites-list { padding-inline: 0; }
+.mobile-layout .library-summary { padding: 20px 0 0; border-top: 1px solid var(--line); border-left: 0; }
 @media (max-width: 350px) {
   .mobile-layout .featured-record { grid-template-columns: minmax(0, 1fr) 90px; gap: 12px; padding-right: 0; }
   .mobile-layout .featured-copy h2 { font-size: 21px; }

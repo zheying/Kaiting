@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import {
   ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, ChevronDown, ChevronLeft,
   ChevronRight, Clock3, Disc3, Headphones, Heart, House, Info, Library,
-  ListMusic, MoreHorizontal, Music2, Pause, Play, Plus,
+  ListMusic, LoaderCircle, MoreHorizontal, Music2, Pause, Play, Plus,
   Search, Settings2, Shuffle, SkipForward, UserRound,
   X, type LucideIcon
 } from "lucide-react";
@@ -14,7 +14,8 @@ import { useMobileLayout } from "../../../src/client/mobile-layout";
 type Album = (typeof library.albums)[number];
 type Track = (typeof library.tracks)[number];
 type Playlist = { id: string; name: string; description: string; trackIds: string[] };
-type ModalState = { type: "create"; trackId?: string } | { type: "add"; trackId: string } | { type: "info" } | { type: "settings" } | null;
+type ModalState = { type: "create"; trackId?: string } | { type: "add"; trackId: string } | { type: "playlist-add"; playlistId: string } | { type: "info" } | { type: "settings" } | null;
+type StateAction = { label: string; onClick: () => void; variant?: "primary" | "subtle" };
 const { albums, tracks } = library;
 const albumMap = new Map(albums.map((album) => [album.id, album]));
 const trackMap = new Map(tracks.map((track) => [track.id, track]));
@@ -38,6 +39,11 @@ const navItems: { route: string; title: string; icon: LucideIcon }[] = [
   { route: "favorites", title: "我的收藏", icon: Heart }
 ];
 const readRoute = () => window.location.hash.replace(/^#\/?/, "") || "home";
+const readSearchQuery = () => {
+  const rawRoute = window.location.hash.replace(/^#\/?/, "");
+  const [path, search] = rawRoute.split("?");
+  return path === "search" && search ? new URLSearchParams(search).get("q") ?? "" : "";
+};
 
 function IconButton({ label, children, onClick, active = false, className = "", disabled = false }: {
   label: string; children: ReactNode; onClick: () => void; active?: boolean; className?: string; disabled?: boolean;
@@ -55,7 +61,11 @@ function Modal({ children, className = "", label, onClose }: { children: ReactNo
     dialog?.showModal();
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => { dialog?.close(); document.body.style.overflow = originalOverflow; previous?.focus(); };
+    const frame = window.requestAnimationFrame(() => {
+      const target = dialog?.querySelector<HTMLElement>("input, [autofocus]") ?? dialog?.querySelector<HTMLElement>("[aria-label^='关闭']");
+      target?.focus();
+    });
+    return () => { window.cancelAnimationFrame(frame); dialog?.close(); document.body.style.overflow = originalOverflow; previous?.focus(); };
   }, []);
   return <dialog ref={ref} className={className} aria-label={label} onCancel={(event) => { event.preventDefault(); closeRef.current(); }} onClick={(event) => { if (event.target === event.currentTarget) closeRef.current(); }}>{children}</dialog>;
 }
@@ -71,13 +81,34 @@ function PlaylistArt({ playlist }: { playlist: Playlist }) {
   </div>;
 }
 
+function StatePanel({ icon: Icon, eyebrow, title, description, actions = [], tone = "", className = "" }: {
+  icon: LucideIcon;
+  eyebrow?: string;
+  title: string;
+  description: string;
+  actions?: StateAction[];
+  tone?: "error" | "";
+  className?: string;
+}) {
+  return <section className={`state-panel ${tone ? `is-${tone}` : ""} ${className}`.trim()} role={tone === "error" ? "alert" : "region"} aria-label={title}>
+    <span className="state-icon"><Icon aria-hidden="true" /></span>
+    {eyebrow && <span className="eyebrow">{eyebrow}</span>}
+    <h2>{title}</h2>
+    <p>{description}</p>
+    {actions.length > 0 && <div className="state-actions">{actions.map((action) => <button type="button" className={`button ${action.variant === "subtle" ? "subtle" : "primary"}`} key={action.label} onClick={action.onClick}>{action.label}<ArrowRight /></button>)}</div>}
+  </section>;
+}
+
 export function App() {
   const isMobile = useMobileLayout();
   const [route, setRoute] = useState(readRoute);
   const backgroundRoute = useRef("home");
   const previousPage = useRef(route === "playing" ? "home" : route);
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState("全部");
+  const [query, setQuery] = useState(readSearchQuery);
+  const [searchCommitted, setSearchCommitted] = useState(() => Boolean(readSearchQuery()));
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [albumDiscFilter, setAlbumDiscFilter] = useState("全部");
+  const [formatFilter, setFormatFilter] = useState("全部");
   const [favorites, setFavorites] = useState(startingFavorites);
   const [playlists, setPlaylists] = useState(starterPlaylists);
   const [queue, setQueue] = useState(initialQueue);
@@ -92,10 +123,12 @@ export function App() {
   const [modal, setModal] = useState<ModalState>(null);
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [playlistError, setPlaylistError] = useState("");
+  const [playlistTrackQuery, setPlaylistTrackQuery] = useState("");
   const [menu, setMenu] = useState<{ track: Track; x: number; y: number } | null>(null);
   const [toast, setToast] = useState("");
   const [pageLimit, setPageLimit] = useState(40);
   const [dense, setDense] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
   const [contentScrollbarWidth, setContentScrollbarWidth] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
   const mainRef = useRef<HTMLElement>(null);
@@ -103,15 +136,22 @@ export function App() {
   const currentAlbum = albumMap.get(current.albumId)!;
   const currentIndex = queue.findIndex((track) => track.id === currentId);
   const pageRoute = route === "playing" ? backgroundRoute.current : route;
-  const [section, routeId] = pageRoute.split("/");
-  const searching = query.trim().length > 0;
-  const catalogPage = searching || ["albums", "album", "songs", "favorites", "playlists", "playlist", "artist"].includes(section);
+  const browseRoute = useRef(pageRoute);
+  const [section, routeId] = pageRoute.split("?")[0].split("/");
+  const searching = searchCommitted && query.trim().length > 0;
+  const searchSuggestionsOpen = searchFocused && !searching && query.trim().length > 0;
+  const catalogPage = searching || ["search", "albums", "album", "songs", "favorites", "playlists", "playlist", "artist", "loading", "error"].includes(section);
 
   function announce(message: string) { setToast(""); window.setTimeout(() => setToast(message), 0); }
   function navigate(next: string) {
-    setQuery(""); setMenu(null); setPageLimit(40); setMobileNavOpen(false); setFilter("全部");
+    setQuery(""); setSearchCommitted(false); setSearchFocused(false); setMenu(null); setPageLimit(40); setMobileNavOpen(false); setAlbumDiscFilter("全部"); setFormatFilter("全部");
     if (route !== "playing") backgroundRoute.current = route;
     window.location.hash = `/${next}`;
+  }
+  function clearSearch(focus = false) {
+    setQuery(""); setSearchCommitted(false); setSearchFocused(focus);
+    if (section === "search") window.location.hash = "/home";
+    if (focus) window.setTimeout(() => searchRef.current?.focus(), 0);
   }
   function openPlayer() { backgroundRoute.current = pageRoute; setQueueOpen(false); window.location.hash = "/playing"; }
   function closePlayer() { window.location.hash = `/${backgroundRoute.current === "playing" ? "home" : backgroundRoute.current}`; }
@@ -174,9 +214,22 @@ export function App() {
     syncScrollbarWidth();
     return () => observer.disconnect();
   }, []);
-  useEffect(() => { const update = () => { setRoute(readRoute()); setPageLimit(40); setMenu(null); setMobileNavOpen(false); }; window.addEventListener("hashchange", update); return () => window.removeEventListener("hashchange", update); }, []);
+  useEffect(() => {
+    const update = () => {
+      const nextRoute = readRoute();
+      const nextQuery = readSearchQuery();
+      setRoute(nextRoute); setQuery(nextQuery); setSearchCommitted(Boolean(nextQuery)); setSearchFocused(false);
+      setPageLimit(40); setMenu(null); setMobileNavOpen(false);
+    };
+    window.addEventListener("hashchange", update);
+    return () => window.removeEventListener("hashchange", update);
+  }, []);
   useEffect(() => { setMobileNavOpen(false); }, [isMobile]);
-  useEffect(() => { if (route !== "playing" && previousPage.current !== pageRoute) mainRef.current?.scrollTo({ top: 0 }); previousPage.current = pageRoute; }, [route, pageRoute]);
+  useEffect(() => {
+    if (route !== "playing" && previousPage.current !== pageRoute) mainRef.current?.scrollTo({ top: 0 });
+    if (route !== "playing" && browseRoute.current !== pageRoute) { setAlbumDiscFilter("全部"); setFormatFilter("全部"); browseRoute.current = pageRoute; }
+    previousPage.current = pageRoute;
+  }, [route, pageRoute]);
   useEffect(() => { if (!toast) return; const id = window.setTimeout(() => setToast(""), 3200); return () => window.clearTimeout(id); }, [toast]);
   useEffect(() => { if (!isPlaying) return; const timer = window.setInterval(() => setPosition((value) => Math.min(value + 1, current.duration)), 1000); return () => window.clearInterval(timer); }, [isPlaying, current.duration]);
   useEffect(() => { if (isPlaying && position >= current.duration) nextTrack(true); }, [position, current.duration, isPlaying]);
@@ -184,12 +237,21 @@ export function App() {
     const keydown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k" && !document.querySelector("dialog[open]")) { event.preventDefault(); searchRef.current?.focus(); return; }
-      if (event.key === "Escape") { setMenu(null); setMobileNavOpen(false); if (searching && !document.querySelector("dialog[open]")) setQuery(""); }
+      if (event.key === "Escape") { setMenu(null); setMobileNavOpen(false); if ((searching || searchSuggestionsOpen) && !document.querySelector("dialog[open]")) clearSearch(); }
       if (["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(target.tagName) || target.isContentEditable || modal || queueOpen) return;
       if (event.code === "Space") { event.preventDefault(); togglePlay(); }
     };
     window.addEventListener("keydown", keydown); return () => window.removeEventListener("keydown", keydown);
-  }, [modal, queueOpen, searching]);
+  }, [modal, queueOpen, searchSuggestionsOpen, searching, section]);
+  useEffect(() => {
+    if (!searchFocused) return;
+    const close = (event: MouseEvent) => {
+      const field = searchRef.current?.closest(".search-control");
+      if (field && !field.contains(event.target as Node)) setSearchFocused(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [searchFocused]);
   useEffect(() => {
     if (!menu) return;
     const close = () => setMenu(null);
@@ -210,7 +272,7 @@ export function App() {
       <p>{album.artist}</p><span className="album-year">{album.year} · {album.genre}</span>
     </article>;
   }
-  function trackList(list: Track[], options: { compact?: boolean; hideAlbum?: boolean; playlistId?: string; limit?: number } = {}) {
+  function trackList(list: Track[], options: { compact?: boolean; hideAlbum?: boolean; playlistId?: string; limit?: number; emptyState?: ReactNode } = {}) {
     const visible = list.slice(0, options.limit ?? pageLimit);
     return <div className={`track-list ${options.compact ? "compact" : ""} ${options.hideAlbum ? "hide-album" : ""}`}>
       {!options.compact && list.length > 0 && <div className="track-table-head"><span>#</span><span>歌曲 / 艺人</span>{!options.hideAlbum && <span>专辑</span>}<span>音质</span><span><Clock3 size={14} /><span className="sr-only">时长</span></span><span /></div>}
@@ -219,7 +281,7 @@ export function App() {
         const active = track.id === currentId;
         return <div className={`track-row ${active ? "current-track" : ""}`} key={track.id}>
           <button className="track-number" aria-label={`${active && isPlaying ? "暂停" : "播放"} ${displayTitle(track)}`} onClick={() => active ? togglePlay() : play(track, list)}>
-            {active ? isPlaying ? <span className="equalizer" aria-hidden="true"><i /><i /><i /></span> : <Play size={14} fill="currentColor" /> : <><span>{String(index + 1).padStart(2, "0")}</span><Play size={14} fill="currentColor" /></>}
+            {active ? <span className={`equalizer ${isPlaying ? "is-playing" : "is-paused"}`} aria-hidden="true"><i /><i /><i /></span> : <><span>{String(index + 1).padStart(2, "0")}</span><Play size={14} fill="currentColor" /></>}
           </button>
           <button className="track-identity" onClick={() => active ? togglePlay() : play(track, list)} title={track.title}>
             {!options.hideAlbum && <Cover album={album} />}
@@ -232,7 +294,7 @@ export function App() {
           </div>
         </div>;
       })}
-      {!list.length && <div className="empty-state"><Music2 /><h3>这里还很安静</h3><p>去曲库找些喜欢的音乐吧。</p><button className="button primary" onClick={() => navigate("albums")}>浏览专辑 <ArrowRight /></button></div>}
+      {!list.length && (options.emptyState ?? <StatePanel className="state-panel-list" icon={Music2} title="这里还很安静" description="去曲库找些喜欢的音乐吧。" actions={[{ label: "浏览专辑", onClick: () => navigate("albums") }]} />)}
       {!options.limit && list.length > pageLimit && <button className="load-more" onClick={() => setPageLimit((value) => value + 60)}>再显示 {Math.min(60, list.length - pageLimit)} 首 <ChevronDown /></button>}
     </div>;
   }
@@ -248,6 +310,18 @@ export function App() {
   function collectionLabel(title: string, count: string) {
     return <div className="collection-label"><h2>{title}</h2><span>{count}</span></div>;
   }
+  function openCreatePlaylist(trackId?: string) {
+    setNewPlaylistName("");
+    setPlaylistError("");
+    setModal(trackId ? { type: "create", trackId } : { type: "create" });
+  }
+  function openPlaylistAdd(playlistId: string) {
+    setPlaylistTrackQuery("");
+    setModal({ type: "playlist-add", playlistId });
+  }
+  function renderLibraryEmpty() {
+    return <StatePanel icon={Library} eyebrow="本地音乐库" title="曲库里还没有内容" description="先扫描或连接一个音乐目录，专辑、歌曲和艺人才会出现在这里。" actions={[{ label: "打开设置", onClick: () => setModal({ type: "settings" }) }, { label: "先逛逛歌单", variant: "subtle", onClick: () => navigate("playlists") }]} />;
+  }
   function collectionPlaylistCard(playlist: Playlist) {
     const list = playlist.trackIds.map((id) => trackMap.get(id)!).filter(Boolean);
     return <article className="playlist-collection-card" key={playlist.id}>
@@ -259,6 +333,7 @@ export function App() {
     </article>;
   }
   function renderHome() {
+    if (!albums.length || !tracks.length) return renderLibraryEmpty();
     return <>
       <div className="home-intro"><span className="eyebrow">你的音乐空间</span><h1>音乐，刚刚好。</h1><p>留一点时间，给喜欢的声音。</p></div>
       <section className="home-highlights" aria-label="聆听推荐">
@@ -286,35 +361,35 @@ export function App() {
       <section className="home-albums">{sectionHeading("最近加入", "每一次收藏，都值得认真听见。", <button className="text-button" onClick={() => navigate("albums")}>全部专辑<ChevronRight /></button>)}<div className="album-grid home-album-grid">{albums.slice(0, 5).map(albumCard)}</div></section>
       <section className="home-playlists">{sectionHeading("为不同的时刻", "你的生活，自己的配乐。", <button className="text-button" onClick={() => navigate("playlists")}>我的歌单<ChevronRight /></button>)}<div className="playlist-collection-grid">{playlists.slice(0, 3).map(collectionPlaylistCard)}</div></section>
       <section className="home-collection">
-        <div>{sectionHeading("一听，就很喜欢", "让这些旋律多陪你一会儿。", <button className="text-button" onClick={() => navigate("favorites")}>全部收藏<ChevronRight /></button>)}<div className="surface-card home-favorites-list">{trackList(tracks.filter((track) => favorites.has(track.id)).slice(0, 4), { compact: true, limit: 4 })}</div></div>
-        <aside className="surface-card library-summary"><span className="eyebrow">本地音乐库</span><h3>你的音乐，都在这里。</h3><div className="library-summary-stats"><div><strong>{tracks.length.toLocaleString()}</strong><span>首歌曲</span></div><div><strong>{albums.length}</strong><span>张专辑</span></div></div><p>{durationLabel(tracks.reduce((sum, track) => sum + track.duration, 0))}，慢慢听。</p><button className="text-button" onClick={() => setModal({ type: "info" })}>关于这间音乐室<ChevronRight /></button></aside>
+        <div>{sectionHeading("一听，就很喜欢", "让这些旋律多陪你一会儿。", <button className="text-button" onClick={() => navigate("favorites")}>全部收藏<ChevronRight /></button>)}<div className="home-favorites-list">{trackList(tracks.filter((track) => favorites.has(track.id)).slice(0, 4), { compact: true, limit: 4 })}</div></div>
+        <aside className="library-summary"><span className="eyebrow">本地音乐库</span><h3>你的音乐，都在这里。</h3><div className="library-summary-stats"><div><strong>{tracks.length.toLocaleString()}</strong><span>首歌曲</span></div><div><strong>{albums.length}</strong><span>张专辑</span></div></div><p>{durationLabel(tracks.reduce((sum, track) => sum + track.duration, 0))}，慢慢听。</p><button className="text-button" onClick={() => setModal({ type: "info" })}>关于这间音乐室<ChevronRight /></button></aside>
       </section>
-      <footer className="page-footer"><Disc3 size={15} /><span>你的音乐，你的节奏。</span><span>Music Library</span></footer>
+      <footer className="page-footer"><Disc3 size={15} /><span>你的音乐，你的节奏。</span><span>音泊</span></footer>
     </>;
   }
   function renderAlbums() {
     const result = albums;
     return <>
       {pageHeading("音乐库 / 专辑", "你的唱片架", `${albums.length} 张专辑，收藏着不同的世界。`, shuffleButton(tracks))}
-      <div className="album-grid collection-grid">{result.map(albumCard)}</div>
+      {result.length ? <div className="album-grid collection-grid">{result.map(albumCard)}</div> : renderLibraryEmpty()}
     </>;
   }
   function renderAlbum(album?: Album) {
-    if (!album) return renderNotFound();
+    if (!album) return renderNotFound("album");
     const list = albumTracks(album.id);
     const discs = [...new Set(list.map((track) => track.disc))];
-    const filtered = filter.startsWith("Disc ") ? list.filter((track) => track.disc === Number(filter.slice(5))) : list;
+    const filtered = albumDiscFilter.startsWith("Disc ") ? list.filter((track) => track.disc === Number(albumDiscFilter.slice(5))) : list;
     return <>
       <button className="back-link" onClick={() => navigate("albums")}><ArrowLeft />回到唱片架</button>
-      <section className="detail-hero album-detail surface-card">
-        <Cover album={album} lazy={false} />
+      <section className="detail-hero album-detail">
+        <div className="album-detail-art artwork-card"><Cover album={album} lazy={false} /></div>
         <div className="detail-copy"><span className="eyebrow">专辑 · {album.genre} · {album.year}</span><h1>{album.name}</h1><p className="original-title">{album.title}</p><button className="detail-artist" onClick={() => navigate(`artist/${encodeURIComponent(album.artist)}`)}>{album.artist}<ChevronRight /></button><p className="detail-meta"><span>{album.trackCount} 首歌曲</span><span>·</span><span>{durationLabel(album.duration)}</span><span className="lossless"><Disc3 />无损音质</span></p><div className="detail-actions">{playButton(list)}{shuffleButton(list)}</div></div>
       </section>
       <section className="detail-track-section">
         <div className="detail-track-heading">{collectionLabel("专辑曲目", `${filtered.length} 首`)}
-          {discs.length > 1 && <div className="filter-pills disc-tabs" aria-label="选择碟片"><button aria-pressed={filter === "全部"} className={filter === "全部" ? "selected" : ""} onClick={() => { setFilter("全部"); setPageLimit(40); }}>全部</button>{discs.map((disc) => <button key={disc} aria-pressed={filter === `Disc ${disc}`} className={filter === `Disc ${disc}` ? "selected" : ""} onClick={() => { setFilter(`Disc ${disc}`); setPageLimit(40); }}>Disc {disc}</button>)}</div>}
+          {discs.length > 1 && <div className="filter-pills disc-tabs" aria-label="选择碟片"><button aria-pressed={albumDiscFilter === "全部"} className={albumDiscFilter === "全部" ? "selected" : ""} onClick={() => { setAlbumDiscFilter("全部"); setPageLimit(40); }}>全部</button>{discs.map((disc) => <button key={disc} aria-pressed={albumDiscFilter === `Disc ${disc}`} className={albumDiscFilter === `Disc ${disc}` ? "selected" : ""} onClick={() => { setAlbumDiscFilter(`Disc ${disc}`); setPageLimit(40); }}>Disc {disc}</button>)}</div>}
         </div>
-        {trackList(filtered, { hideAlbum: true })}
+        {filtered.length ? trackList(filtered, { hideAlbum: true }) : <StatePanel className="state-panel-list" icon={Disc3} title="这个碟片还没有歌曲" description="换一张碟片，或者回到专辑列表继续浏览。" actions={[{ label: "回到唱片架", onClick: () => navigate("albums") }]} />}
       </section>
       <p className="detail-endnote">{album.year} · {album.genre} · {album.trackCount} 首歌曲</p>
     </>;
@@ -322,35 +397,36 @@ export function App() {
   function renderArtists() {
     const artistNames = [...new Set(albums.map((album) => album.artist))];
     return <>{pageHeading("BEHIND THE MUSIC", "旋律背后的人", "循着一个名字，听见更多喜欢的声音。")}
-      <div className="artist-grid">{artistNames.map((name) => { const discography = albums.filter((album) => album.artist === name); return <button className="artist-card" key={name} onClick={() => navigate(`artist/${encodeURIComponent(name)}`)}><div className="artist-art artwork-card"><Cover album={discography[0]} /><span><Music2 /></span></div><h2>{name}</h2><p>{discography.length} 张专辑 · {discography.reduce((sum, album) => sum + album.trackCount, 0)} 首歌曲</p></button>; })}</div></>;
+      {artistNames.length ? <div className="artist-grid">{artistNames.map((name) => { const discography = albums.filter((album) => album.artist === name); return <button className="artist-card" key={name} onClick={() => navigate(`artist/${encodeURIComponent(name)}`)}><div className="artist-art artwork-card"><Cover album={discography[0]} /></div><h2>{name}</h2><p>{discography.length} 张专辑 · {discography.reduce((sum, album) => sum + album.trackCount, 0)} 首歌曲</p></button>; })}</div> : renderLibraryEmpty()}</>;
   }
   function renderArtist(id: string) {
-    let name = ""; try { name = decodeURIComponent(id); } catch { return renderNotFound(); }
-    const artistAlbumIds = new Set(albums.filter((album) => album.artist === name).map((album) => album.id));
+    let name = ""; try { name = decodeURIComponent(id); } catch { return renderNotFound("artist"); }
+    const artistAlbums = albums.filter((album) => album.artist === name);
+    const artistAlbumIds = new Set(artistAlbums.map((album) => album.id));
     const list = tracks.filter((track) => track.artist === name || artistAlbumIds.has(track.albumId));
     const resultAlbumIds = new Set(list.map((track) => track.albumId));
-    const results = albums.filter((album) => resultAlbumIds.has(album.id));
-    if (!results.length) return renderNotFound();
+    const results = albums.filter((album) => resultAlbumIds.has(album.id) || artistAlbumIds.has(album.id));
+    if (!results.length) return renderNotFound("artist");
     return <>
       <button className="back-link" onClick={() => navigate("artists")}><ArrowLeft />全部艺人</button>
-      <section className="detail-hero artist-profile surface-card"><Cover album={results[0]} lazy={false} /><div className="detail-copy"><span className="eyebrow">艺人作品</span><h1>{name}</h1><p className="playlist-description">循着熟悉的名字，听见更多喜欢的声音。</p><p className="detail-meta">{results.length} 张专辑<span>·</span>{list.length} 首作品</p><div className="detail-actions">{playButton(list)}{shuffleButton(list)}</div></div></section>
+      <section className="detail-hero artist-profile"><div className="artist-detail-art artwork-card"><Cover album={results[0]} lazy={false} /></div><div className="detail-copy"><span className="eyebrow">艺人作品</span><h1>{name}</h1><p className="playlist-description">循着熟悉的名字，听见更多喜欢的声音。</p><p className="detail-meta">{results.length} 张专辑<span>·</span>{list.length} 首作品</p><div className="detail-actions">{playButton(list)}{shuffleButton(list)}</div></div></section>
       <section>{collectionLabel("专辑与参与作品", `${results.length} 张`)}<div className="album-grid collection-grid">{results.map(albumCard)}</div></section>
-      <section className="artist-tracks">{collectionLabel("从这些旋律开始", `${Math.min(12, list.length)} 首`)}{trackList(list, { limit: 12 })}</section>
+      <section className="artist-tracks">{collectionLabel("从这些旋律开始", `${Math.min(12, list.length)} 首`)}{list.length ? trackList(list, { limit: 12 }) : <StatePanel className="state-panel-list" icon={Music2} title="这位艺人还没有歌曲" description="回到艺人列表，看看其他创作者的作品。" actions={[{ label: "回到艺人", onClick: () => navigate("artists") }]} />}</section>
     </>;
   }
   function renderPlaylist(playlist?: Playlist) {
-    if (!playlist) return renderNotFound();
+    if (!playlist) return renderNotFound("playlist");
     const list = playlist.trackIds.map((id) => trackMap.get(id)!).filter(Boolean);
     return <>
       <button className="back-link" onClick={() => navigate("playlists")}><ArrowLeft />我的歌单</button>
       <section className="detail-hero playlist-detail"><div className="playlist-detail-art artwork-card"><PlaylistArt playlist={playlist} /></div><div className="detail-copy"><span className="eyebrow">私人歌单</span><h1>{playlist.name}</h1><p className="playlist-description">{playlist.description}</p><p className="detail-meta">{list.length} 首歌曲<span>·</span>{durationLabel(list.reduce((sum, track) => sum + track.duration, 0))}</p><div className="detail-actions">{playButton(list)}{shuffleButton(list)}</div></div></section>
-      <section><div className="detail-track-heading">{collectionLabel("歌单中的音乐", `${list.length} 首`)}<button className="text-button add-tracks" onClick={() => navigate("songs")}><Plus />添加歌曲</button></div>{trackList(list, { playlistId: playlist.id })}</section>
+      <section><div className="detail-track-heading">{collectionLabel("歌单中的音乐", `${list.length} 首`)}<button className="text-button add-tracks" onClick={() => openPlaylistAdd(playlist.id)}><Plus />添加歌曲</button></div>{list.length ? trackList(list, { playlistId: playlist.id }) : <StatePanel className="state-panel-list" icon={ListMusic} title="这张歌单还没有歌曲" description="从曲库挑几首喜欢的旋律，给这个时刻留一份声音。" actions={[{ label: "添加歌曲", onClick: () => openPlaylistAdd(playlist.id) }, { label: "浏览专辑", variant: "subtle", onClick: () => navigate("albums") }]} />}</section>
     </>;
   }
   function renderPlaylists() {
     return <>
-      {pageHeading("音乐库 / 私人歌单", "给生活，一点配乐", `${playlists.length} 张歌单，为不同的时刻准备。`, <button className="button primary" onClick={() => { setNewPlaylistName(""); setPlaylistError(""); setModal({ type: "create" }); }}><Plus />新建歌单</button>)}
-      <div className="playlist-collection-grid">{playlists.map(collectionPlaylistCard)}</div>
+      {pageHeading("音乐库 / 私人歌单", "给生活，一点配乐", `${playlists.length} 张歌单，为不同的时刻准备。`, <button className="button primary" onClick={() => openCreatePlaylist()}><Plus />新建歌单</button>)}
+      {playlists.length ? <div className="playlist-collection-grid">{playlists.map(collectionPlaylistCard)}</div> : <StatePanel icon={ListMusic} eyebrow="私人歌单" title="还没有私人歌单" description="为某个时刻起一个名字，把喜欢的歌曲慢慢收进来。" actions={[{ label: "新建歌单", onClick: () => openCreatePlaylist() }, { label: "浏览专辑", variant: "subtle", onClick: () => navigate("albums") }]} />}
     </>;
   }
   function renderFavorites() {
@@ -360,26 +436,68 @@ export function App() {
         <div className="favorites-detail-art artwork-card">{list.length ? <PlaylistArt playlist={{ id: "favorites", name: "我的收藏", description: "", trackIds: list.map((track) => track.id) }} /> : <div className="favorites-empty-art"><Heart /></div>}</div>
         <div className="detail-copy"><span className="eyebrow"><Heart size={14} fill="currentColor" />我的收藏</span><h1>一听，就很喜欢</h1><p className="playlist-description">喜欢的音乐，值得一听再听。</p><p className="detail-meta">{list.length} 首歌曲<span>·</span>{durationLabel(list.reduce((sum, track) => sum + track.duration, 0))}</p><div className="detail-actions">{playButton(list)}{shuffleButton(list)}</div></div>
       </section>
-      <section>{collectionLabel("收藏的歌曲", `${list.length} 首`)}{trackList(list)}</section>
+      <section>{collectionLabel("收藏的歌曲", `${list.length} 首`)}{list.length ? trackList(list) : <StatePanel className="state-panel-list" icon={Heart} title="还没有收藏歌曲" description="看到喜欢的旋律时，点一下心形图标，它们就会出现在这里。" actions={[{ label: "浏览歌曲", onClick: () => navigate("songs") }, { label: "浏览专辑", variant: "subtle", onClick: () => navigate("albums") }]} />}</section>
     </>;
   }
   function renderSongs() {
-    const list = tracks.filter((track) => filter === "全部" || track.format === filter);
+    const list = tracks.filter((track) => formatFilter === "全部" || track.format === formatFilter);
+    if (!tracks.length) return <>{pageHeading("音乐库 / 歌曲", "所有歌曲", "曲库还没有可播放的内容。")}{renderLibraryEmpty()}</>;
     return <>
       {pageHeading("音乐库 / 歌曲", "所有歌曲", `${tracks.length.toLocaleString()} 首旋律，随时为你响起。`, playButton(list))}
-      <div className="collection-toolbar songs-filter-bar"><div className="filter-pills" aria-label="筛选音频格式">{["全部", "FLAC", "ALAC"].map((item) => <button key={item} aria-pressed={filter === item} className={filter === item ? "selected" : ""} onClick={() => { setFilter(item); setPageLimit(40); }}>{item === "全部" ? "全部格式" : item}</button>)}</div><span className="result-count">{list.length.toLocaleString()} 首歌曲</span></div>
-      {list.length ? trackList(list) : <div className="track-list"><div className="empty-state"><Music2 /><h3>还没有 {filter} 格式的歌曲</h3><p>换个格式，继续发现你的音乐。</p><button className="button subtle" onClick={() => setFilter("全部")}>查看全部歌曲</button></div></div>}
+      <div className="collection-toolbar songs-filter-bar"><div className="filter-pills" aria-label="筛选音频格式">{["全部", "FLAC", "ALAC"].map((item) => <button key={item} aria-pressed={formatFilter === item} className={formatFilter === item ? "selected" : ""} onClick={() => { setFormatFilter(item); setPageLimit(40); }}>{item === "全部" ? "全部格式" : item}</button>)}</div><span className="result-count">{list.length.toLocaleString()} 首歌曲</span></div>
+      {list.length ? trackList(list) : <StatePanel className="state-panel-list" icon={Music2} title={`还没有 ${formatFilter} 格式的歌曲`} description="换个格式，继续发现你的音乐。" actions={[{ label: "查看全部歌曲", variant: "subtle", onClick: () => setFormatFilter("全部") }]} />}
     </>;
   }
-  function renderSearch() {
-    const term = query.trim().toLocaleLowerCase();
+  function getSearchMatches(value = query) {
+    const term = value.trim().toLocaleLowerCase();
+    const matchingArtists = [...new Set(albums.map((album) => album.artist))].filter((artist) => artist.toLocaleLowerCase().includes(term));
     const matchingAlbums = albums.filter((album) => `${album.name} ${album.title} ${album.artist} ${album.genre}`.toLocaleLowerCase().includes(term));
     const matchingTracks = tracks.filter((track) => `${track.title} ${track.artist} ${albumMap.get(track.albumId)?.name}`.toLocaleLowerCase().includes(term));
+    return { matchingArtists, matchingAlbums, matchingTracks };
+  }
+  function commitSearch() {
+    const term = query.trim();
+    if (!term) return;
+    setSearchCommitted(true);
+    setSearchFocused(false);
+    setPageLimit(40);
+    window.location.hash = `/search?q=${encodeURIComponent(term)}`;
+  }
+  function renderSearchSuggestions() {
+    if (!searchSuggestionsOpen) return null;
+    const { matchingArtists, matchingAlbums, matchingTracks } = getSearchMatches();
+    const hasMatches = matchingArtists.length > 0 || matchingAlbums.length > 0 || matchingTracks.length > 0;
+    return <div className="search-suggestions" role="listbox" aria-label="搜索候选">
+      <div className="search-suggestions-heading"><span>快速找到</span><button type="button" onMouseDown={(event) => { event.preventDefault(); commitSearch(); }}>查看全部</button></div>
+      {!hasMatches ? <div className="search-suggestions-empty"><Search /><span>没有匹配结果，按 Enter 查看完整搜索。</span></div> : <div className="search-suggestions-groups">
+        {matchingArtists.slice(0, 2).map((artist) => <button type="button" className="search-suggestion-row" key={`artist-${artist}`} onMouseDown={(event) => { event.preventDefault(); navigate(`artist/${encodeURIComponent(artist)}`); }}><span className="search-suggestion-icon"><UserRound /></span><span><strong>{artist}</strong><small>艺人</small></span><ChevronRight /></button>)}
+        {matchingAlbums.slice(0, 3).map((album) => <button type="button" className="search-suggestion-row" key={`album-${album.id}`} onMouseDown={(event) => { event.preventDefault(); navigate(`album/${album.id}`); }}><Cover album={album} /><span><strong>{album.name}</strong><small>{album.artist} · 专辑</small></span><ChevronRight /></button>)}
+        {matchingTracks.slice(0, 4).map((track) => <button type="button" className="search-suggestion-row" key={`track-${track.id}`} onMouseDown={(event) => { event.preventDefault(); play(track); clearSearch(); }}><Cover album={albumMap.get(track.albumId)!} /><span><strong>{displayTitle(track)}</strong><small>{track.artist} · 歌曲</small></span><Play fill="currentColor" /></button>)}
+      </div>}
+      {hasMatches && <div className="search-suggestions-footer"><kbd>Enter</kbd><span>查看全部搜索结果</span></div>}
+    </div>;
+  }
+  function renderSearch() {
+    const { matchingAlbums, matchingTracks } = getSearchMatches();
     return <>{pageHeading("音乐库 / 搜索", `寻找「${query.trim()}」`, `${matchingAlbums.length} 张专辑 · ${matchingTracks.length} 首歌曲`)}
-      {!matchingAlbums.length && !matchingTracks.length ? <div className="empty-state search-empty"><Search /><h3>还没有找到这段旋律</h3><p>试试「西木康智」「歧路旅人」或歌曲名称。</p><button className="button subtle" onClick={() => { setQuery(""); searchRef.current?.focus(); }}>重新搜索</button></div> : <>{matchingAlbums.length > 0 && <section className="search-albums">{sectionHeading("专辑")}<div className="album-grid collection-grid">{matchingAlbums.slice(0, 5).map(albumCard)}</div></section>}{matchingTracks.length > 0 && <section>{sectionHeading("歌曲", undefined, playButton(matchingTracks))}{trackList(matchingTracks)}</section>}</>}
+      {!matchingAlbums.length && !matchingTracks.length ? <StatePanel className="search-empty" icon={Search} eyebrow="搜索" title="还没有找到这段旋律" description="试试「西木康智」「歧路旅人」或歌曲名称。" actions={[{ label: "重新搜索", variant: "subtle", onClick: () => clearSearch(true) }, { label: "回到首页", onClick: () => navigate("home") }]} /> : <>{matchingAlbums.length > 0 && <section className="search-albums">{sectionHeading("专辑")}<div className="album-grid collection-grid">{matchingAlbums.slice(0, 5).map(albumCard)}</div></section>}{matchingTracks.length > 0 && <section>{sectionHeading("歌曲", undefined, playButton(matchingTracks))}{trackList(matchingTracks)}</section>}</>}
     </>;
   }
-  function renderNotFound() { return <div className="empty-state"><Disc3 /><h1>这张唱片暂时不在架上</h1><button className="button primary" onClick={() => navigate("home")}>回到音乐室</button></div>; }
+  function renderNotFound(kind: "page" | "album" | "artist" | "playlist" = "page") {
+    const copy = {
+      page: { eyebrow: "404 · 页面不存在", title: "这条路还没有唱片", description: "你访问的页面已经离开曲库，回到音乐室继续浏览吧。" },
+      album: { eyebrow: "404 · 专辑不存在", title: "这张唱片暂时不在架上", description: "它可能被移出了当前曲库，或者链接已经过期。" },
+      artist: { eyebrow: "404 · 艺人不存在", title: "还没有找到这位艺人", description: "换个名字搜索，或者回到艺人列表继续发现。" },
+      playlist: { eyebrow: "404 · 歌单不存在", title: "这张歌单暂时找不到", description: "它可能已经被删除，或者只存在于另一个音乐室。" }
+    }[kind];
+    return <StatePanel tone="error" icon={kind === "artist" ? UserRound : kind === "playlist" ? ListMusic : Disc3} eyebrow={copy.eyebrow} title={copy.title} description={copy.description} actions={[{ label: "回到首页", onClick: () => navigate("home") }, { label: "浏览专辑", variant: "subtle", onClick: () => navigate("albums") }]} />;
+  }
+  function renderLibraryError() {
+    return <StatePanel tone="error" icon={Info} eyebrow="曲库读取失败" title="暂时无法打开音乐库" description="本地曲库没有响应，歌曲和封面暂时无法载入。请检查音乐目录或稍后再试。" actions={[{ label: "重新尝试", onClick: () => { setToast(""); window.location.hash = "/error"; window.setTimeout(() => window.location.reload(), 0); } }, { label: "回到首页", variant: "subtle", onClick: () => navigate("home") }]} />;
+  }
+  function renderLibraryLoading() {
+    return <StatePanel className="state-panel-loading" icon={LoaderCircle} eyebrow="正在准备音乐室" title="正在载入你的音乐" description="正在读取专辑、歌曲和封面，请稍候。" />;
+  }
   function renderPage() {
     if (searching) return renderSearch();
     if (section === "home") return renderHome();
@@ -391,16 +509,18 @@ export function App() {
     if (section === "playlists") return renderPlaylists();
     if (section === "favorites") return renderFavorites();
     if (section === "songs") return renderSongs();
+    if (section === "loading") return renderLibraryLoading();
+    if (section === "error") return renderLibraryError();
     return renderNotFound();
   }
   function queueContent() {
-    return <div className="queue-content"><div className="queue-current"><span className="eyebrow">正在播放</span><div><Cover album={currentAlbum} /><span><strong>{displayTitle(current)}</strong><small>{current.artist}</small></span>{isPlaying && <span className="equalizer"><i /><i /><i /></span>}</div></div><div className="queue-section-label"><span>待播清单 <small>{queue.length} 首</small></span><button onClick={() => { setQueue([current]); announce("已清空其他待播歌曲"); }} disabled={queue.length <= 1}>清空</button></div><div className="queue-tracks">{queue.map((track, index) => <div className={`queue-row ${track.id === currentId ? "current" : ""}`} key={track.id}><button className="queue-track-select" onClick={() => play(track)}><span className="queue-number">{track.id === currentId ? <Music2 size={13} /> : String(index + 1).padStart(2, "0")}</span><Cover album={albumMap.get(track.albumId)!} /><span><strong>{displayTitle(track)}</strong><small>{track.artist}</small></span></button><div className="queue-row-actions"><IconButton label={`上移 ${displayTitle(track)}`} disabled={index === 0} onClick={() => moveQueue(index, -1)}><ArrowUp /></IconButton><IconButton label={`下移 ${displayTitle(track)}`} disabled={index === queue.length - 1} onClick={() => moveQueue(index, 1)}><ArrowDown /></IconButton>{track.id !== currentId && <IconButton label={`移除 ${displayTitle(track)}`} onClick={() => setQueue((items) => items.filter((item) => item.id !== track.id))}><X /></IconButton>}</div></div>)}</div></div>;
+    return <div className="queue-content"><div className="queue-current"><span className="eyebrow">正在播放</span><div><Cover album={currentAlbum} /><span><strong>{displayTitle(current)}</strong><small>{current.artist}</small></span><span className={`equalizer ${isPlaying ? "is-playing" : "is-paused"}`} aria-hidden="true"><i /><i /><i /></span></div></div><div className="queue-section-label"><span>待播清单 <small>{queue.length} 首</small></span><button onClick={() => { setQueue([current]); announce("已清空其他待播歌曲"); }} disabled={queue.length <= 1}>清空</button></div><div className="queue-tracks">{queue.map((track, index) => <div className={`queue-row ${track.id === currentId ? "current" : ""}`} key={track.id}><button className="queue-track-select" onClick={() => play(track)}><span className="queue-number">{track.id === currentId ? <span className={`equalizer ${isPlaying ? "is-playing" : "is-paused"}`} aria-hidden="true"><i /><i /><i /></span> : String(index + 1).padStart(2, "0")}</span><Cover album={albumMap.get(track.albumId)!} /><span><strong>{displayTitle(track)}</strong><small>{track.artist}</small></span></button><div className="queue-row-actions"><IconButton label={`上移 ${displayTitle(track)}`} disabled={index === 0} onClick={() => moveQueue(index, -1)}><ArrowUp /></IconButton><IconButton label={`下移 ${displayTitle(track)}`} disabled={index === queue.length - 1} onClick={() => moveQueue(index, 1)}><ArrowDown /></IconButton>{track.id !== currentId && <IconButton label={`移除 ${displayTitle(track)}`} onClick={() => setQueue((items) => items.filter((item) => item.id !== track.id))}><X /></IconButton>}</div></div>)}</div></div>;
   }
 
-  return <div className={`app ${isMobile ? "mobile-layout" : "desktop-layout"} ${dense ? "dense-layout" : ""} library-surface ${section === "home" && !searching ? "home-surface" : ""} ${catalogPage ? "catalog-surface" : ""}`}>
+  return <div className={`app ${isMobile ? "mobile-layout" : "desktop-layout"} ${dense ? "dense-layout" : ""} ${darkMode ? "dark-theme" : ""} library-surface ${section === "home" && !searching ? "home-surface" : ""} ${catalogPage ? "catalog-surface" : ""}`}>
     <a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); mainRef.current?.focus(); }}>跳到主要内容</a>
     <aside className={`sidebar ${mobileNavOpen ? "sidebar-open" : ""}`} aria-label="音乐库导航" inert={isMobile && !mobileNavOpen}>
-      <button className="brand" aria-label="Music Library 首页" onClick={() => navigate("home")}><span className="brand-mark"><Disc3 /></span><span>Music Library</span></button>
+      <button className="brand" aria-label="音泊首页" onClick={() => navigate("home")}><span className="brand-mark"><Disc3 /></span><span>音泊</span></button>
       {isMobile && <IconButton className="close-mobile-nav" label="关闭导航" onClick={() => setMobileNavOpen(false)}><X /></IconButton>}
       <div className="sidebar-content">
         <span className="nav-label">我的音乐</span><nav className="main-nav">{navItems.map(({ route: target, title, icon: Icon }) => <button key={target} aria-label={title} aria-current={!searching && (section === target || section === target.replace(/s$/, "")) ? "page" : undefined} onClick={() => navigate(target)}><Icon /><span>{title}</span>{target === "favorites" && <small>{favorites.size}</small>}</button>)}<button className="compact-playlists" aria-label="我的歌单" aria-current={!searching && (section === "playlists" || section === "playlist") ? "page" : undefined} onClick={() => navigate("playlists")}><ListMusic /><span>我的歌单</span></button></nav>
@@ -413,7 +533,7 @@ export function App() {
     <div className="workspace" style={{ "--content-scrollbar-width": `${contentScrollbarWidth}px` } as CSSProperties}>
       <header className="topbar">
         {isMobile && <div className="breadcrumbs"><IconButton label="打开导航" onClick={() => setMobileNavOpen(true)}><Library /></IconButton></div>}
-        <label className="search-field"><Search /><input ref={searchRef} value={query} placeholder="找一首歌、一张专辑、一位艺人" aria-label="搜索歌曲、专辑、艺人" onChange={(event) => { setQuery(event.target.value); setPageLimit(40); }} />{query ? <button aria-label="清空搜索" onClick={() => { setQuery(""); searchRef.current?.focus(); }}><X /></button> : <kbd>⌘ K</kbd>}</label>
+        <div className="search-control"><label className="search-field"><Search /><input ref={searchRef} value={query} placeholder="找一首歌、一张专辑、一位艺人" aria-label="搜索歌曲、专辑、艺人" onFocus={() => { setSearchFocused(true); if (searchCommitted) setSearchCommitted(false); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commitSearch(); } }} onChange={(event) => { setQuery(event.target.value); setSearchCommitted(false); setSearchFocused(true); setPageLimit(40); }} />{query && <button aria-label="清空搜索" onMouseDown={(event) => event.preventDefault()} onClick={() => clearSearch(true)}><X /></button>}</label>{renderSearchSuggestions()}</div>
       </header>
       <main ref={mainRef} id="main-content" className="main-content" tabIndex={-1}><div className="page-content" key={searching ? "search" : pageRoute}>{renderPage()}</div></main>
     </div>
@@ -447,11 +567,18 @@ export function App() {
         onClearQueue={() => setQueue([current])}
       />
     </Modal>}
-    {modal && <Modal className="standard-dialog" label={modal.type === "create" ? "新建歌单" : modal.type === "add" ? "添加到歌单" : modal.type === "settings" ? "音乐室设置" : "关于原型"} onClose={() => setModal(null)}><div className="dialog-heading"><span className="dialog-symbol">{modal.type === "create" || modal.type === "add" ? <ListMusic /> : modal.type === "settings" ? <Settings2 /> : <Disc3 />}</span><IconButton label="关闭对话框" onClick={() => setModal(null)}><X /></IconButton></div>
+    {modal && <Modal className="standard-dialog" label={modal.type === "create" ? "新建歌单" : modal.type === "add" ? "添加到歌单" : modal.type === "playlist-add" ? "添加歌曲" : modal.type === "settings" ? "音乐室设置" : "关于原型"} onClose={() => setModal(null)}><div className="dialog-heading"><span className="dialog-symbol">{modal.type === "create" || modal.type === "add" || modal.type === "playlist-add" ? <ListMusic /> : modal.type === "settings" ? <Settings2 /> : <Disc3 />}</span><IconButton label="关闭对话框" onClick={() => setModal(null)}><X /></IconButton></div>
       {modal.type === "create" && <form onSubmit={(event) => { event.preventDefault(); createPlaylist(); }}><h2>给心情，一张歌单</h2><p>装下某个时刻，也收藏某种喜欢。</p><label className="form-field">歌单名称<input autoFocus value={newPlaylistName} maxLength={60} placeholder="比如：星期天的午后" aria-invalid={Boolean(playlistError)} aria-describedby={playlistError ? "playlist-error" : undefined} onChange={(event) => { setNewPlaylistName(event.target.value); setPlaylistError(""); }} /></label>{playlistError && <p className="form-error" id="playlist-error" role="alert">{playlistError}</p>}<div className="dialog-actions"><button type="button" className="button subtle" onClick={() => setModal(null)}>再想想</button><button type="submit" className="button primary"><Plus /> 创建歌单</button></div></form>}
       {modal.type === "add" && <><h2>收藏到哪张歌单？</h2><p>{displayTitle(trackMap.get(modal.trackId)!)}</p><div className="add-playlist-list">{playlists.map((playlist) => <button key={playlist.id} onClick={() => addToPlaylist(playlist.id, modal.trackId)}><PlaylistArt playlist={playlist} /><span><strong>{playlist.name}</strong><small>{playlist.trackIds.length} 首歌曲</small></span>{playlist.trackIds.includes(modal.trackId) ? <Check /> : <Plus />}</button>)}</div><button className="button subtle full-width" onClick={() => { setNewPlaylistName(""); setPlaylistError(""); setModal({ type: "create", trackId: modal.trackId }); }}><Plus /> 创建新歌单</button></>}
+      {modal.type === "playlist-add" && (() => {
+        const playlist = playlists.find((item) => item.id === modal.playlistId);
+        if (!playlist) return null;
+        const term = playlistTrackQuery.trim().toLocaleLowerCase();
+        const available = tracks.filter((track) => !playlist.trackIds.includes(track.id) && `${displayTitle(track)} ${track.artist} ${albumMap.get(track.albumId)?.name ?? ""}`.toLocaleLowerCase().includes(term)).slice(0, 60);
+        return <><h2>添加歌曲</h2><p>从曲库挑选歌曲，加入「{playlist.name}」。</p><label className="form-field playlist-track-search">搜索歌曲<input autoFocus value={playlistTrackQuery} placeholder="输入歌曲、艺人或专辑" aria-label="搜索要添加的歌曲" onChange={(event) => setPlaylistTrackQuery(event.target.value)} /></label><div className="add-playlist-list track-picker-list">{available.map((track) => <button key={track.id} onClick={() => addToPlaylist(playlist.id, track.id)}><Cover className="playlist-track-cover" album={albumMap.get(track.albumId)!} /><span><strong>{displayTitle(track)}</strong><small>{track.artist} · {albumMap.get(track.albumId)?.name}</small></span><Plus /></button>)}{!available.length && <div className="picker-empty"><Music2 /><span>{term ? "没有匹配的未添加歌曲" : "这个歌单已经收下曲库里的歌曲了"}</span></div>}</div></>;
+      })()}
       {modal.type === "info" && <><span className="eyebrow">MUSIC LIBRARY · DESIGN CONCEPT 01</span><h2>属于你的，私人音乐空间</h2><p>以唱片收藏为灵感，让浏览、发现与聆听都慢下来。</p><div className="about-stats"><span><strong>{tracks.length.toLocaleString()}</strong>首歌曲</span><span><strong>{albums.length}</strong>张真实专辑</span><span><strong>01</strong>私人音乐室</span></div><div className="prototype-explanation"><Info /><p>这是独立交互原型，使用本地曲库的元数据与封面快照。播放、进度及音量为交互演示，不输出音频；收藏和歌单在刷新后重置。原曲库与现有应用保持不变。</p></div><button className="button primary full-width" onClick={() => setModal(null)}>开始逛逛 <ArrowRight /></button></>}
-      {modal.type === "settings" && <><h2>音乐室设置</h2><p>把这里调成你喜欢的样子。</p><div className="setting-row"><span><strong>紧凑歌曲列表</strong><small>在同一屏里看见更多音乐</small></span><button className={`toggle ${dense ? "on" : ""}`} role="switch" aria-checked={dense} aria-label="紧凑歌曲列表" onClick={() => setDense((value) => !value)}><span /></button></div><div className="setting-row"><span><strong>曲库快照</strong><small>{tracks.length.toLocaleString()} 首歌曲 · {albums.length} 张专辑</small></span><span className="setting-badge">已载入</span></div><div className="prototype-explanation"><Info /><p>当前预览使用独立数据快照。扫描、文件管理与账号设置将在正式接入时沿用现有服务。</p></div><button className="button primary full-width" onClick={() => setModal(null)}>就这样，很好</button></>}
+      {modal.type === "settings" && <><h2>音乐室设置</h2><p>把这里调成你喜欢的样子。</p><div className="setting-row"><span><strong>紧凑歌曲列表</strong><small>在同一屏里看见更多音乐</small></span><button className={`toggle ${dense ? "on" : ""}`} role="switch" aria-checked={dense} aria-label="紧凑歌曲列表" onClick={() => setDense((value) => !value)}><span /></button></div><div className="setting-row"><span><strong>深色主题</strong><small>降低环境光下的亮度，保留红色强调</small></span><button className={`toggle ${darkMode ? "on" : ""}`} role="switch" aria-checked={darkMode} aria-label="深色主题" onClick={() => setDarkMode((value) => !value)}><span /></button></div><div className="setting-row"><span><strong>曲库快照</strong><small>{tracks.length.toLocaleString()} 首歌曲 · {albums.length} 张专辑</small></span><span className="setting-badge">已载入</span></div><div className="prototype-explanation"><Info /><p>当前预览使用独立数据快照。扫描、文件管理与账号设置将在正式接入时沿用现有服务。</p></div><button className="button primary full-width" onClick={() => setModal(null)}>就这样，很好</button></>}
     </Modal>}
     {menu && <><button className="menu-backdrop" aria-label="关闭歌曲操作菜单" onClick={() => setMenu(null)} /><div className="track-menu" role="menu" aria-label="歌曲操作" style={{ left: Math.max(12, menu.x), top: Math.max(12, menu.y) }}><button role="menuitem" autoFocus onClick={() => enqueue(menu.track, true)}><SkipForward /> 下一首播放</button><button role="menuitem" onClick={() => enqueue(menu.track)}><ListMusic /> 加入待播清单</button><button role="menuitem" onClick={() => { setModal({ type: "add", trackId: menu.track.id }); setMenu(null); }}><Plus /> 添加到歌单</button><button role="menuitem" onClick={() => { toggleFavorite(menu.track.id); setMenu(null); }}><Heart />{favorites.has(menu.track.id) ? "取消收藏" : "收藏歌曲"}</button><button role="menuitem" onClick={() => navigate(`album/${menu.track.albumId}`)}><Disc3 /> 前往专辑</button></div></>}
     <div className={`toast ${toast ? "visible" : ""}`} role="status" aria-live="polite">{toast && <><Check size={16} />{toast}</>}</div>
