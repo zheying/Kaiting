@@ -66,7 +66,7 @@
 .library-surface .settings-button:hover { color: var(--ink); background: #ffffff80; }
 .library-surface .sidebar button:focus-visible { outline-offset: 2px; }
 
-.library-surface .topbar { position: absolute; z-index: 8; inset: 0 0 auto; align-self: auto; width: 100%; max-width: none; height: auto; min-height: 78px; margin: 0; padding: 16px 40px 0; display: flex; align-items: flex-start; justify-content: flex-end; pointer-events: none; background: linear-gradient(to bottom, var(--paper) 0, var(--paper) 48px, color-mix(in srgb, var(--paper) 94%, transparent) 62px, transparent 78px); border: 0; }
+.library-surface .topbar { position: absolute; z-index: 8; inset: 0 0 auto; align-self: auto; width: 100%; max-width: none; height: auto; min-height: 78px; margin: 0; padding: 16px 40px 0; display: flex; align-items: flex-start; justify-content: flex-end; pointer-events: none; background: transparent; border: 0; }
 .library-surface .topbar > * { pointer-events: auto; }
 .library-surface .breadcrumbs { color: var(--muted); }
 .library-surface .search-control { position: relative; flex: 0 1 360px; width: min(360px, 100%); margin-left: auto; }
@@ -98,7 +98,10 @@
 .library-surface .search-suggestions-footer { display: flex; align-items: center; gap: 7px; margin: 7px 5px 1px; padding-top: 9px; border-top: 1px solid var(--line); color: var(--muted); font-size: 9px; }
 .library-surface .search-suggestions-footer kbd { min-width: 38px; padding: 3px 6px; color: var(--ink); text-align: center; background: var(--surface-subtle); border-radius: 5px; font: 10px inherit; }
 .library-surface .main-content { scrollbar-color: #cfcfd6 transparent; }
-.library-surface .main-content::before { height: 78px; margin-bottom: -78px; background: linear-gradient(to bottom, var(--paper) 0, var(--paper) 48px, color-mix(in srgb, var(--paper) 94%, transparent) 62px, transparent 78px); }
+/* Keep the page content readable as it scrolls behind the floating search. The
+   search field owns its own material, so a full-width mask here only fades and
+   visually clips the first rows of every page. */
+.library-surface .main-content::before { display: none; }
 .library-surface .page-heading .eyebrow { color: var(--muted); }
 .library-surface .page-heading h1 { color: var(--ink); font-weight: 650; letter-spacing: -.6px; }
 .library-surface .page-heading p { color: var(--muted); }
@@ -304,8 +307,7 @@ body:has(.library-surface.dark-theme) { background: #111318; color: #f2f3f5; }
 .library-surface.dark-theme .local-library strong { color: var(--ink); }
 .library-surface.dark-theme .local-library div > span { color: var(--muted); }
 .library-surface.dark-theme .status-dot { background: #7da487; }
-.library-surface.dark-theme .topbar,
-.library-surface.dark-theme .main-content::before { background: linear-gradient(to bottom, var(--paper) 0, var(--paper) 48px, color-mix(in srgb, var(--paper) 94%, transparent) 62px, transparent 78px); }
+.library-surface.dark-theme .topbar { background: transparent; }
 .library-surface.dark-theme .search-field { background: #20232be8; border-color: #ffffff14; box-shadow: inset 0 0 0 .5px #ffffff08, 0 8px 24px #00000030; }
 .library-surface.dark-theme .search-field:focus-within { background: #252832; border-color: var(--accent); box-shadow: 0 0 0 3px #e2556d2b; }
 .library-surface.dark-theme .search-field input::placeholder { color: #858995; }
