@@ -67,8 +67,8 @@ a { color: inherit; }
 .settings-button > svg:last-child { margin-left: auto; width: 13px; }
 .settings-button:hover { color: var(--accent); }
 .sidebar-signature { display: block; margin: 14px 9px 0; color: #a1a298; font-size: 9px; letter-spacing: .1px; }
-.workspace { margin-left: var(--sidebar); display: flex; height: 100dvh; flex-direction: column; }
-.topbar { height: 79px; flex-shrink: 0; padding: 0 40px; display: flex; align-items: center; border-bottom: 1px solid var(--line); gap: 26px; }
+.workspace { min-width: 0; margin-left: var(--sidebar); display: flex; height: 100dvh; flex-direction: column; }
+.topbar { min-width: 0; height: 79px; flex-shrink: 0; padding: 0 40px; display: flex; align-items: center; border-bottom: 1px solid var(--line); gap: 26px; }
 .breadcrumbs { display: flex; align-items: center; gap: 12px; font-size: 11px; color: #8b8d84; flex-shrink: 0; }
 .breadcrumbs span { color: #4c5248; }
 .breadcrumbs svg { width: 12px; }
@@ -80,8 +80,8 @@ a { color: inherit; }
 .search-field kbd { font: 9px inherit; border: 1px solid #e0dfd6; padding: 2px 4px; border-radius: 3px; white-space: nowrap; }
 .search-field button { display: flex; }
 .search-field button svg { width: 13px; }
-.main-content { overflow-y: auto; overflow-x: hidden; flex: 1; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #d7d7cb transparent; }
-.page-content { padding: 33px 40px 138px; max-width: 1530px; margin: 0 auto; animation: enter-page .32s ease both; }
+.main-content { min-width: 0; overflow-y: auto; overflow-x: hidden; flex: 1; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #d7d7cb transparent; }
+.page-content { min-width: 0; padding: 33px 40px 138px; max-width: 1530px; margin: 0 auto; animation: enter-page .32s ease both; }
 .eyebrow { color: #85877e; font-size: 9px; font-weight: 500; letter-spacing: 2px; line-height: 1.5; }
 .button { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 38px; padding: 0 17px; border-radius: 6px; font-size: 11px; font-weight: 500; white-space: nowrap; }
 .button svg { width: 15px; height: 15px; }
@@ -108,24 +108,14 @@ section + section { margin-top: 32px; }
 .cover-play svg { width: 15px; height: 15px; margin-left: 2px; }
 .album-cover-wrap:hover .cover-play, .album-cover-wrap:focus-within .cover-play { opacity: 1; transform: translateY(0); }
 .cover-play:hover { background: white; color: var(--accent); }
-.cover-format { position: absolute; bottom: 7px; left: 7px; background: #f6f5efe8; font-size: 7px; letter-spacing: .6px; padding: 2px 4px; border-radius: 3px; color: #606c57; }
 .album-name { font-size: 12px; font-weight: 580; text-align: left; margin: 12px 0 0; display: block; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .album-name:hover { color: var(--accent); }
 .album-card p { color: #929389; font-size: 10px; line-height: 1.5; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .album-year { color: #a0a294; font-size: 9px; line-height: 1.6; display: block; margin-top: 3px; }
 .home-album-grid .album-year { display: none; }
-.playlist-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-.playlist-card { position: relative; display: flex; align-items: center; min-width: 0; min-height: 118px; padding: 19px 16px; background: #ecebe2; border-radius: 9px; gap: 15px; text-align: left; }
-.playlist-card:hover { transform: translateY(-3px); }
 .playlist-art { display: grid; place-items: center; aspect-ratio: 1; overflow: hidden; background: #dcded2; color: #858e75; border-radius: 5px; flex-shrink: 0; }
 .playlist-art.mosaic { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
 .playlist-art > img { min-width: 0; min-height: 0; }
-.playlist-card > .playlist-art { width: 69px; height: 69px; box-shadow: 0 3px 9px #34382c14; }
-.playlist-card > div:nth-child(2) { min-width: 0; }
-.playlist-card small { font-size: 8px; color: #8e9182; letter-spacing: .2px; }
-.playlist-card h3 { font-size: 13px; font-weight: 560; margin: 7px 0 5px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.playlist-card p { font-size: 9px; line-height: 1.6; color: #929487; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.playlist-arrow { position: absolute; top: 11px; right: 11px; color: #9ea28e; width: 13px; height: 13px; }
 .page-footer { display: flex; align-items: center; gap: 8px; padding-top: 36px; color: #b1b2a8; font-size: 9px; }
 .page-footer span:last-child { margin-left: auto; font-size: 10px; letter-spacing: .3px; }
 .page-heading { display: flex; align-items: center; justify-content: space-between; gap: 25px; margin: 13px 0 34px; }
@@ -224,19 +214,8 @@ section + section { margin-top: 32px; }
 .artist-art svg { width: 14px; }
 .artist-card h2 { font-size: 16px; font-weight: 550; }
 .artist-card p { font-size: 10px; color: #9ba78b; margin: 8px 0 0; }
-.all-playlists { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.all-playlists .playlist-card { min-height: 166px; padding: 25px; gap: 25px; }
-.all-playlists .playlist-art { width: 90px; height: 90px; }
-.all-playlists h3 { font-size: 18px; }
-.all-playlists p { font-size: 10px; }
 .playlist-detail { background: #eeeae0; }
 .playlist-description { font-size: 12px; color: #8f927f; line-height: 1.7; }
-.favorites-banner { padding: 32px; margin-bottom: 32px; background: #f0e6dc; border-radius: 11px; display: flex; gap: 25px; align-items: center; }
-.favorites-banner > span { width: 86px; height: 86px; display: grid; place-items: center; background: #e1c9b6; color: #b07453; border-radius: 12px; }
-.favorites-banner > span > svg { width: 32px; height: 32px; stroke-width: 1; }
-.favorites-banner h1 { font-size: 27px; margin: 10px 0 8px; font-weight: 580; }
-.favorites-banner p { font-size: 11px; color: #9c8f7b; }
-.favorites-banner .button { margin-left: auto; }
 .search-albums { margin-bottom: 36px; }
 .empty-state { text-align: center; padding: 65px 20px; color: #8e9880; }
 .empty-state > svg { width: 35px; height: 35px; margin: 0 auto 17px; color: #bac2aa; }
@@ -342,11 +321,6 @@ dialog[open] { animation: modal-in .24s ease both; }
   .page-content { padding-inline: 28px; }
   .album-grid { gap: 17px; }
   .album-name { font-size: 11px; }
-  .playlist-card { gap: 11px; padding-inline: 13px; }
-  .playlist-card > .playlist-art { width: 52px; height: 52px; }
-  .playlist-card h3 { font-size: 12px; }
-  .playlist-card p { display: none; }
-  .all-playlists .playlist-card p { display: block; }
   .track-table-head, .track-row { gap: 9px; grid-template-columns: 22px minmax(0,1.5fr) minmax(60px,.8fr) 38px 35px 60px; }
 }
 @media (max-width: 1000px) {
@@ -366,10 +340,6 @@ dialog[open] { animation: modal-in .24s ease both; }
   .desktop-layout .page-content { padding-inline: 23px; }
   .desktop-layout .album-name { font-size: 10px; }
   .desktop-layout .album-card p { font-size: 9px; }
-  .desktop-layout .playlist-grid { gap: 10px; }
-  .desktop-layout .playlist-card { gap: 9px; }
-  .desktop-layout .playlist-card > .playlist-art { width: 40px; height: 40px; }
-  .desktop-layout .playlist-card h3 { font-size: 11px; }
 }
 .mobile-layout { min-width: 320px; min-height: 450px; }
 .mobile-layout .workspace { margin-left: 0; }
@@ -396,12 +366,6 @@ dialog[open] { animation: modal-in .24s ease both; }
 .mobile-layout .album-card p { font-size: 9px; }
 .mobile-layout .cover-play { opacity: 1; transform: none; width: 28px; height: 28px; bottom: 9px; right: 9px; }
 .mobile-layout .cover-play svg { width: 12px; }
-.mobile-layout .playlist-grid { display: grid; grid-template-columns: 1fr; gap: 11px; }
-.mobile-layout .playlist-card { min-height: 93px; padding: 16px; gap: 17px; }
-.mobile-layout .playlist-card > .playlist-art { width: 58px; height: 58px; }
-.mobile-layout .playlist-card p { display: block; font-size: 9px; }
-.mobile-layout .playlist-card h3 { font-size: 13px; }
-.mobile-layout .playlist-arrow { top: 15px; right: 15px; }
 .mobile-layout .page-heading { display: block; margin-top: 0; margin-bottom: 25px; }
 .mobile-layout .page-heading .eyebrow { font-size: 7px; letter-spacing: 1.5px; }
 .mobile-layout .page-heading h1 { font-size: 28px; margin-block: 10px; overflow-wrap: anywhere; }
@@ -450,13 +414,6 @@ dialog[open] { animation: modal-in .24s ease both; }
 .mobile-layout .artist-art { margin: 0 0 15px; aspect-ratio: 1; }
 .mobile-layout .artist-card h2 { font-size: 12px; line-height: 1.5; }
 .mobile-layout .artist-card p { font-size: 8px; margin-block: 8px 0; line-height: 1.8; }
-.mobile-layout .favorites-banner { padding: 24px 20px; flex-wrap: wrap; gap: 17px; margin-bottom: 21px; }
-.mobile-layout .favorites-banner > span { width: 47px; height: 47px; border-radius: 8px; }
-.mobile-layout .favorites-banner > span > svg { width: 20px; height: 20px; }
-.mobile-layout .favorites-banner .eyebrow { font-size: 7px; letter-spacing: 1.4px; }
-.mobile-layout .favorites-banner h1 { font-size: 20px; margin-top: 5px; }
-.mobile-layout .favorites-banner p { font-size: 9px; }
-.mobile-layout .favorites-banner .button { width: 100%; margin-top: 6px; }
 .mobile-layout .toast { bottom: calc(80px + env(safe-area-inset-bottom, 0px)); font-size: 10px; width: max-content; }
 .mobile-layout .queue-dialog { inset: 12px 12px calc(13px + env(safe-area-inset-bottom)); width: auto; height: auto; max-height: none; padding: 24px 18px; }
 .mobile-layout .queue-row-actions { opacity: .75; }
@@ -483,9 +440,7 @@ dialog[open] { animation: modal-in .24s ease both; }
 .desktop-layout .track-identity small { font-size: 10px; }
 .desktop-layout .track-duration { font-size: 11px; }
 .desktop-layout .track-album { font-size: 11px; }
-.desktop-layout .playlist-card h3 { font-size: 14px; }
-.desktop-layout .playlist-card p { font-size: 10px; }
-.playlist-card p, .playlist-card small, .text-button, .result-count,
+.text-button, .result-count,
 .queue-track-select small, .queue-current small, .back-link, .original-title { color: #757b6e; }
 @media (min-width: 480px) and (max-width: 760px) {
   .desktop-layout .sidebar { width: 63px; padding-inline: 8px; }
@@ -498,11 +453,6 @@ dialog[open] { animation: modal-in .24s ease both; }
   .desktop-layout .home-album-grid > .album-card:nth-last-child(-n+2) { display: none; }
   .desktop-layout .album-name { font-size: 11px; }
   .desktop-layout .album-card p { font-size: 10px; }
-  .desktop-layout .playlist-grid { grid-template-columns: 1fr; }
-  .desktop-layout .playlist-card { min-height: 95px; padding: 16px; gap: 18px; }
-  .desktop-layout .playlist-card > .playlist-art { width: 60px; height: 60px; }
-  .desktop-layout .playlist-card h3 { font-size: 14px; }
-  .desktop-layout .playlist-card p { display: block; }
   .desktop-layout .collection-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 25px 18px; }
   .desktop-layout .page-heading { flex-wrap: wrap; gap: 18px; }
   .desktop-layout .page-heading h1 { font-size: 29px; }
@@ -525,13 +475,8 @@ dialog[open] { animation: modal-in .24s ease both; }
   .desktop-layout .track-actions .icon-button { width: 27px; }
   .desktop-layout .compact .track-row { grid-template-columns: 19px minmax(0,1fr) 36px 31px; }
   .desktop-layout .artist-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
-  .desktop-layout .favorites-banner { flex-wrap: wrap; padding: 23px; gap: 18px; }
-  .desktop-layout .favorites-banner h1 { font-size: 23px; }
-  .desktop-layout .favorites-banner > span { width: 55px; height: 55px; }
-  .desktop-layout .favorites-banner .button { margin-left: 0; }
 }
 @media (max-width: 790px) {
   .desktop-layout .album-name { font-size: 11px; }
   .desktop-layout .album-card p { font-size: 10px; }
-  .desktop-layout .playlist-card h3 { font-size: 12px; }
 }

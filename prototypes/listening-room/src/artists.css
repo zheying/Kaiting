@@ -1,19 +1,17 @@
-/* White surfaces let the artwork carry the colour. */
+/* Artist artwork shares the collection surface; labels remain on the page. */
 .library-surface .artist-card {
   min-width: 0;
-  padding: 18px;
-  border-radius: var(--radius-card);
-  background: var(--surface);
-  box-shadow: var(--shadow-card);
-  transition: box-shadow .2s, transform .2s;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
 }
 .library-surface .artist-card:hover {
-  background: var(--surface);
-  box-shadow: var(--shadow-card-hover);
-  transform: translateY(-3px);
+  background: transparent;
+  transform: none;
 }
-.library-surface .artist-card:active { transform: translateY(-1px) scale(.995); }
-.library-surface .artist-art { margin: 0 0 17px; border-radius: 10px; background: #f2f2f5; }
+.library-surface .artist-card:hover .artist-art,
+.library-surface .artist-card:focus-visible .artist-art { box-shadow: var(--shadow-card-hover); }
+.library-surface .artist-art { margin: 0 0 13px; border-radius: var(--radius-card); }
 .library-surface .artist-art > span {
   width: 29px;
   height: 29px;
@@ -22,20 +20,14 @@
   box-shadow: 0 2px 8px #0000000d;
 }
 .library-surface .artist-art svg { width: 15px; stroke-width: 2.1; }
-.library-surface .artist-card h2 { color: var(--ink); font-size: 16px; line-height: 1.4; font-weight: 600; letter-spacing: -.2px; overflow-wrap: anywhere; }
-.library-surface .artist-card p { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 6px 0 0; }
+.library-surface .artist-card h2 { color: var(--ink); font-size: 16px; line-height: 1.4; font-weight: 600; letter-spacing: -.2px; overflow-wrap: anywhere; margin-inline: 2px; }
+.library-surface .artist-card p { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 6px 2px 0; }
 .library-surface :is(.sidebar, .topbar, .artist-grid) button:focus-visible { outline-color: var(--accent); }
 
 @media (max-width: 1100px) {
-  .library-surface .artist-card { padding: 15px; }
   .library-surface .artist-card h2 { font-size: 15px; }
 }
-.mobile-layout.library-surface .artist-card { padding: 12px; border-radius: 14px; }
-.mobile-layout.library-surface .artist-art { margin-bottom: 13px; border-radius: 8px; }
+.mobile-layout.library-surface .artist-card { padding: 0; }
+.mobile-layout.library-surface .artist-art { margin-bottom: 10px; border-radius: var(--radius-card); }
 .mobile-layout.library-surface .artist-card h2 { font-size: 14px; }
-.mobile-layout.library-surface .artist-card p { font-size: 11px; margin: 6px 0 0; }
-
-@media (prefers-reduced-motion: reduce) {
-  .library-surface .artist-card { transition: none; }
-  .library-surface .artist-card:is(:hover, :active) { transform: none; }
-}
+.mobile-layout.library-surface .artist-card p { font-size: 11px; margin: 6px 2px 0; }
