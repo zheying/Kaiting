@@ -55,10 +55,16 @@
 .np-volume input { width: 100%; min-width: 0; height: 32px; }
 .np-volume input[type=range]::-webkit-slider-runnable-track { height: 4px; }
 .np-volume input[type=range]::-moz-range-track { height: 4px; }
-.np-panel-toggle { border-radius: 12px; color: var(--np-muted); grid-area: lyrics; }
+/* Shared on/off treatment for lyrics, queue, shuffle and repeat. */
+.np-state-toggle { color: var(--np-muted); transition: color .2s, transform .2s; }
+.np-state-toggle, .np-state-toggle:hover { background: transparent; box-shadow: none; }
+.np-state-toggle:hover { color: var(--np-ink); }
+.np-state-toggle svg { transition: stroke-width .2s; }
+.np-state-toggle[aria-pressed=true] { color: #c9344d; }
+.np-state-toggle[aria-pressed=true] svg { stroke-width: 2.2; }
+.np-panel-toggle { grid-area: lyrics; }
 .np-panel-toggle:last-child { grid-area: queue; }
 .np-panel-toggle svg { width: 22px; height: 22px; }
-.np-panel-toggle[aria-pressed=true] { background: #ffffff80; color: var(--np-ink); box-shadow: inset 0 0 0 1px #ffffff50, 0 3px 10px #29413c06; }
 .np-quality { grid-area: quality; justify-self: center; display: flex; align-items: center; gap: 5px; color: var(--np-muted); font-size: 10px; letter-spacing: .3px; }
 .np-quality svg { width: 14px; height: 14px; }
 .np-with-panel .np-stage { width: min(1110px, calc(100% - 112px)); grid-template-columns: minmax(0, 400px) minmax(0, 530px); grid-template-areas: "art panel" "metadata panel" "playback panel"; column-gap: clamp(80px, 10vw, 150px); }
@@ -68,8 +74,6 @@
 .np-panel-heading h2 { font-size: 25px; font-weight: 650; letter-spacing: -.5px; }
 .np-panel-heading h2 > small { font-size: 11px; font-weight: 400; color: var(--np-muted); margin-left: 12px; letter-spacing: 0; }
 .np-queue-modes { display: flex; flex-shrink: 0; gap: 2px; }
-.np-queue-modes .np-icon { color: var(--np-muted); border-radius: 10px; }
-.np-queue-modes .np-icon.selected { color: var(--np-ink); background: #ffffff80; }
 .np-queue-summary { display: flex; align-items: center; justify-content: space-between; padding: 0 2px 15px; border-bottom: 1px solid var(--np-line); font-size: 11px; color: var(--np-muted); }
 .np-queue-summary button { min-height: 30px; color: inherit; }
 .np-queue-summary button:hover { color: var(--np-accent); }
@@ -215,7 +219,7 @@
   .np-with-panel .np-panel-heading h2 > small { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .np-artwork, .np-icon, .np-back > svg { transition: none; }
+  .np-artwork, .np-icon, .np-back > svg, .np-state-toggle svg { transition: none; }
   .np-atmosphere > img, .np-companion { animation: none; }
   ::view-transition-group(*) { animation-duration: 0s; }
 }
