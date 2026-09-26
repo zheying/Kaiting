@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "prototype": "npm --prefix prototypes/listening-room run dev",
+    "prototype:build": "npm --prefix prototypes/listening-room run build",
+    "prototype:preview": "npm --prefix prototypes/listening-room run preview",
     "dev": "concurrently -k \"PORT=3001 tsx watch src/server/index.ts\" \"API_PORT=3001 vite --host 0.0.0.0 --port 3000 --strictPort\"",
     "server": "tsx src/server/index.ts",
     "build": "tsc -p tsconfig.server.json && vite build",
