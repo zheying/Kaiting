@@ -214,6 +214,12 @@
 .library-surface .state-panel h2 { color: var(--ink); }
 .library-surface .state-panel p { color: var(--muted); }
 .library-surface .state-icon { background: var(--accent-soft); }
+.library-surface .state-panel-loading,
+.library-surface .state-panel.is-error {
+  min-height: max(280px, calc(100dvh - 165px));
+  padding: 32px 24px;
+  border: 0;
+}
 .library-surface .page-footer { color: var(--muted); }
 .library-surface :is(.standard-dialog, .queue-dialog) { background: var(--paper); color: var(--ink); border-color: var(--line); border-radius: 20px; box-shadow: 0 24px 80px #17171929; }
 .library-surface :is(.standard-dialog, .queue-dialog)::backdrop { background: #17171945; }
@@ -267,6 +273,11 @@
 .mobile-layout.library-surface .album-name { font-size: 12px; margin-top: 10px; }
 .mobile-layout.library-surface .album-card p { font-size: 10px; }
 .mobile-layout.library-surface .text-button { font-size: 11px; }
+.mobile-layout.library-surface .state-panel-loading,
+.mobile-layout.library-surface .state-panel.is-error {
+  min-height: max(250px, calc(100dvh - 182px));
+  padding: 42px 18px;
+}
 @media (prefers-reduced-motion: reduce) {
   .library-surface :is(.artwork-card, .search-field) { transition: none; }
 }
