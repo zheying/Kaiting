@@ -1,21 +1,24 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import {
-  ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, ChevronDown, ChevronLeft,
-  ChevronRight, Clock3, Disc3, Headphones, Heart, House, Info, Library,
-  ListMusic, LoaderCircle, MoreHorizontal, Music2, Pause, Play, Plus,
-  Search, Settings2, Shuffle, SkipForward, UserRound,
+  AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, ChevronDown, ChevronLeft,
+  ChevronRight, Clock3, Disc3, Eye, EyeOff, FolderOpen, Headphones, Heart, House, Info, Library,
+  ListMusic, LoaderCircle, LockKeyhole, Mail, MoreHorizontal, Music2, Pause, Play, Plus,
+  RefreshCw, Search, Settings2, Shuffle, SkipForward, UserRound,
   X, type LucideIcon
 } from "lucide-react";
 import library from "./library.json";
 import { CapsulePlayer } from "./CapsulePlayer";
 import { NowPlaying } from "./NowPlaying";
+import { LoginBackdrop } from "./LoginBackdrop";
 import { useMobileLayout } from "../../../src/client/mobile-layout";
 
 type Album = (typeof library.albums)[number];
 type Track = (typeof library.tracks)[number];
 type Playlist = { id: string; name: string; description: string; trackIds: string[] };
-type ModalState = { type: "create"; trackId?: string } | { type: "add"; trackId: string } | { type: "playlist-add"; playlistId: string } | { type: "info" } | { type: "settings" } | null;
-type StateAction = { label: string; onClick: () => void; variant?: "primary" | "subtle" };
+type ModalState = { type: "create"; trackId?: string } | { type: "add"; trackId: string } | { type: "playlist-add"; playlistId: string } | { type: "info" } | { type: "settings" } | { type: "directory"; returnTo?: "settings" | "directory-unavailable" } | { type: "scan-failures" } | null;
+type StateAction = { label: string; onClick: () => void; variant?: "primary" | "subtle"; disabled?: boolean; busy?: boolean };
+type CheckKind = "service" | "directory" | "partial";
+type CheckStatus = "idle" | "checking" | "failed" | "complete";
 const { albums, tracks } = library;
 const albumMap = new Map(albums.map((album) => [album.id, album]));
 const trackMap = new Map(tracks.map((track) => [track.id, track]));
@@ -30,6 +33,16 @@ const starterPlaylists: Playlist[] = [
   { id: "quiet", name: "把时间放慢", description: "给自己一段不被打扰的时间。", trackIds: [0, 1, 3, 4, 6, 8].flatMap((n) => albumTracks(albums[n].id).slice(0, 2).map((track) => track.id)) },
   { id: "journey", name: "冒险仍在继续", description: "重回那些舍不得离开的世界。", trackIds: [2, 0, 6, 7].flatMap((n) => albumTracks(albums[n].id).slice(0, 4).map((track) => track.id)) },
   { id: "night", name: "深夜的耳机", description: "城市睡着以后，旋律还醒着。", trackIds: [4, 3, 1].flatMap((n) => albumTracks(albums[n].id).slice(2, 5).map((track) => track.id)) }
+];
+const directoryOptions = [
+  { path: "/music", detail: "NAS 挂载 · 可读", available: true },
+  { path: "/music/Albums", detail: "子目录 · 可读", available: true },
+  { path: "/Volumes/Music", detail: "本机目录 · 未连接", available: false }
+];
+const scanFailures = [
+  { path: "OST/Octopath Traveler II/Disc 03/track-07.m4a", reason: "NAS 返回权限不足", hint: "检查目录访问权限后重新扫描" },
+  { path: "Game Music/Final Fantasy VII/bonus.flac", reason: "文件内容不完整", hint: "重新复制文件或跳过此文件" },
+  { path: "Albums/Xenoblade 2/cover.jpg", reason: "封面读取超时", hint: "确认 NAS 连接稳定后重试" }
 ];
 const navItems: { route: string; title: string; icon: LucideIcon }[] = [
   { route: "home", title: "现在就听", icon: House },
@@ -49,6 +62,56 @@ function IconButton({ label, children, onClick, active = false, className = "", 
   label: string; children: ReactNode; onClick: () => void; active?: boolean; className?: string; disabled?: boolean;
 }) {
   return <button type="button" className={`icon-button ${active ? "is-active" : ""} ${className}`} title={label} aria-label={label} onClick={onClick} disabled={disabled}>{children}</button>;
+}
+
+function BrandGlyph() {
+  return <svg className="brand-glyph" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+    <circle cx="16" cy="16" r="11.2" stroke="currentColor" strokeWidth="1.5" opacity=".72" />
+    <path d="M8 16c1.3-4 2.7-4 4 0s2.7 4 4 0 2.7-4 4 0 2.7 4 4 0" stroke="var(--brand-accent, #e2556d)" strokeWidth="2.05" strokeLinecap="round" strokeLinejoin="round" />
+    <circle cx="16" cy="16" r="1.85" fill="var(--brand-core, #111719)" stroke="currentColor" strokeWidth="1.05" />
+  </svg>;
+}
+
+function LoginScreen({ isMobile, onSuccess, onDemo }: { isMobile: boolean; onSuccess: () => void; onDemo: () => void }) {
+  const [account, setAccount] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [status, setStatus] = useState<"idle" | "busy" | "error">("idle");
+  const [error, setError] = useState("");
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(() => () => { if (timerRef.current) window.clearTimeout(timerRef.current); }, []);
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!account.trim() || !password.trim()) {
+      setStatus("error");
+      setError("请输入账号和密码，再进入你的音乐空间。");
+      return;
+    }
+    setError("");
+    setStatus("busy");
+    timerRef.current = window.setTimeout(() => {
+      setStatus("idle");
+      onSuccess();
+    }, 900);
+  }
+
+  return <main className={`login-screen ${isMobile ? "is-mobile" : ""} ${status === "busy" ? "is-busy" : ""}`}>
+    <LoginBackdrop />
+    <section className="login-content" aria-labelledby="login-title">
+      <div className="login-brand"><img src="/favicon.svg" alt="" /><span>音泊</span><small>PRIVATE MUSIC SPACE</small></div>
+      <div className="login-copy"><span className="login-kicker">WELCOME BACK</span><h1 id="login-title">欢迎回到音泊</h1><p>登录私人音乐空间</p></div>
+      <form className="login-form" onSubmit={submit} noValidate>
+        <label className="login-field"><Mail aria-hidden="true" /><input value={account} onChange={(event) => { setAccount(event.target.value); if (status === "error") setStatus("idle"); }} placeholder="邮箱或用户名" autoComplete="username" aria-label="邮箱或用户名" /></label>
+        <label className="login-field"><LockKeyhole aria-hidden="true" /><input value={password} onChange={(event) => { setPassword(event.target.value); if (status === "error") setStatus("idle"); }} type={showPassword ? "text" : "password"} placeholder="密码" autoComplete="current-password" aria-label="密码" /><button type="button" className="login-password-toggle" aria-label={showPassword ? "隐藏密码" : "显示密码"} onClick={() => setShowPassword((value) => !value)}>{showPassword ? <EyeOff /> : <Eye />}</button></label>
+        {error && <p className="login-error" role="alert"><AlertTriangle aria-hidden="true" />{error}</p>}
+        <button className="login-submit" type="submit" disabled={status === "busy"}>{status === "busy" ? <LoaderCircle className="login-spinner" aria-hidden="true" /> : null}<span>{status === "busy" ? "正在连接音乐室…" : "登录"}</span><ArrowRight aria-hidden="true" /></button>
+      </form>
+      <button type="button" className="login-demo" onClick={onDemo}>查看演示 <ChevronRight aria-hidden="true" /></button>
+      <p className="login-note">音乐目录只读连接，收藏与歌单保存在这台设备。</p>
+    </section>
+  </main>;
 }
 
 function Modal({ children, className = "", label, onClose }: { children: ReactNode; className?: string; label: string; onClose: () => void }) {
@@ -81,7 +144,7 @@ function PlaylistArt({ playlist }: { playlist: Playlist }) {
   </div>;
 }
 
-function StatePanel({ icon: Icon, eyebrow, title, description, actions = [], tone = "", className = "" }: {
+function StatePanel({ icon: Icon, eyebrow, title, description, actions = [], tone = "", className = "", busy = false }: {
   icon: LucideIcon;
   eyebrow?: string;
   title: string;
@@ -89,13 +152,14 @@ function StatePanel({ icon: Icon, eyebrow, title, description, actions = [], ton
   actions?: StateAction[];
   tone?: "error" | "";
   className?: string;
+  busy?: boolean;
 }) {
-  return <section className={`state-panel ${tone ? `is-${tone}` : ""} ${className}`.trim()} role={tone === "error" ? "alert" : "region"} aria-label={title}>
+  return <section className={`state-panel ${tone ? `is-${tone}` : ""} ${className}`.trim()} role={tone === "error" ? "alert" : "region"} aria-label={title} aria-busy={busy}>
     <span className="state-icon"><Icon aria-hidden="true" /></span>
     {eyebrow && <span className="eyebrow">{eyebrow}</span>}
     <h2>{title}</h2>
     <p>{description}</p>
-    {actions.length > 0 && <div className="state-actions">{actions.map((action) => <button type="button" className={`button ${action.variant === "subtle" ? "subtle" : "primary"}`} key={action.label} onClick={action.onClick}>{action.label}<ArrowRight /></button>)}</div>}
+    {actions.length > 0 && <div className="state-actions">{actions.map((action) => <button type="button" className={`button ${action.variant === "subtle" ? "subtle" : "primary"}`} key={action.label} onClick={action.onClick} disabled={action.disabled}>{action.busy && <LoaderCircle className="button-spinner" aria-hidden="true" />}{action.label}</button>)}</div>}
   </section>;
 }
 
@@ -129,6 +193,11 @@ export function App() {
   const [pageLimit, setPageLimit] = useState(40);
   const [dense, setDense] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const [musicDirectory, setMusicDirectory] = useState("/music");
+  const [directoryConfigured, setDirectoryConfigured] = useState(false);
+  const [directorySelection, setDirectorySelection] = useState("/music");
+  const [checkStatus, setCheckStatus] = useState<Record<CheckKind, CheckStatus>>({ service: "idle", directory: "idle", partial: "idle" });
+  const retryTimer = useRef<number | null>(null);
   const [contentScrollbarWidth, setContentScrollbarWidth] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
   const mainRef = useRef<HTMLElement>(null);
@@ -140,9 +209,40 @@ export function App() {
   const [section, routeId] = pageRoute.split("?")[0].split("/");
   const searching = searchCommitted && query.trim().length > 0;
   const searchSuggestionsOpen = searchFocused && !searching && query.trim().length > 0;
-  const catalogPage = searching || ["search", "albums", "album", "songs", "favorites", "playlists", "playlist", "artist", "loading", "error"].includes(section);
+  const loginRoute = section === "login";
+  const catalogPage = searching || ["search", "albums", "album", "songs", "favorites", "playlists", "playlist", "artist", "loading", "error", "preview"].includes(section);
+  const libraryDirectoryNeedsScan = section === "preview" && (routeId === "library-empty" || (routeId === "setup-empty" && directoryConfigured));
+  const initialSetup = section === "preview" && routeId === "setup-empty" && !directoryConfigured;
+  const directoryUnavailable = section === "preview" && routeId === "directory-unavailable";
+  const partialScan = section === "preview" && routeId === "scan-partial";
 
   function announce(message: string) { setToast(""); window.setTimeout(() => setToast(message), 0); }
+  function retryLibrary(kind: CheckKind) {
+    if (checkStatus[kind] === "checking") return;
+    if (retryTimer.current) window.clearTimeout(retryTimer.current);
+    setCheckStatus((previous) => ({ ...previous, [kind]: "checking" }));
+    retryTimer.current = window.setTimeout(() => {
+      setCheckStatus((previous) => ({ ...previous, [kind]: kind === "partial" ? "complete" : "failed" }));
+      if (kind === "partial") {
+        announce("扫描完成，所有文件均已读取");
+        navigate("preview/scan-complete");
+      } else {
+        announce(kind === "directory" ? "目录仍然不可访问，请更换目录" : "曲库仍未响应，请检查目录或稍后再试");
+      }
+    }, kind === "partial" ? 1500 : 1200);
+  }
+  function startDirectoryScan(path: string) {
+    setMusicDirectory(path);
+    setDirectoryConfigured(true);
+    setModal(null);
+    if (retryTimer.current) window.clearTimeout(retryTimer.current);
+    navigate("loading");
+    retryTimer.current = window.setTimeout(() => {
+      if (readRoute() !== "loading") return;
+      announce("扫描完成，所有文件均已读取");
+      navigate("preview/scan-complete");
+    }, 1500);
+  }
   function navigate(next: string) {
     setQuery(""); setSearchCommitted(false); setSearchFocused(false); setMenu(null); setPageLimit(40); setMobileNavOpen(false); setAlbumDiscFilter("全部"); setFormatFilter("全部");
     if (route !== "playing") backgroundRoute.current = route;
@@ -213,18 +313,20 @@ export function App() {
     observer.observe(main);
     syncScrollbarWidth();
     return () => observer.disconnect();
-  }, []);
+  }, [loginRoute]);
   useEffect(() => {
     const update = () => {
       const nextRoute = readRoute();
       const nextQuery = readSearchQuery();
       setRoute(nextRoute); setQuery(nextQuery); setSearchCommitted(Boolean(nextQuery)); setSearchFocused(false);
-      setPageLimit(40); setMenu(null); setMobileNavOpen(false);
+      setPageLimit(40); setMenu(null); setMobileNavOpen(false); setCheckStatus({ service: "idle", directory: "idle", partial: "idle" });
+      if (nextRoute === "preview/setup-empty") setDirectoryConfigured(false);
     };
     window.addEventListener("hashchange", update);
     return () => window.removeEventListener("hashchange", update);
   }, []);
   useEffect(() => { setMobileNavOpen(false); }, [isMobile]);
+  useEffect(() => () => { if (retryTimer.current) window.clearTimeout(retryTimer.current); }, []);
   useEffect(() => {
     if (route !== "playing" && previousPage.current !== pageRoute) mainRef.current?.scrollTo({ top: 0 });
     if (route !== "playing" && browseRoute.current !== pageRoute) { setAlbumDiscFilter("全部"); setFormatFilter("全部"); browseRoute.current = pageRoute; }
@@ -319,8 +421,8 @@ export function App() {
     setPlaylistTrackQuery("");
     setModal({ type: "playlist-add", playlistId });
   }
-  function renderLibraryEmpty() {
-    return <StatePanel icon={Library} eyebrow="本地音乐库" title="曲库里还没有内容" description="先扫描或连接一个音乐目录，专辑、歌曲和艺人才会出现在这里。" actions={[{ label: "打开设置", onClick: () => setModal({ type: "settings" }) }, { label: "先逛逛歌单", variant: "subtle", onClick: () => navigate("playlists") }]} />;
+  function renderLibraryEmpty(className = "") {
+    return <StatePanel className={className} icon={Library} eyebrow="本地音乐库" title="曲库里还没有内容" description="先扫描或连接一个音乐目录，专辑、歌曲和艺人才会出现在这里。" actions={[{ label: "打开设置", onClick: () => setModal({ type: "settings" }) }, { label: "先逛逛歌单", variant: "subtle", onClick: () => navigate("playlists") }]} />;
   }
   function collectionPlaylistCard(playlist: Playlist) {
     const list = playlist.trackIds.map((id) => trackMap.get(id)!).filter(Boolean);
@@ -493,10 +595,70 @@ export function App() {
     return <StatePanel tone="error" icon={kind === "artist" ? UserRound : kind === "playlist" ? ListMusic : Disc3} eyebrow={copy.eyebrow} title={copy.title} description={copy.description} actions={[{ label: "回到首页", onClick: () => navigate("home") }, { label: "浏览专辑", variant: "subtle", onClick: () => navigate("albums") }]} />;
   }
   function renderLibraryError() {
-    return <StatePanel tone="error" icon={Info} eyebrow="曲库读取失败" title="暂时无法打开音乐库" description="本地曲库没有响应，歌曲和封面暂时无法载入。请检查音乐目录或稍后再试。" actions={[{ label: "重新尝试", onClick: () => { setToast(""); window.location.hash = "/error"; window.setTimeout(() => window.location.reload(), 0); } }, { label: "回到首页", variant: "subtle", onClick: () => navigate("home") }]} />;
+    const checking = checkStatus.service === "checking";
+    return <StatePanel tone="error" icon={Info} eyebrow="曲库读取失败" title="暂时无法打开音乐库" description="本地曲库没有响应，歌曲和封面暂时无法载入。可以先检查目录挂载状态，或稍后重试。" busy={checking} actions={[{ label: checking ? "正在检查…" : "重新尝试", onClick: () => retryLibrary("service"), disabled: checking, busy: checking }, { label: "检查目录", variant: "subtle", onClick: () => navigate("preview/directory-unavailable") }, { label: "回到首页", variant: "subtle", onClick: () => navigate("home") }]} />;
   }
   function renderLibraryLoading() {
-    return <StatePanel className="state-panel-loading" icon={LoaderCircle} eyebrow="正在准备音乐室" title="正在载入你的音乐" description="正在读取专辑、歌曲和封面，请稍候。" />;
+    const scanningDirectory = directoryConfigured;
+    return <StatePanel className="state-panel-loading" icon={LoaderCircle} eyebrow={scanningDirectory ? "正在扫描音乐目录" : "正在准备音乐室"} title={scanningDirectory ? "正在扫描你的音乐" : "正在载入你的音乐"} description={scanningDirectory ? "目录已连接，正在读取专辑、歌曲和封面，请稍候。" : "正在读取专辑、歌曲和封面，请稍候。"} />;
+  }
+  function renderDirectoryUnavailable() {
+    const checking = checkStatus.directory === "checking";
+    const blockedPath = "/Volumes/Music";
+    return <>
+      {pageHeading("状态预览 / 曲库", "音乐目录暂时不可访问", "模拟 NAS 未挂载或目录权限不足时的处理方式。")}
+      <section className="incident-state" aria-label="音乐目录不可访问">
+        <StatePanel className="directory-unavailable-state" tone="error" icon={FolderOpen} eyebrow="目录不可访问" title="暂时读不到这处音乐目录" description={`音泊无法读取 ${blockedPath}。已保存的收藏和歌单不会受影响；连接恢复后可以继续扫描。`} busy={checking} actions={[{ label: checking ? "正在检查…" : "重新检查", onClick: () => retryLibrary("directory"), disabled: checking, busy: checking }, { label: "选择其他目录", variant: "subtle", onClick: () => { setDirectorySelection("/music"); setModal({ type: "directory", returnTo: "directory-unavailable" }); } }, { label: "回到首页", variant: "subtle", onClick: () => navigate("home") }]} />
+        <div className="incident-meta" aria-label="目录检查信息">
+          <div><span>当前目录</span><strong>{blockedPath}</strong></div>
+          <div><span>可能原因</span><strong>NAS 未挂载或访问权限已改变</strong></div>
+          <div><span>建议处理</span><strong>确认网络连接和目录权限，再重新检查</strong></div>
+        </div>
+      </section>
+    </>;
+  }
+  function renderPartialScan() {
+    const checking = checkStatus.partial === "checking";
+    const inspected = tracks.length + scanFailures.length;
+    return <>
+      {pageHeading("状态预览 / 曲库", "这次扫描没有完全成功", `${inspected.toLocaleString()} 个文件已检查，保留可读取内容。`)}
+      <section className="partial-scan-page" aria-label="部分扫描失败">
+        <div className="partial-scan-banner" role="status" aria-live="polite" aria-busy={checking}>
+          <span className="partial-scan-icon"><RefreshCw className={checking ? "is-spinning" : ""} aria-hidden="true" /></span>
+          <div className="partial-scan-copy"><span className="eyebrow">扫描结果</span><h2>{checking ? "正在重新检查文件" : "已载入可读取的音乐"}</h2><p>{checking ? "正在验证失败文件，请保持目录连接。" : `已读取 ${tracks.length.toLocaleString()} 首歌曲和 ${albums.length} 张专辑，另有 ${scanFailures.length} 个文件未能读取。`}</p></div>
+          <div className="partial-scan-actions"><button type="button" className="button primary" onClick={() => retryLibrary("partial")} disabled={checking}>{checking && <LoaderCircle className="button-spinner" aria-hidden="true" />}{checking ? "正在扫描…" : "重新扫描"}</button><button type="button" className="button subtle" onClick={() => setModal({ type: "scan-failures" })}>查看失败详情</button></div>
+        </div>
+        <section className="partial-results"><div className="section-heading"><div><h2>已载入内容</h2><p>可读取的专辑和歌曲仍然可以播放、收藏和加入歌单。</p></div><span className="result-count">{albums.length} 张专辑 · {tracks.length.toLocaleString()} 首歌曲</span></div><div className="album-grid collection-grid">{albums.slice(0, 6).map(albumCard)}</div></section>
+        <div className="partial-scan-note"><AlertTriangle aria-hidden="true" /><p>修复目录连接或文件权限后，再次扫描即可补齐缺失内容。</p><button type="button" className="text-button" onClick={() => setModal({ type: "scan-failures" })}>查看 3 个失败文件</button></div>
+      </section>
+    </>;
+  }
+  function renderCompleteScan() {
+    return <>
+      {pageHeading("状态预览 / 曲库", "曲库已经准备好", `${tracks.length.toLocaleString()} 个文件已完成扫描。`)}
+      <section className="complete-scan-page" aria-label="扫描完成">
+        <StatePanel className="complete-scan-state" icon={Check} eyebrow="扫描完成" title="音乐都准备好了" description={`已读取 ${tracks.length.toLocaleString()} 首歌曲和 ${albums.length} 张专辑，没有发现需要处理的文件。`} actions={[{ label: "浏览专辑", onClick: () => navigate("albums") }, { label: "回到首页", variant: "subtle", onClick: () => navigate("home") }]} />
+        <div className="complete-scan-summary" aria-label="扫描统计">
+          <div><span>歌曲</span><strong>{tracks.length.toLocaleString()}</strong><small>首可播放内容</small></div>
+          <div><span>专辑</span><strong>{albums.length}</strong><small>张封面已载入</small></div>
+          <div><span>失败文件</span><strong>0</strong><small>全部读取成功</small></div>
+        </div>
+      </section>
+    </>;
+  }
+  function renderSetupEmpty() {
+    if (!initialSetup) return <>{pageHeading("状态预览 / 曲库", "曲库为空", "目录已经选择，模拟等待首次扫描的状态。")}{renderLibraryEmpty("preview-empty-state")}</>;
+    return <>
+      {pageHeading("状态预览 / 初次设置", "先把音乐带进来", "模拟第一次打开音泊、还没有选择音乐目录的状态。")}
+      <StatePanel className="preview-empty-state initial-setup-state" icon={FolderOpen} eyebrow="第一次使用" title="还没有连接音乐目录" description="选择一个本地或 NAS 挂载目录，音泊会以只读方式扫描你的音乐。" actions={[{ label: "打开设置", onClick: () => { setDirectorySelection(""); setModal({ type: "settings" }); } }, { label: "回到首页", variant: "subtle", onClick: () => navigate("home") }]} />
+    </>;
+  }
+  function renderEmptyPreview(kind: string) {
+    if (kind === "library-empty") return <>{pageHeading("状态预览 / 曲库", "曲库为空", "模拟尚未扫描音乐目录的首次进入状态。")}{renderLibraryEmpty("preview-empty-state")}</>;
+    if (kind === "albums-empty") return <>{pageHeading("状态预览 / 专辑", "你的唱片架", "模拟曲库中还没有任何专辑的状态。")}{<StatePanel className="preview-empty-state" icon={Disc3} eyebrow="专辑" title="还没有专辑" description="扫描曲库后，专辑封面会出现在这里。" actions={[{ label: "打开设置", onClick: () => setModal({ type: "settings" }) }, { label: "回到首页", variant: "subtle", onClick: () => navigate("home") }]} />}</>;
+    if (kind === "artists-empty") return <>{pageHeading("状态预览 / 艺人", "旋律背后的人", "模拟曲库中还没有艺人作品的状态。")}{<StatePanel className="preview-empty-state" icon={UserRound} eyebrow="艺人" title="还没有艺人" description="扫描曲库后，艺人作品会出现在这里。" actions={[{ label: "打开设置", onClick: () => setModal({ type: "settings" }) }, { label: "回到首页", variant: "subtle", onClick: () => navigate("home") }]} />}</>;
+    if (kind === "playlists-empty") return <>{pageHeading("状态预览 / 私人歌单", "给生活，一点配乐", "模拟还没有创建私人歌单的状态。")}{<StatePanel className="preview-empty-state" icon={ListMusic} eyebrow="私人歌单" title="还没有私人歌单" description="为某个时刻起一个名字，把喜欢的歌曲慢慢收进来。" actions={[{ label: "新建歌单", onClick: () => { setNewPlaylistName(""); setPlaylistError(""); setModal({ type: "create" }); } }, { label: "浏览专辑", variant: "subtle", onClick: () => navigate("albums") }]} />}</>;
+    return renderNotFound();
   }
   function renderPage() {
     if (searching) return renderSearch();
@@ -511,23 +673,32 @@ export function App() {
     if (section === "songs") return renderSongs();
     if (section === "loading") return renderLibraryLoading();
     if (section === "error") return renderLibraryError();
+    if (section === "preview" && routeId === "directory-unavailable") return renderDirectoryUnavailable();
+    if (section === "preview" && routeId === "scan-partial") return renderPartialScan();
+    if (section === "preview" && routeId === "scan-complete") return renderCompleteScan();
+    if (section === "preview" && routeId === "setup-empty") return renderSetupEmpty();
+    if (section === "preview") return renderEmptyPreview(routeId);
     return renderNotFound();
   }
   function queueContent() {
     return <div className="queue-content"><div className="queue-current"><span className="eyebrow">正在播放</span><div><Cover album={currentAlbum} /><span><strong>{displayTitle(current)}</strong><small>{current.artist}</small></span><span className={`equalizer ${isPlaying ? "is-playing" : "is-paused"}`} aria-hidden="true"><i /><i /><i /></span></div></div><div className="queue-section-label"><span>待播清单 <small>{queue.length} 首</small></span><button onClick={() => { setQueue([current]); announce("已清空其他待播歌曲"); }} disabled={queue.length <= 1}>清空</button></div><div className="queue-tracks">{queue.map((track, index) => <div className={`queue-row ${track.id === currentId ? "current" : ""}`} key={track.id}><button className="queue-track-select" onClick={() => play(track)}><span className="queue-number">{track.id === currentId ? <span className={`equalizer ${isPlaying ? "is-playing" : "is-paused"}`} aria-hidden="true"><i /><i /><i /></span> : String(index + 1).padStart(2, "0")}</span><Cover album={albumMap.get(track.albumId)!} /><span><strong>{displayTitle(track)}</strong><small>{track.artist}</small></span></button><div className="queue-row-actions"><IconButton label={`上移 ${displayTitle(track)}`} disabled={index === 0} onClick={() => moveQueue(index, -1)}><ArrowUp /></IconButton><IconButton label={`下移 ${displayTitle(track)}`} disabled={index === queue.length - 1} onClick={() => moveQueue(index, 1)}><ArrowDown /></IconButton>{track.id !== currentId && <IconButton label={`移除 ${displayTitle(track)}`} onClick={() => setQueue((items) => items.filter((item) => item.id !== track.id))}><X /></IconButton>}</div></div>)}</div></div>;
   }
 
+  if (loginRoute) {
+    return <LoginScreen isMobile={isMobile} onSuccess={() => { navigate("home"); announce("欢迎回到音泊"); }} onDemo={() => { navigate("home"); announce("已进入演示音乐室"); }} />;
+  }
+
   return <div className={`app ${isMobile ? "mobile-layout" : "desktop-layout"} ${dense ? "dense-layout" : ""} ${darkMode ? "dark-theme" : ""} library-surface ${section === "home" && !searching ? "home-surface" : ""} ${catalogPage ? "catalog-surface" : ""}`}>
     <a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); mainRef.current?.focus(); }}>跳到主要内容</a>
     <aside className={`sidebar ${mobileNavOpen ? "sidebar-open" : ""}`} aria-label="音乐库导航" inert={isMobile && !mobileNavOpen}>
-      <button className="brand" aria-label="音泊首页" onClick={() => navigate("home")}><span className="brand-mark"><Disc3 /></span><span>音泊</span></button>
+      <button className="brand" aria-label="音泊首页" onClick={() => navigate("home")}><span className="brand-mark" aria-hidden="true"><BrandGlyph /></span><span>音泊</span></button>
       {isMobile && <IconButton className="close-mobile-nav" label="关闭导航" onClick={() => setMobileNavOpen(false)}><X /></IconButton>}
       <div className="sidebar-content">
         <span className="nav-label">我的音乐</span><nav className="main-nav">{navItems.map(({ route: target, title, icon: Icon }) => <button key={target} aria-label={title} aria-current={!searching && (section === target || section === target.replace(/s$/, "")) ? "page" : undefined} onClick={() => navigate(target)}><Icon /><span>{title}</span>{target === "favorites" && <small>{favorites.size}</small>}</button>)}<button className="compact-playlists" aria-label="我的歌单" aria-current={!searching && (section === "playlists" || section === "playlist") ? "page" : undefined} onClick={() => navigate("playlists")}><ListMusic /><span>我的歌单</span></button></nav>
         <div className="playlist-nav-heading"><button className="nav-label" onClick={() => navigate("playlists")}>我的歌单</button><IconButton label="新建歌单" onClick={() => { setNewPlaylistName(""); setPlaylistError(""); setModal({ type: "create" }); }}><Plus /></IconButton></div>
         <nav className="playlist-nav">{playlists.map((playlist) => <button key={playlist.id} aria-current={routeId === playlist.id ? "page" : undefined} onClick={() => navigate(`playlist/${playlist.id}`)}><div className="sidebar-playlist-art" aria-hidden="true"><PlaylistArt playlist={playlist} /></div><ListMusic /><span>{playlist.name}</span></button>)}</nav>
       </div>
-      <div className="sidebar-bottom"><div className="local-library"><span className="status-dot" /><div><strong>本地音乐库</strong><span>{tracks.length.toLocaleString()} 首 · {albums.length} 张专辑</span></div><Disc3 /></div><button className="settings-button" aria-label="音乐室设置" onClick={() => setModal({ type: "settings" })}><Settings2 /> 设置 <ChevronRight /></button></div>
+      <div className="sidebar-bottom"><div className="local-library"><span className="status-dot" /><div><strong>本地音乐库</strong><span>{tracks.length.toLocaleString()} 首 · {albums.length} 张专辑</span></div><Disc3 /></div><button className="settings-button login-entry" aria-label="登录私人音乐空间" onClick={() => navigate("login")}><UserRound /> 登录 <ChevronRight /></button><button className="settings-button" aria-label="音乐室设置" onClick={() => setModal({ type: "settings" })}><Settings2 /> 设置 <ChevronRight /></button></div>
     </aside>
     {isMobile && mobileNavOpen && <button className="nav-backdrop" aria-label="收起导航" onClick={() => setMobileNavOpen(false)} />}
     <div className="workspace" style={{ "--content-scrollbar-width": `${contentScrollbarWidth}px` } as CSSProperties}>
@@ -567,7 +738,7 @@ export function App() {
         onClearQueue={() => setQueue([current])}
       />
     </Modal>}
-    {modal && <Modal className="standard-dialog" label={modal.type === "create" ? "新建歌单" : modal.type === "add" ? "添加到歌单" : modal.type === "playlist-add" ? "添加歌曲" : modal.type === "settings" ? "音乐室设置" : "关于原型"} onClose={() => setModal(null)}><div className="dialog-heading"><span className="dialog-symbol">{modal.type === "create" || modal.type === "add" || modal.type === "playlist-add" ? <ListMusic /> : modal.type === "settings" ? <Settings2 /> : <Disc3 />}</span><IconButton label="关闭对话框" onClick={() => setModal(null)}><X /></IconButton></div>
+    {modal && <Modal className="standard-dialog" label={modal.type === "create" ? "新建歌单" : modal.type === "add" ? "添加到歌单" : modal.type === "playlist-add" ? "添加歌曲" : modal.type === "settings" ? "音乐室设置" : modal.type === "directory" ? "选择音乐目录" : modal.type === "scan-failures" ? "扫描失败详情" : "关于原型"} onClose={() => setModal(null)}><div className="dialog-heading"><span className="dialog-symbol">{modal.type === "create" || modal.type === "add" || modal.type === "playlist-add" ? <ListMusic /> : modal.type === "settings" ? <Settings2 /> : modal.type === "directory" ? <FolderOpen /> : modal.type === "scan-failures" ? <AlertTriangle /> : <Disc3 />}</span><IconButton label="关闭对话框" onClick={() => setModal(null)}><X /></IconButton></div>
       {modal.type === "create" && <form onSubmit={(event) => { event.preventDefault(); createPlaylist(); }}><h2>给心情，一张歌单</h2><p>装下某个时刻，也收藏某种喜欢。</p><label className="form-field">歌单名称<input autoFocus value={newPlaylistName} maxLength={60} placeholder="比如：星期天的午后" aria-invalid={Boolean(playlistError)} aria-describedby={playlistError ? "playlist-error" : undefined} onChange={(event) => { setNewPlaylistName(event.target.value); setPlaylistError(""); }} /></label>{playlistError && <p className="form-error" id="playlist-error" role="alert">{playlistError}</p>}<div className="dialog-actions"><button type="button" className="button subtle" onClick={() => setModal(null)}>再想想</button><button type="submit" className="button primary"><Plus /> 创建歌单</button></div></form>}
       {modal.type === "add" && <><h2>收藏到哪张歌单？</h2><p>{displayTitle(trackMap.get(modal.trackId)!)}</p><div className="add-playlist-list">{playlists.map((playlist) => <button key={playlist.id} onClick={() => addToPlaylist(playlist.id, modal.trackId)}><PlaylistArt playlist={playlist} /><span><strong>{playlist.name}</strong><small>{playlist.trackIds.length} 首歌曲</small></span>{playlist.trackIds.includes(modal.trackId) ? <Check /> : <Plus />}</button>)}</div><button className="button subtle full-width" onClick={() => { setNewPlaylistName(""); setPlaylistError(""); setModal({ type: "create", trackId: modal.trackId }); }}><Plus /> 创建新歌单</button></>}
       {modal.type === "playlist-add" && (() => {
@@ -578,7 +749,48 @@ export function App() {
         return <><h2>添加歌曲</h2><p>从曲库挑选歌曲，加入「{playlist.name}」。</p><label className="form-field playlist-track-search">搜索歌曲<input autoFocus value={playlistTrackQuery} placeholder="输入歌曲、艺人或专辑" aria-label="搜索要添加的歌曲" onChange={(event) => setPlaylistTrackQuery(event.target.value)} /></label><div className="add-playlist-list track-picker-list">{available.map((track) => <button key={track.id} onClick={() => addToPlaylist(playlist.id, track.id)}><Cover className="playlist-track-cover" album={albumMap.get(track.albumId)!} /><span><strong>{displayTitle(track)}</strong><small>{track.artist} · {albumMap.get(track.albumId)?.name}</small></span><Plus /></button>)}{!available.length && <div className="picker-empty"><Music2 /><span>{term ? "没有匹配的未添加歌曲" : "这个歌单已经收下曲库里的歌曲了"}</span></div>}</div></>;
       })()}
       {modal.type === "info" && <><span className="eyebrow">MUSIC LIBRARY · DESIGN CONCEPT 01</span><h2>属于你的，私人音乐空间</h2><p>以唱片收藏为灵感，让浏览、发现与聆听都慢下来。</p><div className="about-stats"><span><strong>{tracks.length.toLocaleString()}</strong>首歌曲</span><span><strong>{albums.length}</strong>张真实专辑</span><span><strong>01</strong>私人音乐室</span></div><div className="prototype-explanation"><Info /><p>这是独立交互原型，使用本地曲库的元数据与封面快照。播放、进度及音量为交互演示，不输出音频；收藏和歌单在刷新后重置。原曲库与现有应用保持不变。</p></div><button className="button primary full-width" onClick={() => setModal(null)}>开始逛逛 <ArrowRight /></button></>}
-      {modal.type === "settings" && <><h2>音乐室设置</h2><p>把这里调成你喜欢的样子。</p><div className="setting-row"><span><strong>紧凑歌曲列表</strong><small>在同一屏里看见更多音乐</small></span><button className={`toggle ${dense ? "on" : ""}`} role="switch" aria-checked={dense} aria-label="紧凑歌曲列表" onClick={() => setDense((value) => !value)}><span /></button></div><div className="setting-row"><span><strong>深色主题</strong><small>降低环境光下的亮度，保留红色强调</small></span><button className={`toggle ${darkMode ? "on" : ""}`} role="switch" aria-checked={darkMode} aria-label="深色主题" onClick={() => setDarkMode((value) => !value)}><span /></button></div><div className="setting-row"><span><strong>曲库快照</strong><small>{tracks.length.toLocaleString()} 首歌曲 · {albums.length} 张专辑</small></span><span className="setting-badge">已载入</span></div><div className="prototype-explanation"><Info /><p>当前预览使用独立数据快照。扫描、文件管理与账号设置将在正式接入时沿用现有服务。</p></div><button className="button primary full-width" onClick={() => setModal(null)}>就这样，很好</button></>}
+      {modal.type === "directory" && <>
+        <h2>选择音乐目录</h2>
+        <p>选择一个本地或 NAS 挂载目录，音泊会以只读方式扫描其中的音乐文件。</p>
+        <div className="directory-picker" role="listbox" aria-label="可用音乐目录">
+          <div className="directory-picker-heading"><span>可用目录</span><span>只读</span></div>
+          {directoryOptions.map((option) => <button type="button" role="option" aria-selected={directorySelection === option.path} aria-disabled={!option.available} className={`directory-option ${directorySelection === option.path ? "is-selected" : ""} ${!option.available ? "is-unavailable" : ""}`} key={option.path} disabled={!option.available} onClick={() => setDirectorySelection(option.path)}><span className="directory-option-icon"><FolderOpen aria-hidden="true" /></span><span><strong>{option.path}</strong><small>{option.detail}</small></span>{directorySelection === option.path && <Check aria-hidden="true" />}</button>)}
+        </div>
+        <div className="prototype-explanation"><Info /><p>原型预览使用静态目录示意。正式接入后，这里会打开系统目录选择器并显示实际挂载状态。</p></div>
+        <div className="dialog-actions"><button type="button" className="button subtle" onClick={() => setModal(modal.returnTo === "settings" ? { type: "settings" } : null)}>取消</button><button type="button" className="button primary" disabled={!directoryOptions.find((option) => option.path === directorySelection)?.available} onClick={() => startDirectoryScan(directorySelection)}>选择此目录</button></div>
+      </>}
+      {modal.type === "scan-failures" && <>
+        <h2>扫描失败详情</h2>
+        <p>以下文件没有进入当前曲库快照。修复目录连接或权限后，可以重新扫描。</p>
+        <div className="scan-failure-list" role="list" aria-label="扫描失败文件">
+          {scanFailures.map((failure) => <div className="scan-failure-row" role="listitem" key={failure.path}><span className="scan-failure-icon"><AlertTriangle aria-hidden="true" /></span><span><strong>{failure.path}</strong><small>{failure.reason} · {failure.hint}</small></span></div>)}
+        </div>
+        <div className="dialog-actions"><button type="button" className="button subtle" onClick={() => setModal(null)}>返回扫描结果</button><button type="button" className="button primary" onClick={() => { setModal(null); retryLibrary("partial"); }}>重新扫描</button></div>
+      </>}
+      {modal.type === "settings" && <>
+        <h2>音乐室设置</h2>
+        <p>把这里调成你喜欢的样子。</p>
+        <div className="directory-setting" aria-labelledby="music-directory-heading">
+          <div className="directory-setting-heading">
+            <span><strong id="music-directory-heading">音乐目录</strong><small>只读扫描本地或 NAS 挂载的音乐文件</small></span>
+            <span className={`setting-badge ${directoryUnavailable ? "is-error" : initialSetup || libraryDirectoryNeedsScan ? "is-pending" : ""}`}>{directoryUnavailable ? "不可访问" : initialSetup ? "未设置" : libraryDirectoryNeedsScan ? "待扫描" : "已连接"}</span>
+          </div>
+          <div className="directory-card">
+            <span className="directory-icon"><FolderOpen aria-hidden="true" /></span>
+            <span className="directory-copy"><strong>{directoryUnavailable ? "/Volumes/Music" : initialSetup ? "尚未选择目录" : musicDirectory}</strong><small>{directoryUnavailable ? "未挂载 · 无法读取" : initialSetup ? "选择本地或 NAS 目录后开始扫描" : libraryDirectoryNeedsScan ? "已挂载 · 尚未完成首次扫描" : "只读访问 · 上次扫描刚刚"}</small></span>
+            <button type="button" className="directory-action" onClick={() => { setDirectorySelection(initialSetup ? "" : directoryUnavailable ? "/Volumes/Music" : musicDirectory); setModal({ type: "directory", returnTo: "settings" }); }}>{initialSetup ? "选择目录" : libraryDirectoryNeedsScan || directoryUnavailable ? "选择" : "更换"}</button>
+          </div>
+          <div className="directory-meta">
+            <span><Disc3 aria-hidden="true" />{directoryUnavailable ? "等待目录恢复" : initialSetup ? "选择目录后开始扫描" : libraryDirectoryNeedsScan ? "等待首次扫描" : partialScan ? `${tracks.length.toLocaleString()} 首歌曲 · 部分完成` : `${tracks.length.toLocaleString()} 首歌曲 · ${albums.length} 张专辑`}</span>
+            <button type="button" className="directory-scan" onClick={() => initialSetup ? (setDirectorySelection(""), setModal({ type: "directory", returnTo: "settings" })) : directoryUnavailable ? retryLibrary("directory") : libraryDirectoryNeedsScan ? startDirectoryScan(musicDirectory) : retryLibrary("partial")} disabled={!initialSetup && (checkStatus.directory === "checking" || checkStatus.partial === "checking")}><>{initialSetup ? <FolderOpen aria-hidden="true" /> : <RefreshCw aria-hidden="true" />}</>{initialSetup ? "选择目录" : directoryUnavailable ? "重新检查" : libraryDirectoryNeedsScan ? "扫描目录" : "重新扫描"}</button>
+          </div>
+        </div>
+        <div className="setting-row"><span><strong>紧凑歌曲列表</strong><small>在同一屏里看见更多音乐</small></span><button className={`toggle ${dense ? "on" : ""}`} role="switch" aria-checked={dense} aria-label="紧凑歌曲列表" onClick={() => setDense((value) => !value)}><span /></button></div>
+        <div className="setting-row"><span><strong>深色主题</strong><small>降低环境光下的亮度，保留红色强调</small></span><button className={`toggle ${darkMode ? "on" : ""}`} role="switch" aria-checked={darkMode} aria-label="深色主题" onClick={() => setDarkMode((value) => !value)}><span /></button></div>
+        <div className="setting-row"><span><strong>曲库快照</strong><small>{directoryUnavailable ? "目录恢复后才能读取快照" : initialSetup ? "选择目录并完成扫描后生成" : libraryDirectoryNeedsScan ? "等待目录扫描后建立快照" : partialScan ? `已载入 ${tracks.length.toLocaleString()} 首歌曲 · 仍有 ${scanFailures.length} 个文件失败` : `${tracks.length.toLocaleString()} 首歌曲 · ${albums.length} 张专辑`}</small></span><span className={`setting-badge ${directoryUnavailable ? "is-error" : initialSetup || libraryDirectoryNeedsScan || partialScan ? "is-pending" : ""}`}>{directoryUnavailable ? "不可用" : initialSetup ? "未生成" : libraryDirectoryNeedsScan ? "待生成" : partialScan ? "部分" : "已载入"}</span></div>
+        <div className="prototype-explanation"><Info /><p>当前预览使用独立数据快照。扫描、文件管理与账号设置将在正式接入时沿用现有服务。</p></div>
+        <button className="button primary full-width" onClick={() => setModal(null)}>就这样，很好</button>
+      </>}
     </Modal>}
     {menu && <><button className="menu-backdrop" aria-label="关闭歌曲操作菜单" onClick={() => setMenu(null)} /><div className="track-menu" role="menu" aria-label="歌曲操作" style={{ left: Math.max(12, menu.x), top: Math.max(12, menu.y) }}><button role="menuitem" autoFocus onClick={() => enqueue(menu.track, true)}><SkipForward /> 下一首播放</button><button role="menuitem" onClick={() => enqueue(menu.track)}><ListMusic /> 加入待播清单</button><button role="menuitem" onClick={() => { setModal({ type: "add", trackId: menu.track.id }); setMenu(null); }}><Plus /> 添加到歌单</button><button role="menuitem" onClick={() => { toggleFavorite(menu.track.id); setMenu(null); }}><Heart />{favorites.has(menu.track.id) ? "取消收藏" : "收藏歌曲"}</button><button role="menuitem" onClick={() => navigate(`album/${menu.track.albumId}`)}><Disc3 /> 前往专辑</button></div></>}
     <div className={`toast ${toast ? "visible" : ""}`} role="status" aria-live="polite">{toast && <><Check size={16} />{toast}</>}</div>

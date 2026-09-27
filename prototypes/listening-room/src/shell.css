@@ -20,8 +20,9 @@
 .library-surface .brand > span:last-child { font-size: 15px; font-weight: 650; letter-spacing: -.5px; }
 .library-surface .brand small,
 .library-surface .sidebar-signature { display: none; }
-.library-surface .brand-mark { width: 28px; height: 28px; flex-shrink: 0; background: var(--ink); color: #fff; box-shadow: 0 2px 5px #0000000d; }
-.library-surface .brand-mark svg { width: 21px; height: 21px; stroke-width: 1.5; }
+.library-surface .brand-mark { position: relative; width: 30px; height: 30px; flex-shrink: 0; overflow: hidden; background: linear-gradient(145deg, #273033, #111719); color: #f8f6f1; border-radius: 10px; box-shadow: 0 3px 8px #1117192b, inset 0 0 0 .5px #ffffff25; }
+.library-surface .brand-mark svg { width: 27px; height: 27px; stroke-width: 1.5; }
+.library-surface .brand-mark .brand-glyph { --brand-accent: var(--accent); --brand-core: #111719; }
 .library-surface .sidebar-content {
   display: flex;
   flex-direction: column;
@@ -98,6 +99,56 @@
 .library-surface .search-suggestions-footer { display: flex; align-items: center; gap: 7px; margin: 7px 5px 1px; padding-top: 9px; border-top: 1px solid var(--line); color: var(--muted); font-size: 9px; }
 .library-surface .search-suggestions-footer kbd { min-width: 38px; padding: 3px 6px; color: var(--ink); text-align: center; background: var(--surface-subtle); border-radius: 5px; font: 10px inherit; }
 .library-surface .main-content { scrollbar-color: #cfcfd6 transparent; }
+/* Keep scrollbars quiet and inset so rounded surfaces keep their silhouette. The
+   transparent track lets the page material show through while the thumb gets a
+   small breathing room at the top and bottom of dialogs. */
+.library-surface {
+  --scrollbar-thumb: #c2c4cc;
+  --scrollbar-thumb-hover: #aeb1bb;
+}
+.library-surface :is(.sidebar-content, .main-content, .standard-dialog, .queue-dialog, .queue-tracks, .add-playlist-list, .np-queue-list, .np-empty) {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+.library-surface :is(.standard-dialog, .queue-dialog) { scrollbar-gutter: stable; }
+.library-surface :is(.sidebar-content, .main-content, .standard-dialog, .queue-dialog, .queue-tracks, .add-playlist-list, .np-queue-list, .np-empty)::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.library-surface :is(.sidebar-content, .main-content, .standard-dialog, .queue-dialog, .queue-tracks, .add-playlist-list, .np-queue-list, .np-empty)::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 999px;
+}
+.library-surface :is(.standard-dialog, .queue-dialog)::-webkit-scrollbar-track {
+  margin-block: 14px;
+}
+.library-surface :is(.sidebar-content, .main-content, .standard-dialog, .queue-dialog, .queue-tracks, .add-playlist-list, .np-queue-list, .np-empty)::-webkit-scrollbar-thumb {
+  min-height: 38px;
+  background: var(--scrollbar-thumb);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+}
+.library-surface :is(.sidebar-content, .main-content, .standard-dialog, .queue-dialog, .queue-tracks, .add-playlist-list, .np-queue-list, .np-empty)::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
+}
+/* Hide only the sidebar thumb; keep its width so navigation never shifts. */
+@media (hover: hover) and (pointer: fine) {
+  .library-surface .sidebar-content {
+    --sidebar-scrollbar-thumb: transparent;
+    scrollbar-color: var(--sidebar-scrollbar-thumb) transparent;
+  }
+  .library-surface .sidebar-content:hover {
+    --sidebar-scrollbar-thumb: var(--scrollbar-thumb);
+  }
+  .library-surface .sidebar-content::-webkit-scrollbar-thumb {
+    background-color: var(--sidebar-scrollbar-thumb);
+  }
+  .library-surface .sidebar-content::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
+  }
+}
 /* Keep the page content readable as it scrolls behind the floating search. The
    search field owns its own material, so a full-width mask here only fades and
    visually clips the first rows of every page. */
@@ -225,6 +276,7 @@
 .library-surface .state-panel.is-error { background: transparent; }
 .library-surface .page-footer { color: var(--muted); }
 .library-surface :is(.standard-dialog, .queue-dialog) { background: var(--paper); color: var(--ink); border-color: var(--line); border-radius: 20px; box-shadow: 0 24px 80px #17171929; }
+.library-surface .standard-dialog { max-height: calc(100dvh - 40px); overflow-y: auto; }
 .library-surface :is(.standard-dialog, .queue-dialog)::backdrop { background: #17171945; }
 .library-surface .queue-dialog { padding: 28px 24px 18px; }
 .library-surface .queue-current { padding-bottom: 20px; border-bottom: 1px solid var(--line); }
@@ -256,6 +308,11 @@
 .library-surface .about-stats,
 .library-surface .add-playlist-list small { color: var(--muted); }
 .library-surface .form-field input { background: var(--surface); border-color: var(--line); border-radius: 10px; }
+.library-surface .standard-dialog .form-field input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
 .library-surface .form-field input::placeholder { color: #8a8a92; }
 .library-surface .standard-dialog .form-error { color: var(--accent); }
 .library-surface .about-stats { border-color: var(--line); }
@@ -267,6 +324,43 @@
 .library-surface .toggle.on { background: var(--accent); }
 .library-surface .toggle > span { background: #fff; }
 .library-surface .setting-badge { color: var(--muted); background: var(--surface-subtle); }
+.library-surface .directory-setting {
+  margin-top: 22px;
+  padding: 18px 0 4px;
+  border-top: 1px solid var(--line);
+}
+.library-surface .directory-setting-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.library-surface .directory-setting-heading > span:first-child { min-width: 0; }
+.library-surface .directory-setting-heading strong { display: block; color: var(--ink); font-size: 12px; font-weight: 600; }
+.library-surface .directory-setting-heading small { display: block; margin-top: 6px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.library-surface .directory-setting .setting-badge.is-pending { color: var(--accent); background: var(--accent-soft); }
+.library-surface .directory-card { display: flex; align-items: center; gap: 11px; min-width: 0; margin-top: 13px; padding: 11px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.library-surface .directory-icon { display: grid; width: 31px; height: 31px; flex: 0 0 31px; place-items: center; color: var(--accent); background: var(--surface-subtle); border-radius: 9px; }
+.library-surface .directory-icon svg { width: 16px; height: 16px; stroke-width: 1.8; }
+.library-surface .directory-copy { min-width: 0; flex: 1; }
+.library-surface .directory-copy strong { display: block; overflow: hidden; color: var(--ink); font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.library-surface .directory-copy small { display: block; overflow: hidden; margin-top: 5px; color: var(--muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.library-surface .directory-action { flex-shrink: 0; padding: 6px 3px; color: var(--accent); font-size: 10px; font-weight: 600; }
+.library-surface .directory-action:hover { color: var(--ink); }
+.library-surface .directory-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 11px; }
+.library-surface .directory-meta > span { display: flex; min-width: 0; align-items: center; gap: 6px; overflow: hidden; color: var(--muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.library-surface .directory-meta > span svg { width: 13px; height: 13px; flex: 0 0 13px; color: var(--muted); }
+.library-surface .directory-scan { display: inline-flex; flex-shrink: 0; align-items: center; gap: 5px; color: var(--accent); font-size: 10px; font-weight: 600; white-space: nowrap; }
+.library-surface .directory-scan:hover { color: var(--ink); }
+.library-surface .directory-scan svg { width: 13px; height: 13px; }
+.library-surface .directory-picker { margin-top: 19px; overflow: hidden; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.library-surface .directory-picker-heading { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; color: var(--muted); border-bottom: 1px solid var(--line); font-size: 9px; }
+.library-surface .directory-option { display: flex; width: 100%; align-items: center; gap: 10px; padding: 11px 12px; color: var(--ink); text-align: left; border-bottom: 1px solid var(--line); }
+.library-surface .directory-option:last-child { border-bottom: 0; }
+.library-surface .directory-option:hover { background: var(--surface-subtle); }
+.library-surface .directory-option.is-selected { background: var(--accent-soft); }
+.library-surface .directory-option-icon { display: grid; width: 28px; height: 28px; flex: 0 0 28px; place-items: center; color: var(--muted); background: var(--surface-subtle); border-radius: 8px; }
+.library-surface .directory-option.is-selected .directory-option-icon { color: var(--accent); background: var(--paper); }
+.library-surface .directory-option-icon svg { width: 15px; height: 15px; }
+.library-surface .directory-option > span:nth-child(2) { min-width: 0; flex: 1; }
+.library-surface .directory-option strong { display: block; overflow: hidden; font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.library-surface .directory-option small { display: block; margin-top: 4px; color: var(--muted); font-size: 9px; }
+.library-surface .directory-option > svg:last-child { width: 15px; height: 15px; flex: 0 0 15px; color: var(--accent); }
 .library-surface .add-playlist-list > button:hover { background: var(--surface); }
 .library-surface .add-playlist-list > button > svg { color: var(--accent); }
 .library-surface .track-menu { background: #fffffff2; border-color: var(--line); border-radius: 12px; box-shadow: 0 12px 40px #1717191f; backdrop-filter: blur(16px); }
@@ -283,6 +377,7 @@
   padding: 42px 18px;
 }
 .mobile-layout.library-surface .state-panel.search-empty { min-height: max(250px, calc(100dvh - 250px)); }
+.mobile-layout.library-surface .standard-dialog { max-height: calc(100dvh - 24px); }
 @media (prefers-reduced-motion: reduce) {
   .library-surface :is(.artwork-card, .search-field) { transition: none; }
 }
@@ -299,16 +394,18 @@
   --surface-subtle: #252932;
   --shadow-card: inset 0 0 0 1px #ffffff0d, 0 10px 28px #00000030;
   --shadow-card-hover: inset 0 0 0 1px #ffffff18, 0 16px 36px #00000045;
+  --scrollbar-thumb: #555a67;
+  --scrollbar-thumb-hover: #707684;
   color-scheme: dark;
   background: var(--paper);
   color: var(--ink);
 }
+.library-surface.dark-theme .brand-mark { --brand-core: #151820; background: linear-gradient(145deg, #303640, #151820); color: #f4f5f7; box-shadow: 0 4px 12px #0000004d, inset 0 0 0 .5px #ffffff26; }
 body:has(.library-surface.dark-theme) { background: #111318; color: #f2f3f5; }
 .library-surface.dark-theme .workspace,
 .library-surface.dark-theme .main-content { background: var(--paper); color: var(--ink); }
 .library-surface.dark-theme .sidebar,
 .mobile-layout.library-surface.dark-theme .sidebar { background: #191b21; border-color: #ffffff0f; box-shadow: inset 0 0 0 .5px #ffffff0b, inset 0 1px 0 #ffffff0a, 0 12px 32px #00000048, 0 2px 6px #00000030; }
-.library-surface.dark-theme .sidebar-content { scrollbar-color: #4d515c transparent; }
 .library-surface.dark-theme .nav-label { color: #8e929c; }
 .library-surface.dark-theme .main-nav button,
 .library-surface.dark-theme .playlist-nav button,

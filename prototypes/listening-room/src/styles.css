@@ -386,7 +386,7 @@ dialog[open] { animation: modal-in .24s ease both; }
 .mobile-layout .home-album-grid .album-card { scroll-snap-align: start; scroll-margin-left: 20px; }
 .mobile-layout .album-name { font-size: 11px; margin-top: 10px; }
 .mobile-layout .album-card p { font-size: 9px; }
-.mobile-layout .cover-play { opacity: 1; transform: none; width: 28px; height: 28px; bottom: 9px; right: 9px; }
+.mobile-layout .cover-play { width: 28px; height: 28px; bottom: 9px; right: 9px; }
 .mobile-layout .cover-play svg { width: 12px; }
 .mobile-layout .page-heading { display: block; margin-top: 0; margin-bottom: 25px; }
 .mobile-layout .page-heading .eyebrow { font-size: 7px; letter-spacing: 1.5px; }

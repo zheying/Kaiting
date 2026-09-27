@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title>音泊</title>
+  <rect width="64" height="64" rx="18" fill="#111719"/>
+  <circle cx="32" cy="32" r="22.4" fill="none" stroke="#f8f6f1" stroke-width="3" opacity=".72"/>
+  <path d="M16 32c2.6-8 5.4-8 8 0s5.4 8 8 0 5.4-8 8 0 5.4 8 8 0" fill="none" stroke="#c9344d" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="32" cy="32" r="3.7" fill="#111719" stroke="#f8f6f1" stroke-width="2.1"/>
+</svg>
