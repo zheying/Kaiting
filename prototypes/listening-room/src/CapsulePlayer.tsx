@@ -1,9 +1,13 @@
 import { useRef, useState, type CSSProperties } from "react";
-import { FastForward, ListMusic, Maximize2, Pause, Play, Rewind } from "lucide-react";
+import { FastForward, ListMusic, LoaderCircle, Maximize2, Pause, Play, Rewind } from "lucide-react";
 import { PlayerMarquee } from "../../../src/client/PlayerMarquee";
 import { PlayerRepeatIcon, PlayerRepeatOneIcon, PlayerShuffleIcon, PlayerVolumeIcon } from "./PlayerIcons";
 
+import { Artwork } from "./StateComponents";
+import { playbackBusy, playbackCopy, type PlaybackPhase } from "./prototype-state";
+
 type CapsulePlayerProps = {
+  phase?: PlaybackPhase;
   title: string;
   artist: string;
   album: string;
@@ -39,7 +43,9 @@ export function CapsulePlayer(props: CapsulePlayerProps) {
   const [volumeDragging, setVolumeDragging] = useState(false);
   const lastVolume = useRef(volume || 70);
   const repeatLabel = ["顺序播放，点击切换列表循环", "列表循环，点击切换单曲循环", "单曲循环，点击切换顺序播放"][repeat];
-  const coverImage = <img className="cover" src={cover} alt={`${album} 专辑封面`} draggable={false} />;
+  const coverImage = <Artwork src={cover} alt={`${album} 专辑封面`} lazy={false} />;
+  const busy = playbackBusy(props.phase ?? "ready");
+  const busyCopy = busy && props.phase && props.phase !== "ready" ? playbackCopy[props.phase] : null;
 
   function toggleMute() {
     if (volume > 0) lastVolume.current = volume;
@@ -47,6 +53,7 @@ export function CapsulePlayer(props: CapsulePlayerProps) {
   }
 
   return <footer className="capsule-player" aria-label="底部播放器">
+    <span className="sr-only" role="status" aria-atomic="true">{busyCopy && `${busyCopy.title}，${busyCopy.detail}`}</span>
     {isMobile && <button className="mobile-now-playing" type="button" onClick={props.onOpenPlayer} aria-label={`打开沉浸播放器：${title}，${artist}`}>
       {coverImage}
       <span className="mobile-now-playing-text"><strong>{title}</strong><span>{artist}</span></span>
@@ -54,7 +61,7 @@ export function CapsulePlayer(props: CapsulePlayerProps) {
     <div className="player-controls">
       <button className={`player-mode-button ${shuffle ? "active" : ""}`} type="button" aria-pressed={shuffle} onClick={props.onToggleShuffle} aria-label={shuffle ? "关闭随机播放" : "随机播放"} title={shuffle ? "关闭随机播放" : "随机播放"}><PlayerShuffleIcon /></button>
       <button className="mini-transport-button" type="button" onClick={props.onPrevious} aria-label="上一首" title="上一首"><Rewind /></button>
-      <button className="mini-play-button" type="button" onClick={props.onTogglePlay} aria-label={playing ? "暂停" : "播放"} title={playing ? "暂停" : "播放"}>{playing ? <Pause /> : <Play />}</button>
+      <button className="mini-play-button" type="button" disabled={busy} onClick={props.onTogglePlay} aria-label={busyCopy?.title ?? (playing ? "暂停" : "播放")} title={busyCopy?.title ?? (playing ? "暂停" : "播放")}>{busy ? <LoaderCircle className="button-spinner" aria-hidden="true" /> : playing ? <Pause /> : <Play />}</button>
       <button className="mini-transport-button" type="button" onClick={props.onNext} aria-label="下一首" title="下一首"><FastForward /></button>
       <button className={`player-mode-button ${repeat ? "active" : ""}`} type="button" aria-pressed={repeat > 0} onClick={props.onToggleRepeat} aria-label={repeatLabel} title={repeatLabel}>{repeat === 2 ? <PlayerRepeatOneIcon /> : <PlayerRepeatIcon />}</button>
     </div>
@@ -70,7 +77,7 @@ export function CapsulePlayer(props: CapsulePlayerProps) {
       </div>
       <span className="mini-progress-time current-time" aria-hidden="true">{time(position)}</span>
       <span className="mini-progress-time remaining-time" aria-hidden="true">−{time(Math.max(0, duration - position))}</span>
-      <input className="mini-progress" type="range" min="0" max={duration} value={position} aria-label="播放进度" aria-valuetext={`${time(position)}，共 ${time(duration)}`} style={{ "--progress": `${duration ? position / duration * 100 : 0}%` } as CSSProperties}
+      <input className="mini-progress" type="range" disabled={busy || props.phase !== "ready"} min="0" max={duration} value={position} aria-label="播放进度" aria-valuetext={`${time(position)}，共 ${time(duration)}`} style={{ "--progress": `${duration ? position / duration * 100 : 0}%` } as CSSProperties}
         onPointerDown={(event) => { setSeeking(true); event.currentTarget.setPointerCapture(event.pointerId); }}
         onPointerUp={() => setSeeking(false)} onPointerCancel={() => setSeeking(false)} onLostPointerCapture={() => setSeeking(false)}
         onChange={(event) => props.onSeek(Number(event.currentTarget.value))} />

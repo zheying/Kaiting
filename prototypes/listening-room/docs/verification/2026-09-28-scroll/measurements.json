@@ -1,0 +1,3056 @@
+{
+  "date": "2026-09-28",
+  "records": [
+    {
+      "id": "setup-empty",
+      "name": "初次设置",
+      "href": "http://127.0.0.1:4173/#/preview/setup-empty",
+      "size": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-setup-empty.jpg",
+      "actions": [
+        {
+          "bottom": 601.8828125,
+          "label": "打开设置",
+          "top": 561.8828125
+        },
+        {
+          "bottom": 601.8828125,
+          "label": "回到首页",
+          "top": 561.8828125
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state initial-setup-state",
+          "height": 576.8125,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "先把音乐带进来",
+      "transform": "none",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "library-empty",
+      "name": "曲库为空",
+      "href": "http://127.0.0.1:4173/#/preview/library-empty",
+      "size": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-library-empty.jpg",
+      "actions": [
+        {
+          "bottom": 601.8828125,
+          "label": "打开设置",
+          "top": 561.8828125
+        },
+        {
+          "bottom": 601.8828125,
+          "label": "先逛逛歌单",
+          "top": 561.8828125
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state",
+          "height": 576.8125,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "曲库为空",
+      "transform": "none",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "accounts-loading",
+      "name": "账号列表载入中",
+      "href": "http://127.0.0.1:4173/#/preview/accounts-loading",
+      "size": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-accounts-loading.jpg",
+      "actions": [
+        {
+          "bottom": 656.2890625,
+          "label": "继续演示载入",
+          "top": 616.2890625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "account-empty",
+          "height": 343.4140625,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "一起，把音乐留在这里",
+      "transform": "none",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "accounts-error",
+      "name": "账号列表载入失败",
+      "href": "http://127.0.0.1:4173/#/preview/accounts-error",
+      "size": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-accounts-error.jpg",
+      "actions": [
+        {
+          "bottom": 656.2890625,
+          "label": "重新载入",
+          "top": 616.2890625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "account-empty",
+          "height": 343.4140625,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "一起，把音乐留在这里",
+      "transform": "none",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "accounts-empty",
+      "name": "账号搜索无结果",
+      "href": "http://127.0.0.1:4173/#/preview/accounts-empty",
+      "size": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-accounts-empty.jpg",
+      "actions": [
+        {
+          "bottom": 656.2890625,
+          "label": "查看全部账号",
+          "top": 616.2890625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "account-empty",
+          "height": 343.4140625,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "一起，把音乐留在这里",
+      "transform": "none",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "scan-running",
+      "name": "扫描进行中",
+      "href": "http://127.0.0.1:4173/#/preview/scan-running",
+      "size": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-scan-running.jpg",
+      "actions": [
+        {
+          "bottom": 658.9375,
+          "label": "继续演示扫描",
+          "top": 618.9375
+        },
+        {
+          "bottom": 658.9375,
+          "label": "继续浏览",
+          "top": 618.9375
+        },
+        {
+          "bottom": 647.1875,
+          "label": "停止扫描",
+          "top": 630.6875
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "scan-progress-page",
+          "height": 576.8125,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "让音乐，慢慢归位",
+      "transform": "none",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "scan-empty",
+      "name": "未发现音乐",
+      "href": "http://127.0.0.1:4173/#/preview/scan-empty",
+      "size": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-scan-empty.jpg",
+      "actions": [
+        {
+          "bottom": 612.6796875,
+          "label": "更换目录",
+          "top": 572.6796875
+        },
+        {
+          "bottom": 612.6796875,
+          "label": "重新扫描",
+          "top": 572.6796875
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state",
+          "height": 576.8125,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "目录里还没有可播放的音乐",
+      "transform": "none",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "scan-failed",
+      "name": "无法启动扫描",
+      "href": "http://127.0.0.1:4173/#/preview/scan-failed",
+      "size": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-scan-failed.jpg",
+      "actions": [
+        {
+          "bottom": 601.8828125,
+          "label": "重新扫描",
+          "top": 561.8828125
+        },
+        {
+          "bottom": 601.8828125,
+          "label": "检查目录",
+          "top": 561.8828125
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error preview-empty-state",
+          "height": 576.8125,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "扫描还没有开始",
+      "transform": "none",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "scan-interrupted",
+      "name": "扫描中断",
+      "href": "http://127.0.0.1:4173/#/preview/scan-interrupted",
+      "size": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-scan-interrupted.jpg",
+      "actions": [
+        {
+          "bottom": 612.6796875,
+          "label": "重新扫描",
+          "top": 572.6796875
+        },
+        {
+          "bottom": 612.6796875,
+          "label": "检查目录",
+          "top": 572.6796875
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error preview-empty-state",
+          "height": 576.8125,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "这次扫描中断了",
+      "transform": "none",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "directory-unavailable",
+      "name": "目录不可访问",
+      "href": "http://127.0.0.1:4173/#/preview/directory-unavailable",
+      "size": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-directory-unavailable.jpg",
+      "actions": [
+        {
+          "bottom": 612.6796875,
+          "label": "重新检查",
+          "top": 572.6796875
+        },
+        {
+          "bottom": 612.6796875,
+          "label": "选择其他目录",
+          "top": 572.6796875
+        },
+        {
+          "bottom": 612.6796875,
+          "label": "回到首页",
+          "top": 572.6796875
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error directory-unavailable-state",
+          "height": 304.1796875,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "音乐目录暂时不可访问",
+      "transform": "none",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "search-empty",
+      "name": "没有搜索结果",
+      "href": "http://127.0.0.1:4173/#/preview/search-empty",
+      "size": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-search-empty.jpg",
+      "actions": [
+        {
+          "bottom": 601.8828125,
+          "label": "重新搜索",
+          "top": 561.8828125
+        },
+        {
+          "bottom": 601.8828125,
+          "label": "回到首页",
+          "top": 561.8828125
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  search-empty",
+          "height": 576.8125,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "寻找「zzzz-no-match」",
+      "transform": "none",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "albums-empty",
+      "name": "没有专辑",
+      "href": "http://127.0.0.1:4173/#/preview/albums-empty",
+      "size": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-albums-empty.jpg",
+      "actions": [
+        {
+          "bottom": 601.8828125,
+          "label": "打开设置",
+          "top": 561.8828125
+        },
+        {
+          "bottom": 601.8828125,
+          "label": "回到首页",
+          "top": 561.8828125
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state",
+          "height": 576.8125,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "你的唱片架",
+      "transform": "none",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "artists-empty",
+      "name": "没有艺人",
+      "href": "http://127.0.0.1:4173/#/preview/artists-empty",
+      "size": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-artists-empty.jpg",
+      "actions": [
+        {
+          "bottom": 601.8828125,
+          "label": "打开设置",
+          "top": 561.8828125
+        },
+        {
+          "bottom": 601.8828125,
+          "label": "回到首页",
+          "top": 561.8828125
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state",
+          "height": 576.8125,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "旋律背后的人",
+      "transform": "none",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "list-error",
+      "name": "列表载入失败",
+      "href": "http://127.0.0.1:4173/#/preview/list-error",
+      "size": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-list-error.jpg",
+      "actions": [
+        {
+          "bottom": 588.5859375,
+          "label": "重新载入",
+          "top": 548.5859375
+        },
+        {
+          "bottom": 588.5859375,
+          "label": "回到首页",
+          "top": 548.5859375
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error state-panel-list",
+          "height": 576.8125,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "所有歌曲",
+      "transform": "none",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "detail-error",
+      "name": "详情载入失败",
+      "href": "http://127.0.0.1:4173/#/preview/detail-error",
+      "size": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-detail-error.jpg",
+      "actions": [
+        {
+          "bottom": 588.5859375,
+          "label": "重新载入",
+          "top": 548.5859375
+        },
+        {
+          "bottom": 588.5859375,
+          "label": "回到首页",
+          "top": 548.5859375
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error state-panel-list",
+          "height": 576.8125,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "专辑详情",
+      "transform": "none",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "not-found",
+      "name": "页面不存在",
+      "href": "http://127.0.0.1:4173/#/preview/not-found",
+      "size": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-not-found.jpg",
+      "actions": [
+        {
+          "bottom": 537.2890625,
+          "label": "回到首页",
+          "top": 497.2890625
+        },
+        {
+          "bottom": 537.2890625,
+          "label": "浏览专辑",
+          "top": 497.2890625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error",
+          "height": 706,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "scroll": 0,
+      "transform": "none",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "setup-empty",
+      "name": "初次设置",
+      "href": "http://127.0.0.1:4173/#/preview/setup-empty",
+      "size": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-setup-empty.jpg",
+      "actions": [
+        {
+          "bottom": 604.9609375,
+          "label": "打开设置",
+          "top": 564.9609375
+        },
+        {
+          "bottom": 653.9609375,
+          "label": "回到首页",
+          "top": 613.9609375
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state initial-setup-state",
+          "height": 498.859375,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 785,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "先把音乐带进来",
+      "transform": "none",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "library-empty",
+      "name": "曲库为空",
+      "href": "http://127.0.0.1:4173/#/preview/library-empty",
+      "size": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-library-empty.jpg",
+      "actions": [
+        {
+          "bottom": 604.9609375,
+          "label": "打开设置",
+          "top": 564.9609375
+        },
+        {
+          "bottom": 653.9609375,
+          "label": "先逛逛歌单",
+          "top": 613.9609375
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state",
+          "height": 498.859375,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 785,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "曲库为空",
+      "transform": "none",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "accounts-loading",
+      "name": "账号列表载入中",
+      "href": "http://127.0.0.1:4173/#/preview/accounts-loading",
+      "size": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-accounts-loading.jpg",
+      "actions": [
+        {
+          "bottom": 679.2890625,
+          "label": "继续演示载入",
+          "top": 635.2890625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "account-empty",
+          "height": 210.6171875,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "一起，把音乐留在这里",
+      "transform": "none",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "accounts-error",
+      "name": "账号列表载入失败",
+      "href": "http://127.0.0.1:4173/#/preview/accounts-error",
+      "size": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-accounts-error.jpg",
+      "actions": [
+        {
+          "bottom": 679.2890625,
+          "label": "重新载入",
+          "top": 635.2890625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "account-empty",
+          "height": 210.6171875,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "一起，把音乐留在这里",
+      "transform": "none",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "accounts-empty",
+      "name": "账号搜索无结果",
+      "href": "http://127.0.0.1:4173/#/preview/accounts-empty",
+      "size": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-accounts-empty.jpg",
+      "actions": [
+        {
+          "bottom": 679.2890625,
+          "label": "查看全部账号",
+          "top": 635.2890625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "account-empty",
+          "height": 210.6171875,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "一起，把音乐留在这里",
+      "transform": "none",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "scan-running",
+      "name": "扫描进行中",
+      "href": "http://127.0.0.1:4173/#/preview/scan-running",
+      "size": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-scan-running.jpg",
+      "actions": [
+        {
+          "bottom": 639.9140625,
+          "label": "继续演示扫描",
+          "top": 599.9140625
+        },
+        {
+          "bottom": 691.9140625,
+          "label": "继续浏览",
+          "top": 651.9140625
+        },
+        {
+          "bottom": 718.9140625,
+          "label": "停止扫描",
+          "top": 703.9140625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "scan-progress-page",
+          "height": 498.859375,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "让音乐，慢慢归位",
+      "transform": "none",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "scan-empty",
+      "name": "未发现音乐",
+      "href": "http://127.0.0.1:4173/#/preview/scan-empty",
+      "size": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-scan-empty.jpg",
+      "actions": [
+        {
+          "bottom": 604.9609375,
+          "label": "更换目录",
+          "top": 564.9609375
+        },
+        {
+          "bottom": 653.9609375,
+          "label": "重新扫描",
+          "top": 613.9609375
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state",
+          "height": 498.859375,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 785,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "目录里还没有可播放的音乐",
+      "transform": "none",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "scan-failed",
+      "name": "无法启动扫描",
+      "href": "http://127.0.0.1:4173/#/preview/scan-failed",
+      "size": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-scan-failed.jpg",
+      "actions": [
+        {
+          "bottom": 604.9609375,
+          "label": "重新扫描",
+          "top": 564.9609375
+        },
+        {
+          "bottom": 653.9609375,
+          "label": "检查目录",
+          "top": 613.9609375
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error preview-empty-state",
+          "height": 498.859375,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "扫描还没有开始",
+      "transform": "none",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "scan-interrupted",
+      "name": "扫描中断",
+      "href": "http://127.0.0.1:4173/#/preview/scan-interrupted",
+      "size": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-scan-interrupted.jpg",
+      "actions": [
+        {
+          "bottom": 604.9609375,
+          "label": "重新扫描",
+          "top": 564.9609375
+        },
+        {
+          "bottom": 653.9609375,
+          "label": "检查目录",
+          "top": 613.9609375
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error preview-empty-state",
+          "height": 498.859375,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "这次扫描中断了",
+      "transform": "none",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "directory-unavailable",
+      "name": "目录不可访问",
+      "href": "http://127.0.0.1:4173/#/preview/directory-unavailable",
+      "size": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-directory-unavailable.jpg",
+      "actions": [
+        {
+          "bottom": 547.0703125,
+          "label": "重新检查",
+          "top": 503.0703125
+        },
+        {
+          "bottom": 547.0703125,
+          "label": "选择其他目录",
+          "top": 503.0703125
+        },
+        {
+          "bottom": 599.0703125,
+          "label": "回到首页",
+          "top": 555.0703125
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error directory-unavailable-state",
+          "height": 317.78125,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "音乐目录暂时不可访问",
+      "transform": "none",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "search-empty",
+      "name": "没有搜索结果",
+      "href": "http://127.0.0.1:4173/#/preview/search-empty",
+      "size": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-search-empty.jpg",
+      "actions": [
+        {
+          "bottom": 595.0625,
+          "label": "重新搜索",
+          "top": 555.0625
+        },
+        {
+          "bottom": 644.0625,
+          "label": "回到首页",
+          "top": 604.0625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  search-empty",
+          "height": 498.859375,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "寻找「zzzz-no-match」",
+      "transform": "none",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "albums-empty",
+      "name": "没有专辑",
+      "href": "http://127.0.0.1:4173/#/preview/albums-empty",
+      "size": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-albums-empty.jpg",
+      "actions": [
+        {
+          "bottom": 595.0625,
+          "label": "打开设置",
+          "top": 555.0625
+        },
+        {
+          "bottom": 644.0625,
+          "label": "回到首页",
+          "top": 604.0625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state",
+          "height": 498.859375,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 785,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "你的唱片架",
+      "transform": "none",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "artists-empty",
+      "name": "没有艺人",
+      "href": "http://127.0.0.1:4173/#/preview/artists-empty",
+      "size": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-artists-empty.jpg",
+      "actions": [
+        {
+          "bottom": 595.0625,
+          "label": "打开设置",
+          "top": 555.0625
+        },
+        {
+          "bottom": 644.0625,
+          "label": "回到首页",
+          "top": 604.0625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state",
+          "height": 498.859375,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 785,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "旋律背后的人",
+      "transform": "none",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "list-error",
+      "name": "列表载入失败",
+      "href": "http://127.0.0.1:4173/#/preview/list-error",
+      "size": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-list-error.jpg",
+      "actions": [
+        {
+          "bottom": 581.765625,
+          "label": "重新载入",
+          "top": 541.765625
+        },
+        {
+          "bottom": 630.765625,
+          "label": "回到首页",
+          "top": 590.765625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error state-panel-list",
+          "height": 498.859375,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "所有歌曲",
+      "transform": "none",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "detail-error",
+      "name": "详情载入失败",
+      "href": "http://127.0.0.1:4173/#/preview/detail-error",
+      "size": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-detail-error.jpg",
+      "actions": [
+        {
+          "bottom": 581.765625,
+          "label": "重新载入",
+          "top": 541.765625
+        },
+        {
+          "bottom": 630.765625,
+          "label": "回到首页",
+          "top": 590.765625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error state-panel-list",
+          "height": 498.859375,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "专辑详情",
+      "transform": "none",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "not-found",
+      "name": "页面不存在",
+      "href": "http://127.0.0.1:4173/#/preview/not-found",
+      "size": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-not-found.jpg",
+      "actions": [
+        {
+          "bottom": 533.4921875,
+          "label": "回到首页",
+          "top": 493.4921875
+        },
+        {
+          "bottom": 582.4921875,
+          "label": "浏览专辑",
+          "top": 542.4921875
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error",
+          "height": 622,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "scroll": 0,
+      "transform": "none",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "setup-empty",
+      "name": "初次设置",
+      "href": "http://127.0.0.1:4173/#/preview/setup-empty",
+      "size": "desktop-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-short-setup-empty.jpg",
+      "actions": [
+        {
+          "bottom": 546.3828125,
+          "label": "打开设置",
+          "top": 506.3828125
+        },
+        {
+          "bottom": 546.3828125,
+          "label": "回到首页",
+          "top": 506.3828125
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state initial-setup-state",
+          "height": 465.8125,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 694,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "先把音乐带进来",
+      "transform": "none",
+      "viewport": [
+        1024,
+        768
+      ]
+    },
+    {
+      "id": "library-empty",
+      "name": "曲库为空",
+      "href": "http://127.0.0.1:4173/#/preview/library-empty",
+      "size": "desktop-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-short-library-empty.jpg",
+      "actions": [
+        {
+          "bottom": 546.3828125,
+          "label": "打开设置",
+          "top": 506.3828125
+        },
+        {
+          "bottom": 546.3828125,
+          "label": "先逛逛歌单",
+          "top": 506.3828125
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state",
+          "height": 465.8125,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 694,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "曲库为空",
+      "transform": "none",
+      "viewport": [
+        1024,
+        768
+      ]
+    },
+    {
+      "id": "accounts-loading",
+      "name": "账号列表载入中",
+      "href": "http://127.0.0.1:4173/#/preview/accounts-loading",
+      "size": "desktop-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-short-accounts-loading.jpg",
+      "actions": [
+        {
+          "bottom": 600.7890625,
+          "label": "继续演示载入",
+          "top": 560.7890625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "account-empty",
+          "height": 232.4140625,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 694,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "一起，把音乐留在这里",
+      "transform": "none",
+      "viewport": [
+        1024,
+        768
+      ]
+    },
+    {
+      "id": "accounts-error",
+      "name": "账号列表载入失败",
+      "href": "http://127.0.0.1:4173/#/preview/accounts-error",
+      "size": "desktop-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-short-accounts-error.jpg",
+      "actions": [
+        {
+          "bottom": 600.7890625,
+          "label": "重新载入",
+          "top": 560.7890625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "account-empty",
+          "height": 232.4140625,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 694,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "一起，把音乐留在这里",
+      "transform": "none",
+      "viewport": [
+        1024,
+        768
+      ]
+    },
+    {
+      "id": "accounts-empty",
+      "name": "账号搜索无结果",
+      "href": "http://127.0.0.1:4173/#/preview/accounts-empty",
+      "size": "desktop-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-short-accounts-empty.jpg",
+      "actions": [
+        {
+          "bottom": 600.7890625,
+          "label": "查看全部账号",
+          "top": 560.7890625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "account-empty",
+          "height": 232.4140625,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 694,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "一起，把音乐留在这里",
+      "transform": "none",
+      "viewport": [
+        1024,
+        768
+      ]
+    },
+    {
+      "id": "scan-running",
+      "name": "扫描进行中",
+      "href": "http://127.0.0.1:4173/#/preview/scan-running",
+      "size": "desktop-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-short-scan-running.jpg",
+      "actions": [
+        {
+          "bottom": 603.4375,
+          "label": "继续演示扫描",
+          "top": 563.4375
+        },
+        {
+          "bottom": 603.4375,
+          "label": "继续浏览",
+          "top": 563.4375
+        },
+        {
+          "bottom": 591.6875,
+          "label": "停止扫描",
+          "top": 575.1875
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "scan-progress-page",
+          "height": 465.8125,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 694,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "让音乐，慢慢归位",
+      "transform": "none",
+      "viewport": [
+        1024,
+        768
+      ]
+    },
+    {
+      "id": "scan-empty",
+      "name": "未发现音乐",
+      "href": "http://127.0.0.1:4173/#/preview/scan-empty",
+      "size": "desktop-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-short-scan-empty.jpg",
+      "actions": [
+        {
+          "bottom": 557.1796875,
+          "label": "更换目录",
+          "top": 517.1796875
+        },
+        {
+          "bottom": 557.1796875,
+          "label": "重新扫描",
+          "top": 517.1796875
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state",
+          "height": 465.8125,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 694,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "目录里还没有可播放的音乐",
+      "transform": "none",
+      "viewport": [
+        1024,
+        768
+      ]
+    },
+    {
+      "id": "scan-failed",
+      "name": "无法启动扫描",
+      "href": "http://127.0.0.1:4173/#/preview/scan-failed",
+      "size": "desktop-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-short-scan-failed.jpg",
+      "actions": [
+        {
+          "bottom": 546.3828125,
+          "label": "重新扫描",
+          "top": 506.3828125
+        },
+        {
+          "bottom": 546.3828125,
+          "label": "检查目录",
+          "top": 506.3828125
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error preview-empty-state",
+          "height": 465.8125,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 694,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "扫描还没有开始",
+      "transform": "none",
+      "viewport": [
+        1024,
+        768
+      ]
+    },
+    {
+      "id": "scan-interrupted",
+      "name": "扫描中断",
+      "href": "http://127.0.0.1:4173/#/preview/scan-interrupted",
+      "size": "desktop-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-short-scan-interrupted.jpg",
+      "actions": [
+        {
+          "bottom": 557.1796875,
+          "label": "重新扫描",
+          "top": 517.1796875
+        },
+        {
+          "bottom": 557.1796875,
+          "label": "检查目录",
+          "top": 517.1796875
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error preview-empty-state",
+          "height": 465.8125,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 694,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "这次扫描中断了",
+      "transform": "none",
+      "viewport": [
+        1024,
+        768
+      ]
+    },
+    {
+      "id": "directory-unavailable",
+      "name": "目录不可访问",
+      "href": "http://127.0.0.1:4173/#/preview/directory-unavailable",
+      "size": "desktop-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-short-directory-unavailable.jpg",
+      "actions": [
+        {
+          "bottom": 557.1796875,
+          "label": "重新检查",
+          "top": 517.1796875
+        },
+        {
+          "bottom": 557.1796875,
+          "label": "选择其他目录",
+          "top": 517.1796875
+        },
+        {
+          "bottom": 557.1796875,
+          "label": "回到首页",
+          "top": 517.1796875
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error directory-unavailable-state",
+          "height": 304.1796875,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 694,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "音乐目录暂时不可访问",
+      "transform": "none",
+      "viewport": [
+        1024,
+        768
+      ]
+    },
+    {
+      "id": "search-empty",
+      "name": "没有搜索结果",
+      "href": "http://127.0.0.1:4173/#/preview/search-empty",
+      "size": "desktop-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-short-search-empty.jpg",
+      "actions": [
+        {
+          "bottom": 546.3828125,
+          "label": "重新搜索",
+          "top": 506.3828125
+        },
+        {
+          "bottom": 546.3828125,
+          "label": "回到首页",
+          "top": 506.3828125
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  search-empty",
+          "height": 465.8125,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 694,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "寻找「zzzz-no-match」",
+      "transform": "none",
+      "viewport": [
+        1024,
+        768
+      ]
+    },
+    {
+      "id": "albums-empty",
+      "name": "没有专辑",
+      "href": "http://127.0.0.1:4173/#/preview/albums-empty",
+      "size": "desktop-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-short-albums-empty.jpg",
+      "actions": [
+        {
+          "bottom": 546.3828125,
+          "label": "打开设置",
+          "top": 506.3828125
+        },
+        {
+          "bottom": 546.3828125,
+          "label": "回到首页",
+          "top": 506.3828125
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state",
+          "height": 465.8125,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 694,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "你的唱片架",
+      "transform": "none",
+      "viewport": [
+        1024,
+        768
+      ]
+    },
+    {
+      "id": "artists-empty",
+      "name": "没有艺人",
+      "href": "http://127.0.0.1:4173/#/preview/artists-empty",
+      "size": "desktop-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-short-artists-empty.jpg",
+      "actions": [
+        {
+          "bottom": 546.3828125,
+          "label": "打开设置",
+          "top": 506.3828125
+        },
+        {
+          "bottom": 546.3828125,
+          "label": "回到首页",
+          "top": 506.3828125
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state",
+          "height": 465.8125,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 694,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "旋律背后的人",
+      "transform": "none",
+      "viewport": [
+        1024,
+        768
+      ]
+    },
+    {
+      "id": "list-error",
+      "name": "列表载入失败",
+      "href": "http://127.0.0.1:4173/#/preview/list-error",
+      "size": "desktop-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-short-list-error.jpg",
+      "actions": [
+        {
+          "bottom": 533.0859375,
+          "label": "重新载入",
+          "top": 493.0859375
+        },
+        {
+          "bottom": 533.0859375,
+          "label": "回到首页",
+          "top": 493.0859375
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error state-panel-list",
+          "height": 465.8125,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 694,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "所有歌曲",
+      "transform": "none",
+      "viewport": [
+        1024,
+        768
+      ]
+    },
+    {
+      "id": "detail-error",
+      "name": "详情载入失败",
+      "href": "http://127.0.0.1:4173/#/preview/detail-error",
+      "size": "desktop-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-short-detail-error.jpg",
+      "actions": [
+        {
+          "bottom": 533.0859375,
+          "label": "重新载入",
+          "top": 493.0859375
+        },
+        {
+          "bottom": 533.0859375,
+          "label": "回到首页",
+          "top": 493.0859375
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error state-panel-list",
+          "height": 465.8125,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 694,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "专辑详情",
+      "transform": "none",
+      "viewport": [
+        1024,
+        768
+      ]
+    },
+    {
+      "id": "not-found",
+      "name": "页面不存在",
+      "href": "http://127.0.0.1:4173/#/preview/not-found",
+      "size": "desktop-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-short-not-found.jpg",
+      "actions": [
+        {
+          "bottom": 481.7890625,
+          "label": "回到首页",
+          "top": 441.7890625
+        },
+        {
+          "bottom": 481.7890625,
+          "label": "浏览专辑",
+          "top": 441.7890625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error",
+          "height": 595,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 694,
+      "rootScroll": 0,
+      "scroll": 0,
+      "transform": "none",
+      "viewport": [
+        1024,
+        768
+      ]
+    },
+    {
+      "id": "setup-empty",
+      "name": "初次设置",
+      "href": "http://127.0.0.1:4173/#/preview/setup-empty",
+      "size": "mobile-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-short-setup-empty.jpg",
+      "actions": [
+        {
+          "bottom": 538.9609375,
+          "label": "打开设置",
+          "top": 494.9609375
+        },
+        {
+          "bottom": 538.9609375,
+          "label": "回到首页",
+          "top": 494.9609375
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state initial-setup-state",
+          "height": 313.859375,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 600,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "先把音乐带进来",
+      "transform": "none",
+      "viewport": [
+        393,
+        667
+      ]
+    },
+    {
+      "id": "library-empty",
+      "name": "曲库为空",
+      "href": "http://127.0.0.1:4173/#/preview/library-empty",
+      "size": "mobile-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-short-library-empty.jpg",
+      "actions": [
+        {
+          "bottom": 538.9609375,
+          "label": "打开设置",
+          "top": 494.9609375
+        },
+        {
+          "bottom": 538.9609375,
+          "label": "先逛逛歌单",
+          "top": 494.9609375
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state",
+          "height": 313.859375,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 600,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "曲库为空",
+      "transform": "none",
+      "viewport": [
+        393,
+        667
+      ]
+    },
+    {
+      "id": "accounts-loading",
+      "name": "账号列表载入中",
+      "href": "http://127.0.0.1:4173/#/preview/accounts-loading",
+      "size": "mobile-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-short-accounts-loading.jpg",
+      "actions": [
+        {
+          "bottom": 676.3828125,
+          "label": "继续演示载入",
+          "top": 632.3828125
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "account-empty",
+          "height": 204.796875,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 603,
+      "rootScroll": 0,
+      "scroll": 179,
+      "title": "一起，把音乐留在这里",
+      "transform": "none",
+      "viewport": [
+        393,
+        667
+      ]
+    },
+    {
+      "id": "accounts-error",
+      "name": "账号列表载入失败",
+      "href": "http://127.0.0.1:4173/#/preview/accounts-error",
+      "size": "mobile-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-short-accounts-error.jpg",
+      "actions": [
+        {
+          "bottom": 676.3828125,
+          "label": "重新载入",
+          "top": 632.3828125
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "account-empty",
+          "height": 204.796875,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 603,
+      "rootScroll": 0,
+      "scroll": 179,
+      "title": "一起，把音乐留在这里",
+      "transform": "none",
+      "viewport": [
+        393,
+        667
+      ]
+    },
+    {
+      "id": "accounts-empty",
+      "name": "账号搜索无结果",
+      "href": "http://127.0.0.1:4173/#/preview/accounts-empty",
+      "size": "mobile-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-short-accounts-empty.jpg",
+      "actions": [
+        {
+          "bottom": 676.3828125,
+          "label": "查看全部账号",
+          "top": 632.3828125
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "account-empty",
+          "height": 204.796875,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 603,
+      "rootScroll": 0,
+      "scroll": 179,
+      "title": "一起，把音乐留在这里",
+      "transform": "none",
+      "viewport": [
+        393,
+        667
+      ]
+    },
+    {
+      "id": "scan-running",
+      "name": "扫描进行中",
+      "href": "http://127.0.0.1:4173/#/preview/scan-running",
+      "size": "mobile-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-short-scan-running.jpg",
+      "actions": [
+        {
+          "bottom": 563.9140625,
+          "label": "继续演示扫描",
+          "top": 519.9140625
+        },
+        {
+          "bottom": 563.9140625,
+          "label": "继续浏览",
+          "top": 519.9140625
+        },
+        {
+          "bottom": 563.9140625,
+          "label": "停止扫描",
+          "top": 519.9140625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "scan-progress-page",
+          "height": 313.859375,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 603,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "让音乐，慢慢归位",
+      "transform": "none",
+      "viewport": [
+        393,
+        667
+      ]
+    },
+    {
+      "id": "scan-empty",
+      "name": "未发现音乐",
+      "href": "http://127.0.0.1:4173/#/preview/scan-empty",
+      "size": "mobile-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-short-scan-empty.jpg",
+      "actions": [
+        {
+          "bottom": 538.9609375,
+          "label": "更换目录",
+          "top": 494.9609375
+        },
+        {
+          "bottom": 538.9609375,
+          "label": "重新扫描",
+          "top": 494.9609375
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state",
+          "height": 313.859375,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 600,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "目录里还没有可播放的音乐",
+      "transform": "none",
+      "viewport": [
+        393,
+        667
+      ]
+    },
+    {
+      "id": "scan-failed",
+      "name": "无法启动扫描",
+      "href": "http://127.0.0.1:4173/#/preview/scan-failed",
+      "size": "mobile-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-short-scan-failed.jpg",
+      "actions": [
+        {
+          "bottom": 538.9609375,
+          "label": "重新扫描",
+          "top": 494.9609375
+        },
+        {
+          "bottom": 538.9609375,
+          "label": "检查目录",
+          "top": 494.9609375
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error preview-empty-state",
+          "height": 313.859375,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 603,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "扫描还没有开始",
+      "transform": "none",
+      "viewport": [
+        393,
+        667
+      ]
+    },
+    {
+      "id": "scan-interrupted",
+      "name": "扫描中断",
+      "href": "http://127.0.0.1:4173/#/preview/scan-interrupted",
+      "size": "mobile-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-short-scan-interrupted.jpg",
+      "actions": [
+        {
+          "bottom": 538.9609375,
+          "label": "重新扫描",
+          "top": 494.9609375
+        },
+        {
+          "bottom": 538.9609375,
+          "label": "检查目录",
+          "top": 494.9609375
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error preview-empty-state",
+          "height": 313.859375,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 603,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "这次扫描中断了",
+      "transform": "none",
+      "viewport": [
+        393,
+        667
+      ]
+    },
+    {
+      "id": "directory-unavailable",
+      "name": "目录不可访问",
+      "href": "http://127.0.0.1:4173/#/preview/directory-unavailable",
+      "size": "mobile-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-short-directory-unavailable.jpg",
+      "actions": [
+        {
+          "bottom": 451.0703125,
+          "label": "重新检查",
+          "top": 407.0703125
+        },
+        {
+          "bottom": 451.0703125,
+          "label": "选择其他目录",
+          "top": 407.0703125
+        },
+        {
+          "bottom": 451.0703125,
+          "label": "回到首页",
+          "top": 407.0703125
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error directory-unavailable-state",
+          "height": 190.78125,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 603,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "音乐目录暂时不可访问",
+      "transform": "none",
+      "viewport": [
+        393,
+        667
+      ]
+    },
+    {
+      "id": "search-empty",
+      "name": "没有搜索结果",
+      "href": "http://127.0.0.1:4173/#/preview/search-empty",
+      "size": "mobile-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-short-search-empty.jpg",
+      "actions": [
+        {
+          "bottom": 529.0625,
+          "label": "重新搜索",
+          "top": 485.0625
+        },
+        {
+          "bottom": 529.0625,
+          "label": "回到首页",
+          "top": 485.0625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  search-empty",
+          "height": 313.859375,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 603,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "寻找「zzzz-no-match」",
+      "transform": "none",
+      "viewport": [
+        393,
+        667
+      ]
+    },
+    {
+      "id": "albums-empty",
+      "name": "没有专辑",
+      "href": "http://127.0.0.1:4173/#/preview/albums-empty",
+      "size": "mobile-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-short-albums-empty.jpg",
+      "actions": [
+        {
+          "bottom": 529.0625,
+          "label": "打开设置",
+          "top": 485.0625
+        },
+        {
+          "bottom": 529.0625,
+          "label": "回到首页",
+          "top": 485.0625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state",
+          "height": 313.859375,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 600,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "你的唱片架",
+      "transform": "none",
+      "viewport": [
+        393,
+        667
+      ]
+    },
+    {
+      "id": "artists-empty",
+      "name": "没有艺人",
+      "href": "http://127.0.0.1:4173/#/preview/artists-empty",
+      "size": "mobile-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-short-artists-empty.jpg",
+      "actions": [
+        {
+          "bottom": 529.0625,
+          "label": "打开设置",
+          "top": 485.0625
+        },
+        {
+          "bottom": 529.0625,
+          "label": "回到首页",
+          "top": 485.0625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state",
+          "height": 313.859375,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 600,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "旋律背后的人",
+      "transform": "none",
+      "viewport": [
+        393,
+        667
+      ]
+    },
+    {
+      "id": "list-error",
+      "name": "列表载入失败",
+      "href": "http://127.0.0.1:4173/#/preview/list-error",
+      "size": "mobile-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-short-list-error.jpg",
+      "actions": [
+        {
+          "bottom": 515.765625,
+          "label": "重新载入",
+          "top": 471.765625
+        },
+        {
+          "bottom": 515.765625,
+          "label": "回到首页",
+          "top": 471.765625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error state-panel-list",
+          "height": 313.859375,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 603,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "所有歌曲",
+      "transform": "none",
+      "viewport": [
+        393,
+        667
+      ]
+    },
+    {
+      "id": "detail-error",
+      "name": "详情载入失败",
+      "href": "http://127.0.0.1:4173/#/preview/detail-error",
+      "size": "mobile-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-short-detail-error.jpg",
+      "actions": [
+        {
+          "bottom": 515.765625,
+          "label": "重新载入",
+          "top": 471.765625
+        },
+        {
+          "bottom": 515.765625,
+          "label": "回到首页",
+          "top": 471.765625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error state-panel-list",
+          "height": 313.859375,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 603,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "专辑详情",
+      "transform": "none",
+      "viewport": [
+        393,
+        667
+      ]
+    },
+    {
+      "id": "not-found",
+      "name": "页面不存在",
+      "href": "http://127.0.0.1:4173/#/preview/not-found",
+      "size": "mobile-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-short-not-found.jpg",
+      "actions": [
+        {
+          "bottom": 467.4921875,
+          "label": "回到首页",
+          "top": 423.4921875
+        },
+        {
+          "bottom": 467.4921875,
+          "label": "浏览专辑",
+          "top": 423.4921875
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error",
+          "height": 437,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 603,
+      "rootScroll": 0,
+      "scroll": 0,
+      "transform": "none",
+      "viewport": [
+        393,
+        667
+      ]
+    },
+    {
+      "id": "actual-songs-empty",
+      "name": "FLAC 格式筛选无结果",
+      "href": "http://127.0.0.1:4173/#/songs",
+      "size": "mobile-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-short-actual-songs-empty.jpg",
+      "actions": [
+        {
+          "bottom": 549.265625,
+          "label": "查看全部歌曲",
+          "top": 505.265625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  state-panel-list",
+          "height": 246.859375,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 603,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "所有歌曲",
+      "transform": "none",
+      "viewport": [
+        393,
+        667
+      ]
+    },
+    {
+      "id": "actual-songs-empty",
+      "name": "FLAC 格式筛选无结果",
+      "href": "http://127.0.0.1:4173/#/songs",
+      "size": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-actual-songs-empty.jpg",
+      "actions": [
+        {
+          "bottom": 639.765625,
+          "label": "查看全部歌曲",
+          "top": 599.765625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  state-panel-list",
+          "height": 431.859375,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "所有歌曲",
+      "transform": "none",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "actual-songs-empty",
+      "name": "FLAC 格式筛选无结果",
+      "href": "http://127.0.0.1:4173/#/songs",
+      "size": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-actual-songs-empty.jpg",
+      "actions": [
+        {
+          "bottom": 603.0859375,
+          "label": "查看全部歌曲",
+          "top": 563.0859375
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  state-panel-list",
+          "height": 547.8125,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "所有歌曲",
+      "transform": "none",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "actual-loading",
+      "name": "曲库载入中",
+      "href": "http://127.0.0.1:4173/#/loading",
+      "size": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-actual-loading.jpg",
+      "actions": [],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  state-panel-loading",
+          "height": 754,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "scroll": 0,
+      "transform": "none",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "actual-error",
+      "name": "曲库读取异常",
+      "href": "http://127.0.0.1:4173/#/error",
+      "size": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-actual-error.jpg",
+      "actions": [
+        {
+          "bottom": 524.0859375,
+          "label": "重新尝试",
+          "top": 484.0859375
+        },
+        {
+          "bottom": 524.0859375,
+          "label": "检查目录",
+          "top": 484.0859375
+        },
+        {
+          "bottom": 524.0859375,
+          "label": "回到首页",
+          "top": 484.0859375
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error",
+          "height": 754,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "scroll": 0,
+      "transform": "none",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "actual-directory",
+      "name": "目录不可访问正式入口",
+      "href": "http://127.0.0.1:4173/#/directory-unavailable",
+      "size": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-actual-directory.jpg",
+      "actions": [
+        {
+          "bottom": 594.6796875,
+          "label": "重新检查",
+          "top": 554.6796875
+        },
+        {
+          "bottom": 594.6796875,
+          "label": "选择其他目录",
+          "top": 554.6796875
+        },
+        {
+          "bottom": 594.6796875,
+          "label": "回到首页",
+          "top": 554.6796875
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error directory-unavailable-state",
+          "height": 304.1796875,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "音乐目录暂时不可访问",
+      "transform": "none",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "actual-setup",
+      "name": "初次设置正式入口",
+      "href": "http://127.0.0.1:4173/#/setup",
+      "size": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-actual-setup.jpg",
+      "actions": [
+        {
+          "bottom": 583.8828125,
+          "label": "打开设置",
+          "top": 543.8828125
+        },
+        {
+          "bottom": 583.8828125,
+          "label": "先逛逛歌单",
+          "top": 543.8828125
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state",
+          "height": 612.8125,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "曲库为空",
+      "transform": "none",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "actual-search",
+      "name": "搜索无结果正式入口",
+      "href": "http://127.0.0.1:4173/#/search?q=zzzz-no-match",
+      "size": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-actual-search.jpg",
+      "actions": [
+        {
+          "bottom": 583.8828125,
+          "label": "重新搜索",
+          "top": 543.8828125
+        },
+        {
+          "bottom": 583.8828125,
+          "label": "回到首页",
+          "top": 543.8828125
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  search-empty",
+          "height": 612.8125,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "寻找「zzzz-no-match」",
+      "transform": "none",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "playlists-empty",
+      "name": "还没有歌单",
+      "href": "http://127.0.0.1:4173/#/preview/playlists-empty",
+      "size": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-playlists-empty.jpg",
+      "actions": [
+        {
+          "bottom": 602.8828125,
+          "label": "新建歌单",
+          "top": 558.8828125
+        },
+        {
+          "bottom": 602.8828125,
+          "label": "浏览专辑",
+          "top": 558.8828125
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  playlists-empty-state",
+          "height": 576.8125,
+          "minHeight": "260px"
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "给生活，一点配乐",
+      "transform": "none",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "playlist-empty",
+      "name": "歌单没有歌曲",
+      "href": "http://127.0.0.1:4173/#/preview/playlist-empty",
+      "size": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-playlist-empty.jpg",
+      "actions": [
+        {
+          "bottom": 724.3984375,
+          "label": "添加歌曲",
+          "top": 680.3984375
+        },
+        {
+          "bottom": 724.3984375,
+          "label": "浏览专辑",
+          "top": 680.3984375
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  state-panel-list playlist-empty-state",
+          "height": 333.7890625,
+          "minHeight": "260px"
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "今天的声音",
+      "transform": "none",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "favorites-empty",
+      "name": "还没有收藏",
+      "href": "http://127.0.0.1:4173/#/preview/favorites-empty",
+      "size": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/desktop-favorites-empty.jpg",
+      "actions": [
+        {
+          "bottom": 678.2890625,
+          "label": "浏览歌曲",
+          "top": 634.2890625
+        },
+        {
+          "bottom": 678.2890625,
+          "label": "浏览专辑",
+          "top": 634.2890625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  state-panel-list favorites-empty-state",
+          "height": 426,
+          "minHeight": "260px"
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "一听，就很喜欢",
+      "transform": "none",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "actual-loading",
+      "name": "曲库载入中",
+      "href": "http://127.0.0.1:4173/#/loading",
+      "size": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-actual-loading.jpg",
+      "actions": [],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  state-panel-loading",
+          "height": 678,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "scroll": 0,
+      "transform": "none",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "actual-error",
+      "name": "曲库读取异常",
+      "href": "http://127.0.0.1:4173/#/error",
+      "size": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-actual-error.jpg",
+      "actions": [
+        {
+          "bottom": 490.890625,
+          "label": "重新尝试",
+          "top": 450.890625
+        },
+        {
+          "bottom": 539.890625,
+          "label": "检查目录",
+          "top": 499.890625
+        },
+        {
+          "bottom": 588.890625,
+          "label": "回到首页",
+          "top": 548.890625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error",
+          "height": 678,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "scroll": 0,
+      "transform": "none",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "actual-directory",
+      "name": "目录不可访问正式入口",
+      "href": "http://127.0.0.1:4173/#/directory-unavailable",
+      "size": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-actual-directory.jpg",
+      "actions": [
+        {
+          "bottom": 519.0703125,
+          "label": "重新检查",
+          "top": 475.0703125
+        },
+        {
+          "bottom": 519.0703125,
+          "label": "选择其他目录",
+          "top": 475.0703125
+        },
+        {
+          "bottom": 571.0703125,
+          "label": "回到首页",
+          "top": 527.0703125
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error directory-unavailable-state",
+          "height": 317.78125,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "音乐目录暂时不可访问",
+      "transform": "none",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "actual-setup",
+      "name": "初次设置正式入口",
+      "href": "http://127.0.0.1:4173/#/setup",
+      "size": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-actual-setup.jpg",
+      "actions": [
+        {
+          "bottom": 576.9609375,
+          "label": "打开设置",
+          "top": 536.9609375
+        },
+        {
+          "bottom": 625.9609375,
+          "label": "先逛逛歌单",
+          "top": 585.9609375
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state",
+          "height": 554.859375,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "曲库为空",
+      "transform": "none",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "actual-search",
+      "name": "搜索无结果正式入口",
+      "href": "http://127.0.0.1:4173/#/search?q=zzzz-no-match",
+      "size": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-actual-search.jpg",
+      "actions": [
+        {
+          "bottom": 567.0625,
+          "label": "重新搜索",
+          "top": 527.0625
+        },
+        {
+          "bottom": 616.0625,
+          "label": "回到首页",
+          "top": 576.0625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  search-empty",
+          "height": 554.859375,
+          "minHeight": "0px"
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "寻找「zzzz-no-match」",
+      "transform": "none",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "playlists-empty",
+      "name": "还没有歌单",
+      "href": "http://127.0.0.1:4173/#/preview/playlists-empty",
+      "size": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-playlists-empty.jpg",
+      "actions": [
+        {
+          "bottom": 593.1640625,
+          "label": "新建歌单",
+          "top": 549.1640625
+        },
+        {
+          "bottom": 646.1640625,
+          "label": "浏览专辑",
+          "top": 602.1640625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  playlists-empty-state",
+          "height": 498.859375,
+          "minHeight": "240px"
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "给生活，一点配乐",
+      "transform": "none",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "playlist-empty",
+      "name": "歌单没有歌曲",
+      "href": "http://127.0.0.1:4173/#/preview/playlist-empty",
+      "size": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-playlist-empty.jpg",
+      "actions": [
+        {
+          "bottom": 679.0859375,
+          "label": "添加歌曲",
+          "top": 635.0859375
+        },
+        {
+          "bottom": 732.0859375,
+          "label": "浏览专辑",
+          "top": 688.0859375
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  state-panel-list playlist-empty-state",
+          "height": 327.015625,
+          "minHeight": "240px"
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "今天的声音",
+      "transform": "none",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "favorites-empty",
+      "name": "还没有收藏",
+      "href": "http://127.0.0.1:4173/#/preview/favorites-empty",
+      "size": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-favorites-empty.jpg",
+      "actions": [
+        {
+          "bottom": 624.2890625,
+          "label": "浏览歌曲",
+          "top": 580.2890625
+        },
+        {
+          "bottom": 677.2890625,
+          "label": "浏览专辑",
+          "top": 633.2890625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  state-panel-list favorites-empty-state",
+          "height": 436.609375,
+          "minHeight": "240px"
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "一听，就很喜欢",
+      "transform": "none",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "playlists-empty",
+      "name": "还没有歌单",
+      "href": "http://127.0.0.1:4173/#/preview/playlists-empty",
+      "size": "mobile-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-short-playlists-empty.jpg",
+      "actions": [
+        {
+          "bottom": 527.1640625,
+          "label": "新建歌单",
+          "top": 483.1640625
+        },
+        {
+          "bottom": 527.1640625,
+          "label": "浏览专辑",
+          "top": 483.1640625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  playlists-empty-state",
+          "height": 313.859375,
+          "minHeight": "240px"
+        }
+      ],
+      "playerTop": 603,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "给生活，一点配乐",
+      "transform": "none",
+      "viewport": [
+        393,
+        667
+      ]
+    },
+    {
+      "id": "playlist-empty",
+      "name": "歌单没有歌曲",
+      "href": "http://127.0.0.1:4173/#/preview/playlist-empty",
+      "size": "mobile-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-short-playlist-empty.jpg",
+      "actions": [
+        {
+          "bottom": 563.2890625,
+          "label": "添加歌曲",
+          "top": 519.2890625
+        },
+        {
+          "bottom": 563.2890625,
+          "label": "浏览专辑",
+          "top": 519.2890625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  state-panel-list playlist-empty-state",
+          "height": 171.609375,
+          "minHeight": "160px"
+        }
+      ],
+      "playerTop": 603,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "今天的声音",
+      "transform": "none",
+      "viewport": [
+        393,
+        667
+      ]
+    },
+    {
+      "id": "favorites-empty",
+      "name": "还没有收藏",
+      "href": "http://127.0.0.1:4173/#/preview/favorites-empty",
+      "size": "mobile-short",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/verification/2026-09-28-scroll/mobile-short-favorites-empty.jpg",
+      "actions": [
+        {
+          "bottom": 558.2890625,
+          "label": "浏览歌曲",
+          "top": 514.2890625
+        },
+        {
+          "bottom": 558.2890625,
+          "label": "浏览专辑",
+          "top": 514.2890625
+        }
+      ],
+      "horizontal": 0,
+      "panels": [
+        {
+          "className": "state-panel  state-panel-list favorites-empty-state",
+          "height": 251.609375,
+          "minHeight": "240px"
+        }
+      ],
+      "playerTop": 603,
+      "rootScroll": 0,
+      "scroll": 0,
+      "title": "一听，就很喜欢",
+      "transform": "none",
+      "viewport": [
+        393,
+        667
+      ]
+    }
+  ]
+}

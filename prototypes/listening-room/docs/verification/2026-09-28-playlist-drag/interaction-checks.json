@@ -1,0 +1,62 @@
+{
+  "desktop": {
+    "viewport": [
+      1108,
+      879
+    ],
+    "before": [
+      "戦闘！！/イーラ",
+      "四足のアルス/グーラ",
+      "イーラ王国",
+      "Cyrus, the Scholar",
+      "Tressa, the Merchant",
+      "Olberic, the Warrior",
+      "Tactical Action (Dynamic)",
+      "Tactical Action",
+      "憔悴した勝者、物言わぬ敗者"
+    ],
+    "afterDrag": [
+      "戦闘！！/イーラ",
+      "イーラ王国",
+      "Cyrus, the Scholar",
+      "Tressa, the Merchant",
+      "Olberic, the Warrior",
+      "四足のアルス/グーラ",
+      "Tactical Action (Dynamic)",
+      "Tactical Action",
+      "憔悴した勝者、物言わぬ敗者"
+    ],
+    "move": "第 2 首到第 6 首",
+    "keyboardHome": true,
+    "keyboardEscape": true,
+    "cancelRestoresOriginal": true,
+    "saveAndReopenPreservesOrder": true
+  },
+  "mobile": {
+    "viewport": [
+      393,
+      852
+    ],
+    "before": [
+      "憔悴した勝者、物言わぬ敗者",
+      "戦闘！！/イーラ",
+      "四足のアルス/グーラ",
+      "イーラ王国",
+      "Cyrus, the Scholar",
+      "Tressa, the Merchant",
+      "Olberic, the Warrior",
+      "Tactical Action (Dynamic)",
+      "Tactical Action"
+    ],
+    "scrollBefore": 423.5,
+    "upwardEdgeScroll": 423.5,
+    "downwardEdgeScroll": 433,
+    "horizontalOverflow": 0,
+    "remainingDragAfterDrop": 0,
+    "handleSize": [
+      44,
+      44
+    ],
+    "input": "浏览器指针拖动，未验证真实手机触控设备"
+  }
+}

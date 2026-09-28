@@ -1,0 +1,152 @@
+[
+  {
+    "gutter": "stable both-edges",
+    "height": 220.6953125,
+    "left": 27,
+    "overflowX": 0,
+    "overflowY": 0,
+    "padding": "15px",
+    "right": 27,
+    "title": "删除歌单",
+    "viewport": [
+      1108,
+      879
+    ],
+    "width": 445
+  },
+  {
+    "gutter": "stable both-edges",
+    "height": 234.1953125,
+    "left": 24,
+    "overflowX": 0,
+    "overflowY": 0,
+    "padding": "12px",
+    "right": 24,
+    "title": "删除歌单",
+    "viewport": [
+      393,
+      852
+    ],
+    "width": 363
+  },
+  {
+    "gutter": "stable both-edges",
+    "height": 305.2968444824219,
+    "left": 24,
+    "overflowX": 0,
+    "overflowY": 0,
+    "padding": "12px",
+    "right": 24,
+    "title": "重命名歌单",
+    "viewport": [
+      393,
+      852
+    ],
+    "width": 363
+  },
+  {
+    "gutter": "stable both-edges",
+    "height": 312.6953430175781,
+    "left": 27,
+    "overflowX": 0,
+    "overflowY": 0,
+    "padding": "15px",
+    "right": 27,
+    "title": "重命名歌单",
+    "viewport": [
+      1108,
+      879
+    ],
+    "width": 445
+  },
+  {
+    "gutter": "stable both-edges",
+    "height": 728,
+    "left": 27,
+    "overflowX": 0,
+    "overflowY": 177,
+    "padding": "15px",
+    "right": 27,
+    "title": "音乐室设置",
+    "viewport": [
+      1024,
+      768
+    ],
+    "width": 445
+  },
+  {
+    "gutter": "stable both-edges",
+    "height": 643,
+    "left": 24,
+    "overflowX": 0,
+    "overflowY": 254,
+    "padding": "12px",
+    "right": 24,
+    "title": "音乐室设置",
+    "viewport": [
+      393,
+      667
+    ],
+    "width": 363
+  },
+  {
+    "gutter": "stable both-edges",
+    "height": 643,
+    "left": 24,
+    "overflowX": 0,
+    "overflowY": 79,
+    "padding": "12px",
+    "right": 24,
+    "title": "邀请一个新的聆听者",
+    "viewport": [
+      393,
+      667
+    ],
+    "width": 361
+  },
+  {
+    "gutter": "stable both-edges",
+    "height": 689.8828125,
+    "left": 27,
+    "overflowX": 0,
+    "overflowY": 0,
+    "padding": "15px",
+    "right": 27,
+    "title": "邀请一个新的聆听者",
+    "viewport": [
+      1108,
+      879
+    ],
+    "width": 480
+  },
+  {
+    "gutter": "stable both-edges",
+    "height": 757,
+    "left": 24,
+    "overflowX": 0,
+    "overflowY": 0,
+    "padding": "14px 12px 9px",
+    "right": 24,
+    "title": "待播清单",
+    "viewport": [
+      1108,
+      879
+    ],
+    "width": 400
+  },
+  {
+    "gutter": "stable both-edges",
+    "height": 827,
+    "left": 24,
+    "overflowX": 0,
+    "overflowY": 0,
+    "padding": "14px 12px 9px",
+    "right": 24,
+    "title": "待播清单",
+    "viewport": [
+      393,
+      852
+    ],
+    "width": 363
+  }
+]

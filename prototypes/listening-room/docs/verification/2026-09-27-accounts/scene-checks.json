@@ -1,0 +1,62 @@
+[
+  {
+    "scene": "account",
+    "heading": true,
+    "unexpectedNotFound": false
+  },
+  {
+    "scene": "account-member",
+    "heading": true,
+    "unexpectedNotFound": false
+  },
+  {
+    "scene": "account-security",
+    "heading": true,
+    "unexpectedNotFound": false
+  },
+  {
+    "scene": "accounts-manage",
+    "heading": true,
+    "unexpectedNotFound": false
+  },
+  {
+    "scene": "account-create",
+    "heading": true,
+    "unexpectedNotFound": false
+  },
+  {
+    "scene": "login-first-use",
+    "heading": true,
+    "unexpectedNotFound": false
+  },
+  {
+    "scene": "login-disabled",
+    "heading": true,
+    "unexpectedNotFound": false
+  },
+  {
+    "scene": "account-denied",
+    "heading": true,
+    "unexpectedNotFound": false
+  },
+  {
+    "scene": "accounts-loading",
+    "heading": true,
+    "unexpectedNotFound": false
+  },
+  {
+    "scene": "accounts-error",
+    "heading": true,
+    "unexpectedNotFound": false
+  },
+  {
+    "scene": "accounts-empty",
+    "heading": true,
+    "unexpectedNotFound": false
+  },
+  {
+    "scene": "account-save-error",
+    "heading": true,
+    "unexpectedNotFound": false
+  }
+]

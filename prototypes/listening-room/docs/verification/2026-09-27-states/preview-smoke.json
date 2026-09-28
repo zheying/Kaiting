@@ -1,0 +1,242 @@
+[
+  {
+    "state": "setup-empty",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "library-empty",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "home-new",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "login-invalid",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "login-offline",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "login-expired",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "account",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "scan-running",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "scan-complete",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "scan-partial",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "scan-empty",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "scan-failed",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "scan-interrupted",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "directory-unavailable",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "player-empty",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "player-loading",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "player-buffering",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "player-transcoding",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "player-offline",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "player-missing",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "player-decode",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "player-blocked",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "lyrics-loading",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "lyrics-error",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "lyrics-empty",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "queue-empty",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "playlists-empty",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "playlist-empty",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "favorites-empty",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "playlist-rename",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "playlist-delete",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "playlist-order",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "save-pending",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "save-error",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "playlist-save-error",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "search-artists",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "search-partial",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "search-empty",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "albums-empty",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "artists-empty",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "list-loading",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "list-error",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "detail-loading",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "detail-error",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "more-error",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "artwork-missing",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "metadata-empty",
+    "hasContent": true,
+    "unexpected404": false
+  },
+  {
+    "state": "not-found",
+    "hasContent": true,
+    "unexpected404": false
+  }
+]

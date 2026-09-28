@@ -1,0 +1,194 @@
+[
+  {
+    "phase": "before",
+    "gutter": "stable",
+    "height": 340.6953125,
+    "left": 30,
+    "overflowX": 0,
+    "overflowY": 0,
+    "padding": "29px",
+    "right": 41,
+    "title": "重命名歌单",
+    "viewport": [
+      1108,
+      879
+    ],
+    "width": 445
+  },
+  {
+    "phase": "after",
+    "gutter": "stable both-edges",
+    "height": 340.6953125,
+    "left": 41,
+    "overflowX": 0,
+    "overflowY": 0,
+    "padding": "29px",
+    "right": 41,
+    "title": "重命名歌单",
+    "viewport": [
+      1108,
+      879
+    ],
+    "width": 445
+  },
+  {
+    "phase": "after",
+    "gutter": "stable both-edges",
+    "height": 329.296875,
+    "left": 36,
+    "overflowX": 0,
+    "overflowY": 0,
+    "padding": "24px",
+    "right": 36,
+    "title": "重命名歌单",
+    "viewport": [
+      393,
+      852
+    ],
+    "width": 363
+  },
+  {
+    "phase": "after",
+    "gutter": "stable both-edges",
+    "height": 728,
+    "left": 41,
+    "overflowX": 0,
+    "overflowY": 205,
+    "padding": "29px",
+    "right": 41,
+    "title": "音乐室设置",
+    "viewport": [
+      1024,
+      768
+    ],
+    "width": 445
+  },
+  {
+    "phase": "after",
+    "gutter": "stable both-edges",
+    "height": 643,
+    "left": 36,
+    "overflowX": 0,
+    "overflowY": 297,
+    "padding": "24px",
+    "right": 36,
+    "title": "音乐室设置",
+    "viewport": [
+      393,
+      667
+    ],
+    "width": 363
+  },
+  {
+    "phase": "after",
+    "gutter": "stable both-edges",
+    "height": 557.1953125,
+    "left": 36,
+    "overflowX": 0,
+    "overflowY": 0,
+    "padding": "24px",
+    "right": 36,
+    "title": "选择音乐目录",
+    "viewport": [
+      393,
+      667
+    ],
+    "width": 363
+  },
+  {
+    "phase": "after",
+    "gutter": "stable both-edges",
+    "height": 547.6953125,
+    "left": 41,
+    "overflowX": 0,
+    "overflowY": 0,
+    "padding": "29px",
+    "right": 41,
+    "title": "选择音乐目录",
+    "viewport": [
+      1108,
+      879
+    ],
+    "width": 445
+  },
+  {
+    "phase": "after",
+    "gutter": "stable both-edges",
+    "height": 269.59375,
+    "left": 41,
+    "overflowX": 0,
+    "overflowY": 0,
+    "padding": "29px",
+    "right": 41,
+    "title": "删除歌单",
+    "viewport": [
+      1108,
+      879
+    ],
+    "width": 445
+  },
+  {
+    "phase": "after",
+    "gutter": "stable both-edges",
+    "height": 755.828125,
+    "left": 41,
+    "overflowX": 0,
+    "overflowY": 0,
+    "padding": "29px",
+    "right": 41,
+    "title": "邀请一个新的聆听者",
+    "viewport": [
+      1108,
+      879
+    ],
+    "width": 480
+  },
+  {
+    "phase": "after",
+    "gutter": "stable both-edges",
+    "height": 643,
+    "left": 36,
+    "overflowX": 0,
+    "overflowY": 103,
+    "padding": "24px",
+    "right": 36,
+    "title": "邀请一个新的聆听者",
+    "viewport": [
+      393,
+      667
+    ],
+    "width": 361
+  },
+  {
+    "phase": "after",
+    "gutter": "stable both-edges",
+    "height": 757,
+    "left": 36,
+    "overflowX": 0,
+    "overflowY": 0,
+    "padding": "28px 24px 18px",
+    "right": 36,
+    "title": "待播清单",
+    "viewport": [
+      1108,
+      879
+    ],
+    "width": 400
+  },
+  {
+    "phase": "after",
+    "gutter": "stable both-edges",
+    "height": 827,
+    "left": 36,
+    "overflowX": 0,
+    "overflowY": 0,
+    "padding": "28px 24px 18px",
+    "right": 36,
+    "title": "待播清单",
+    "viewport": [
+      393,
+      852
+    ],
+    "width": 363
+  }
+]

@@ -1,0 +1,3334 @@
+{
+  "date": "2026-09-28",
+  "method": "IAB，59 个总览入口分别在 1108×879 和 393×852 采集截图和 DOM 尺寸，另抽查 6 个正式入口。mainScroll 是可滚动范围，不直接等同多余滚动；沉浸播放器记录中的 mainScroll 属于底层专辑页。",
+  "records": [
+    {
+      "href": "http://127.0.0.1:4173/#/preview/setup-empty",
+      "id": "setup-empty",
+      "name": "初次设置",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-setup-empty.jpg",
+      "dialogs": [],
+      "hash": "#/preview/setup-empty",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 42,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state initial-setup-state",
+          "contentBottom": 603,
+          "contentTop": 384,
+          "height": 579,
+          "minHeight": "579px",
+          "title": "还没有连接音乐目录",
+          "top": 204
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "先把音乐带进来",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/library-empty",
+      "id": "library-empty",
+      "name": "曲库为空",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-library-empty.jpg",
+      "dialogs": [],
+      "hash": "#/preview/library-empty",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 42,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state",
+          "contentBottom": 603,
+          "contentTop": 384,
+          "height": 579,
+          "minHeight": "579px",
+          "title": "曲库里还没有内容",
+          "top": 204
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "曲库为空",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/home-new",
+      "id": "home-new",
+      "name": "尚未聆听",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-home-new.jpg",
+      "dialogs": [],
+      "hash": "#/preview/home-new",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 790,
+      "panels": [
+        {
+          "className": "state-panel  state-panel-list",
+          "contentBottom": 1434,
+          "contentTop": 1242,
+          "height": 276,
+          "minHeight": "230px",
+          "title": "这里还很安静",
+          "top": 1200
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "音乐，刚刚好。",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/login-invalid",
+      "id": "login-invalid",
+      "name": "密码错误",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-login-invalid.jpg",
+      "dialogs": [],
+      "hash": "#/preview/login-invalid",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 0,
+      "panels": [],
+      "rootScroll": 0,
+      "title": "欢迎回到音泊",
+      "transform": null,
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/login-offline",
+      "id": "login-offline",
+      "name": "登录连接失败",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-login-offline.jpg",
+      "dialogs": [],
+      "hash": "#/preview/login-offline",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 0,
+      "panels": [],
+      "rootScroll": 0,
+      "title": "欢迎回到音泊",
+      "transform": null,
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/login-expired",
+      "id": "login-expired",
+      "name": "登录已过期",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-login-expired.jpg",
+      "dialogs": [],
+      "hash": "#/preview/login-expired",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 0,
+      "panels": [],
+      "rootScroll": 0,
+      "title": "欢迎回到音泊",
+      "transform": null,
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/account",
+      "id": "account",
+      "name": "管理员账号",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-account.jpg",
+      "dialogs": [],
+      "hash": "#/preview/account",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 153,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "属于你的，聆听空间",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/account-member",
+      "id": "account-member",
+      "name": "普通账号",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-account-member.jpg",
+      "dialogs": [],
+      "hash": "#/preview/account-member",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 153,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "属于你的，聆听空间",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/account-security",
+      "id": "account-security",
+      "name": "登录与安全",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-account-security.jpg",
+      "dialogs": [],
+      "hash": "#/preview/account-security",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 72,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "安心回到你的音乐",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/accounts-manage",
+      "id": "accounts-manage",
+      "name": "用户管理",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-accounts-manage.jpg",
+      "dialogs": [],
+      "hash": "#/preview/accounts-manage",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 83,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "一起，把音乐留在这里",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/account-create",
+      "id": "account-create",
+      "name": "创建账号",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-account-create.jpg",
+      "dialogs": [
+        {
+          "height": 716,
+          "scroll": 0,
+          "title": "邀请一个新的聆听者"
+        }
+      ],
+      "hash": "#/preview/account-create",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 83,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "一起，把音乐留在这里",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/login-first-use",
+      "id": "login-first-use",
+      "name": "首次设置密码",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-login-first-use.jpg",
+      "dialogs": [],
+      "hash": "#/preview/login-first-use",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 0,
+      "panels": [],
+      "rootScroll": 0,
+      "title": "让账号，只属于你",
+      "transform": null,
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/login-disabled",
+      "id": "login-disabled",
+      "name": "账号已停用",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-login-disabled.jpg",
+      "dialogs": [],
+      "hash": "#/preview/login-disabled",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 0,
+      "panels": [],
+      "rootScroll": 0,
+      "title": "欢迎回到音泊",
+      "transform": null,
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/account-denied",
+      "id": "account-denied",
+      "name": "无管理权限",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-account-denied.jpg",
+      "dialogs": [],
+      "hash": "#/preview/account-denied",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 0,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "这个页面需要管理员权限",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/accounts-loading",
+      "id": "accounts-loading",
+      "name": "账号列表载入中",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-accounts-loading.jpg",
+      "dialogs": [],
+      "hash": "#/preview/accounts-loading",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 47,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "一起，把音乐留在这里",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/accounts-error",
+      "id": "accounts-error",
+      "name": "账号列表载入失败",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-accounts-error.jpg",
+      "dialogs": [],
+      "hash": "#/preview/accounts-error",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 47,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "一起，把音乐留在这里",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/accounts-empty",
+      "id": "accounts-empty",
+      "name": "账号搜索无结果",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-accounts-empty.jpg",
+      "dialogs": [],
+      "hash": "#/preview/accounts-empty",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 89,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "一起，把音乐留在这里",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/account-save-error",
+      "id": "account-save-error",
+      "name": "资料保存失败",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-account-save-error.jpg",
+      "dialogs": [
+        {
+          "height": 603,
+          "scroll": 0,
+          "title": "编辑个人资料"
+        }
+      ],
+      "hash": "#/preview/account-save-error",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 153,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "属于你的，聆听空间",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/scan-running",
+      "id": "scan-running",
+      "name": "扫描进行中",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-scan-running.jpg",
+      "dialogs": [],
+      "hash": "#/preview/scan-running",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 22,
+      "panels": [
+        {
+          "className": "scan-progress-page",
+          "contentBottom": 650,
+          "contentTop": 449,
+          "height": 559,
+          "minHeight": "559px",
+          "title": "音乐目录扫描进度",
+          "top": 204
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "让音乐，慢慢归位",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/scan-complete",
+      "id": "scan-complete",
+      "name": "全部扫描成功",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-scan-complete.jpg",
+      "dialogs": [],
+      "hash": "#/preview/scan-complete",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 0,
+      "panels": [
+        {
+          "className": "state-panel  complete-scan-state",
+          "contentBottom": 481,
+          "contentTop": 262,
+          "height": 317,
+          "minHeight": "0px",
+          "title": "音乐都准备好了",
+          "top": 204
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "曲库已经准备好",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/scan-partial",
+      "id": "scan-partial",
+      "name": "部分扫描成功",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-scan-partial.jpg",
+      "dialogs": [],
+      "hash": "#/preview/scan-partial",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 297,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "这次扫描没有完全成功",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/scan-empty",
+      "id": "scan-empty",
+      "name": "未发现音乐",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-scan-empty.jpg",
+      "dialogs": [],
+      "hash": "#/preview/scan-empty",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 47,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state",
+          "contentBottom": 614,
+          "contentTop": 374,
+          "height": 579,
+          "minHeight": "579px",
+          "title": "换一处，继续发现音乐",
+          "top": 204
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "目录里还没有可播放的音乐",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/scan-failed",
+      "id": "scan-failed",
+      "name": "无法启动扫描",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-scan-failed.jpg",
+      "dialogs": [],
+      "hash": "#/preview/scan-failed",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 177,
+      "panels": [
+        {
+          "className": "state-panel is-error preview-empty-state",
+          "contentBottom": 670,
+          "contentTop": 452,
+          "height": 714,
+          "minHeight": "714px",
+          "title": "暂时无法启动扫描任务",
+          "top": 204
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "扫描还没有开始",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/scan-interrupted",
+      "id": "scan-interrupted",
+      "name": "扫描中断",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-scan-interrupted.jpg",
+      "dialogs": [],
+      "hash": "#/preview/scan-interrupted",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 177,
+      "panels": [
+        {
+          "className": "state-panel is-error preview-empty-state",
+          "contentBottom": 681,
+          "contentTop": 441,
+          "height": 714,
+          "minHeight": "714px",
+          "title": "音乐目录的连接断开了",
+          "top": 204
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "这次扫描中断了",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/directory-unavailable",
+      "id": "directory-unavailable",
+      "name": "目录不可访问",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-directory-unavailable.jpg",
+      "dialogs": [],
+      "hash": "#/preview/directory-unavailable",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 177,
+      "panels": [
+        {
+          "className": "state-panel is-error directory-unavailable-state",
+          "contentBottom": 681,
+          "contentTop": 441,
+          "height": 714,
+          "minHeight": "714px",
+          "title": "暂时读不到这处音乐目录",
+          "top": 204
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "音乐目录暂时不可访问",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/player-empty",
+      "id": "player-empty",
+      "name": "尚未选择歌曲",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-player-empty.jpg",
+      "dialogs": [],
+      "hash": "#/preview/player-empty",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 1056,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "音乐，刚刚好。",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/player-loading",
+      "id": "player-loading",
+      "name": "准备播放",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-player-loading.jpg",
+      "dialogs": [],
+      "hash": "#/preview/player-loading",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 530,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "异度神剑 2 · 黄金之国伊拉",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/player-buffering",
+      "id": "player-buffering",
+      "name": "播放缓冲",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-player-buffering.jpg",
+      "dialogs": [],
+      "hash": "#/preview/player-buffering",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 530,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "异度神剑 2 · 黄金之国伊拉",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/player-transcoding",
+      "id": "player-transcoding",
+      "name": "音频转换",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-player-transcoding.jpg",
+      "dialogs": [],
+      "hash": "#/preview/player-transcoding",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 530,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "异度神剑 2 · 黄金之国伊拉",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/player-offline",
+      "id": "player-offline",
+      "name": "播放连接中断",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-player-offline.jpg",
+      "dialogs": [],
+      "hash": "#/preview/player-offline",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 530,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "异度神剑 2 · 黄金之国伊拉",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/player-missing",
+      "id": "player-missing",
+      "name": "音频文件缺失",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-player-missing.jpg",
+      "dialogs": [],
+      "hash": "#/preview/player-missing",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 530,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "异度神剑 2 · 黄金之国伊拉",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/player-decode",
+      "id": "player-decode",
+      "name": "音频读取失败",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-player-decode.jpg",
+      "dialogs": [],
+      "hash": "#/preview/player-decode",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 530,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "异度神剑 2 · 黄金之国伊拉",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/player-blocked",
+      "id": "player-blocked",
+      "name": "等待点击播放",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-player-blocked.jpg",
+      "dialogs": [],
+      "hash": "#/preview/player-blocked",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 530,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "异度神剑 2 · 黄金之国伊拉",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/lyrics-loading",
+      "id": "lyrics-loading",
+      "name": "歌词载入中",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-lyrics-loading.jpg",
+      "dialogs": [
+        {
+          "height": 879,
+          "scroll": 0,
+          "title": "沉浸播放器"
+        }
+      ],
+      "hash": "#/preview/lyrics-loading",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 530,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "异度神剑 2 · 黄金之国伊拉",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/lyrics-error",
+      "id": "lyrics-error",
+      "name": "歌词载入失败",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-lyrics-error.jpg",
+      "dialogs": [
+        {
+          "height": 879,
+          "scroll": 0,
+          "title": "沉浸播放器"
+        }
+      ],
+      "hash": "#/preview/lyrics-error",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 530,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "异度神剑 2 · 黄金之国伊拉",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/lyrics-empty",
+      "id": "lyrics-empty",
+      "name": "没有歌词",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-lyrics-empty.jpg",
+      "dialogs": [
+        {
+          "height": 879,
+          "scroll": 0,
+          "title": "沉浸播放器"
+        }
+      ],
+      "hash": "#/preview/lyrics-empty",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 530,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "异度神剑 2 · 黄金之国伊拉",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/queue-empty",
+      "id": "queue-empty",
+      "name": "待播清单为空",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-queue-empty.jpg",
+      "dialogs": [
+        {
+          "height": 879,
+          "scroll": 0,
+          "title": "沉浸播放器"
+        }
+      ],
+      "hash": "#/preview/queue-empty",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 530,
+      "panels": [
+        {
+          "className": "np-empty",
+          "contentBottom": 628,
+          "contentTop": 471,
+          "height": 622,
+          "minHeight": "0px",
+          "title": "听到这里，刚刚好",
+          "top": 201
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "异度神剑 2 · 黄金之国伊拉",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/playlists-empty",
+      "id": "playlists-empty",
+      "name": "还没有歌单",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-playlists-empty.jpg",
+      "dialogs": [],
+      "hash": "#/preview/playlists-empty",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 0,
+      "panels": [
+        {
+          "className": "state-panel  playlists-empty-state",
+          "contentBottom": 603,
+          "contentTop": 382,
+          "height": 577,
+          "minHeight": "260px",
+          "title": "还没有私人歌单",
+          "top": 204
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "给生活，一点配乐",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/playlist-empty",
+      "id": "playlist-empty",
+      "name": "歌单没有歌曲",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-playlist-empty.jpg",
+      "dialogs": [],
+      "hash": "#/preview/playlist-empty",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 0,
+      "panels": [
+        {
+          "className": "state-panel  state-panel-list playlist-empty-state",
+          "contentBottom": 724,
+          "contentTop": 504,
+          "height": 334,
+          "minHeight": "260px",
+          "title": "这张歌单还没有歌曲",
+          "top": 447
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "今天的声音",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/favorites-empty",
+      "id": "favorites-empty",
+      "name": "还没有收藏",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-favorites-empty.jpg",
+      "dialogs": [],
+      "hash": "#/preview/favorites-empty",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 0,
+      "panels": [
+        {
+          "className": "state-panel  state-panel-list favorites-empty-state",
+          "contentBottom": 678,
+          "contentTop": 458,
+          "height": 426,
+          "minHeight": "260px",
+          "title": "还没有收藏歌曲",
+          "top": 355
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "一听，就很喜欢",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/playlist-rename",
+      "id": "playlist-rename",
+      "name": "重命名歌单",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-playlist-rename.jpg",
+      "dialogs": [
+        {
+          "height": 339,
+          "scroll": 0,
+          "title": "重命名歌单"
+        }
+      ],
+      "hash": "#/preview/playlist-rename",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 426,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "深夜的耳机",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/playlist-delete",
+      "id": "playlist-delete",
+      "name": "删除歌单确认",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-playlist-delete.jpg",
+      "dialogs": [
+        {
+          "height": 247,
+          "scroll": 0,
+          "title": "删除歌单"
+        }
+      ],
+      "hash": "#/preview/playlist-delete",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 426,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "深夜的耳机",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/playlist-order",
+      "id": "playlist-order",
+      "name": "调整歌曲顺序",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-playlist-order.jpg",
+      "dialogs": [],
+      "hash": "#/preview/playlist-order",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 428,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "深夜的耳机",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/save-pending",
+      "id": "save-pending",
+      "name": "正在保存",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-save-pending.jpg",
+      "dialogs": [],
+      "hash": "#/preview/save-pending",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 2600,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "所有歌曲",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/save-error",
+      "id": "save-error",
+      "name": "收藏保存失败",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-save-error.jpg",
+      "dialogs": [],
+      "hash": "#/preview/save-error",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 2600,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "所有歌曲",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/playlist-save-error",
+      "id": "playlist-save-error",
+      "name": "歌单保存失败",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-playlist-save-error.jpg",
+      "dialogs": [
+        {
+          "height": 442,
+          "scroll": 0,
+          "title": "重命名歌单"
+        }
+      ],
+      "hash": "#/preview/playlist-save-error",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 426,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "深夜的耳机",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/search-artists",
+      "id": "search-artists",
+      "name": "艺人搜索结果",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-search-artists.jpg",
+      "dialogs": [],
+      "hash": "#/preview/search-artists",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 3160,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "寻找「西木康智」",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/search-partial",
+      "id": "search-partial",
+      "name": "搜索部分失败",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-search-partial.jpg",
+      "dialogs": [],
+      "hash": "#/preview/search-partial",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 2947,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "寻找「西木康智」",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/search-empty",
+      "id": "search-empty",
+      "name": "没有搜索结果",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-search-empty.jpg",
+      "dialogs": [],
+      "hash": "#/preview/search-empty",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 42,
+      "panels": [
+        {
+          "className": "state-panel  search-empty",
+          "contentBottom": 603,
+          "contentTop": 384,
+          "height": 579,
+          "minHeight": "579px",
+          "title": "还没有找到这段旋律",
+          "top": 204
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "寻找「zzzz-no-match」",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/albums-empty",
+      "id": "albums-empty",
+      "name": "没有专辑",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-albums-empty.jpg",
+      "dialogs": [],
+      "hash": "#/preview/albums-empty",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 42,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state",
+          "contentBottom": 603,
+          "contentTop": 384,
+          "height": 579,
+          "minHeight": "579px",
+          "title": "还没有专辑",
+          "top": 204
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "你的唱片架",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/artists-empty",
+      "id": "artists-empty",
+      "name": "没有艺人",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-artists-empty.jpg",
+      "dialogs": [],
+      "hash": "#/preview/artists-empty",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 42,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state",
+          "contentBottom": 603,
+          "contentTop": 384,
+          "height": 579,
+          "minHeight": "579px",
+          "title": "还没有艺人",
+          "top": 204
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "旋律背后的人",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/list-loading",
+      "id": "list-loading",
+      "name": "列表载入中",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-list-loading.jpg",
+      "dialogs": [],
+      "hash": "#/preview/list-loading",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 0,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "所有歌曲",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/list-error",
+      "id": "list-error",
+      "name": "列表载入失败",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-list-error.jpg",
+      "dialogs": [],
+      "hash": "#/preview/list-error",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 42,
+      "panels": [
+        {
+          "className": "state-panel is-error state-panel-list",
+          "contentBottom": 590,
+          "contentTop": 398,
+          "height": 579,
+          "minHeight": "579px",
+          "title": "歌曲列表暂时没有载入",
+          "top": 204
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "所有歌曲",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/detail-loading",
+      "id": "detail-loading",
+      "name": "详情载入中",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-detail-loading.jpg",
+      "dialogs": [],
+      "hash": "#/preview/detail-loading",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 174,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "专辑详情",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/detail-error",
+      "id": "detail-error",
+      "name": "详情载入失败",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-detail-error.jpg",
+      "dialogs": [],
+      "hash": "#/preview/detail-error",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 42,
+      "panels": [
+        {
+          "className": "state-panel is-error state-panel-list",
+          "contentBottom": 590,
+          "contentTop": 398,
+          "height": 579,
+          "minHeight": "579px",
+          "title": "专辑详情暂时没有载入",
+          "top": 204
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "专辑详情",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/more-error",
+      "id": "more-error",
+      "name": "下一页载入失败",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-more-error.jpg",
+      "dialogs": [],
+      "hash": "#/preview/more-error",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 0,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "所有歌曲",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/artwork-missing",
+      "id": "artwork-missing",
+      "name": "封面缺失与读取失败",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-artwork-missing.jpg",
+      "dialogs": [],
+      "hash": "#/preview/artwork-missing",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 0,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "没有封面，也有音乐的样子",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/metadata-empty",
+      "id": "metadata-empty",
+      "name": "元数据缺省",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-metadata-empty.jpg",
+      "dialogs": [],
+      "hash": "#/preview/metadata-empty",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 0,
+      "panels": [],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "让缺失的信息，也能被读懂",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/not-found",
+      "id": "not-found",
+      "name": "页面不存在",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-not-found.jpg",
+      "dialogs": [],
+      "hash": "#/preview/not-found",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 48,
+      "panels": [
+        {
+          "className": "state-panel is-error",
+          "contentBottom": 541,
+          "contentTop": 323,
+          "height": 714,
+          "minHeight": "714px",
+          "title": "这条路还没有唱片",
+          "top": 75
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "这条路还没有唱片",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/setup-empty",
+      "id": "setup-empty",
+      "name": "初次设置",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-setup-empty.jpg",
+      "dialogs": [],
+      "hash": "#/preview/setup-empty",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 0,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state initial-setup-state",
+          "contentBottom": 586,
+          "contentTop": 307,
+          "height": 363,
+          "minHeight": "250px",
+          "title": "还没有连接音乐目录",
+          "top": 265
+        }
+      ],
+      "playerTop": 785,
+      "rootScroll": 0,
+      "title": "先把音乐带进来",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/library-empty",
+      "id": "library-empty",
+      "name": "曲库为空",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-library-empty.jpg",
+      "dialogs": [],
+      "hash": "#/preview/library-empty",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 0,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state",
+          "contentBottom": 586,
+          "contentTop": 307,
+          "height": 363,
+          "minHeight": "250px",
+          "title": "曲库里还没有内容",
+          "top": 265
+        }
+      ],
+      "playerTop": 785,
+      "rootScroll": 0,
+      "title": "曲库为空",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/home-new",
+      "id": "home-new",
+      "name": "尚未聆听",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-home-new.jpg",
+      "dialogs": [],
+      "hash": "#/preview/home-new",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 1196,
+      "panels": [
+        {
+          "className": "state-panel  state-panel-list",
+          "contentBottom": 1610,
+          "contentTop": 1427,
+          "height": 259,
+          "minHeight": "220px",
+          "title": "这里还很安静",
+          "top": 1389
+        }
+      ],
+      "playerTop": 785,
+      "rootScroll": 0,
+      "title": "音乐，刚刚好。",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/login-invalid",
+      "id": "login-invalid",
+      "name": "密码错误",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-login-invalid.jpg",
+      "dialogs": [],
+      "hash": "#/preview/login-invalid",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 0,
+      "panels": [],
+      "rootScroll": 0,
+      "title": "欢迎回到音泊",
+      "transform": null,
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/login-offline",
+      "id": "login-offline",
+      "name": "登录连接失败",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-login-offline.jpg",
+      "dialogs": [],
+      "hash": "#/preview/login-offline",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 0,
+      "panels": [],
+      "rootScroll": 0,
+      "title": "欢迎回到音泊",
+      "transform": null,
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/login-expired",
+      "id": "login-expired",
+      "name": "登录已过期",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-login-expired.jpg",
+      "dialogs": [],
+      "hash": "#/preview/login-expired",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 0,
+      "panels": [],
+      "rootScroll": 0,
+      "title": "欢迎回到音泊",
+      "transform": null,
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/account",
+      "id": "account",
+      "name": "管理员账号",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-account.jpg",
+      "dialogs": [],
+      "hash": "#/preview/account",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 623,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "属于你的，聆听空间",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/account-member",
+      "id": "account-member",
+      "name": "普通账号",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-account-member.jpg",
+      "dialogs": [],
+      "hash": "#/preview/account-member",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 500,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "属于你的，聆听空间",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/account-security",
+      "id": "account-security",
+      "name": "登录与安全",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-account-security.jpg",
+      "dialogs": [],
+      "hash": "#/preview/account-security",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 136,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "安心回到你的音乐",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/accounts-manage",
+      "id": "accounts-manage",
+      "name": "用户管理",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-accounts-manage.jpg",
+      "dialogs": [],
+      "hash": "#/preview/accounts-manage",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 193,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "一起，把音乐留在这里",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/account-create",
+      "id": "account-create",
+      "name": "创建账号",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-account-create.jpg",
+      "dialogs": [
+        {
+          "height": 744,
+          "scroll": 0,
+          "title": "邀请一个新的聆听者"
+        }
+      ],
+      "hash": "#/preview/account-create",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 193,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "一起，把音乐留在这里",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/login-first-use",
+      "id": "login-first-use",
+      "name": "首次设置密码",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-login-first-use.jpg",
+      "dialogs": [],
+      "hash": "#/preview/login-first-use",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 0,
+      "panels": [],
+      "rootScroll": 0,
+      "title": "让账号，只属于你",
+      "transform": null,
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/login-disabled",
+      "id": "login-disabled",
+      "name": "账号已停用",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-login-disabled.jpg",
+      "dialogs": [],
+      "hash": "#/preview/login-disabled",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 0,
+      "panels": [],
+      "rootScroll": 0,
+      "title": "欢迎回到音泊",
+      "transform": null,
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/account-denied",
+      "id": "account-denied",
+      "name": "无管理权限",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-account-denied.jpg",
+      "dialogs": [],
+      "hash": "#/preview/account-denied",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 0,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "这个页面需要管理员权限",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/accounts-loading",
+      "id": "accounts-loading",
+      "name": "账号列表载入中",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-accounts-loading.jpg",
+      "dialogs": [],
+      "hash": "#/preview/accounts-loading",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 183,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "一起，把音乐留在这里",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/accounts-error",
+      "id": "accounts-error",
+      "name": "账号列表载入失败",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-accounts-error.jpg",
+      "dialogs": [],
+      "hash": "#/preview/accounts-error",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 178,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "一起，把音乐留在这里",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/accounts-empty",
+      "id": "accounts-empty",
+      "name": "账号搜索无结果",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-accounts-empty.jpg",
+      "dialogs": [],
+      "hash": "#/preview/accounts-empty",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 179,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "一起，把音乐留在这里",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/account-save-error",
+      "id": "account-save-error",
+      "name": "资料保存失败",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-account-save-error.jpg",
+      "dialogs": [
+        {
+          "height": 613,
+          "scroll": 0,
+          "title": "编辑个人资料"
+        }
+      ],
+      "hash": "#/preview/account-save-error",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 623,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "属于你的，聆听空间",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/scan-running",
+      "id": "scan-running",
+      "name": "扫描进行中",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-scan-running.jpg",
+      "dialogs": [],
+      "hash": "#/preview/scan-running",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 0,
+      "panels": [
+        {
+          "className": "scan-progress-page",
+          "contentBottom": 699,
+          "contentTop": 422,
+          "height": 459,
+          "minHeight": "440px",
+          "title": "音乐目录扫描进度",
+          "top": 265
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "让音乐，慢慢归位",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/scan-complete",
+      "id": "scan-complete",
+      "name": "全部扫描成功",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-scan-complete.jpg",
+      "dialogs": [],
+      "hash": "#/preview/scan-complete",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 0,
+      "panels": [
+        {
+          "className": "state-panel  complete-scan-state",
+          "contentBottom": 566,
+          "contentTop": 307,
+          "height": 343,
+          "minHeight": "250px",
+          "title": "音乐都准备好了",
+          "top": 265
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "曲库已经准备好",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/scan-partial",
+      "id": "scan-partial",
+      "name": "部分扫描成功",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-scan-partial.jpg",
+      "dialogs": [],
+      "hash": "#/preview/scan-partial",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 589,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "这次扫描没有完全成功",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/scan-empty",
+      "id": "scan-empty",
+      "name": "未发现音乐",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-scan-empty.jpg",
+      "dialogs": [],
+      "hash": "#/preview/scan-empty",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 0,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state",
+          "contentBottom": 586,
+          "contentTop": 307,
+          "height": 363,
+          "minHeight": "250px",
+          "title": "换一处，继续发现音乐",
+          "top": 265
+        }
+      ],
+      "playerTop": 785,
+      "rootScroll": 0,
+      "title": "目录里还没有可播放的音乐",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/scan-failed",
+      "id": "scan-failed",
+      "name": "无法启动扫描",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-scan-failed.jpg",
+      "dialogs": [],
+      "hash": "#/preview/scan-failed",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 179,
+      "panels": [
+        {
+          "className": "state-panel is-error preview-empty-state",
+          "contentBottom": 740,
+          "contentTop": 461,
+          "height": 670,
+          "minHeight": "670px",
+          "title": "暂时无法启动扫描任务",
+          "top": 265
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "扫描还没有开始",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/scan-interrupted",
+      "id": "scan-interrupted",
+      "name": "扫描中断",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-scan-interrupted.jpg",
+      "dialogs": [],
+      "hash": "#/preview/scan-interrupted",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 179,
+      "panels": [
+        {
+          "className": "state-panel is-error preview-empty-state",
+          "contentBottom": 740,
+          "contentTop": 461,
+          "height": 670,
+          "minHeight": "670px",
+          "title": "音乐目录的连接断开了",
+          "top": 265
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "这次扫描中断了",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/directory-unavailable",
+      "id": "directory-unavailable",
+      "name": "目录不可访问",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-directory-unavailable.jpg",
+      "dialogs": [],
+      "hash": "#/preview/directory-unavailable",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 341,
+      "panels": [
+        {
+          "className": "state-panel is-error directory-unavailable-state",
+          "contentBottom": 764,
+          "contentTop": 436,
+          "height": 670,
+          "minHeight": "670px",
+          "title": "暂时读不到这处音乐目录",
+          "top": 265
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "音乐目录暂时不可访问",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/player-empty",
+      "id": "player-empty",
+      "name": "尚未选择歌曲",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-player-empty.jpg",
+      "dialogs": [],
+      "hash": "#/preview/player-empty",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 1625,
+      "panels": [],
+      "playerTop": 785,
+      "rootScroll": 0,
+      "title": "音乐，刚刚好。",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/player-loading",
+      "id": "player-loading",
+      "name": "准备播放",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-player-loading.jpg",
+      "dialogs": [],
+      "hash": "#/preview/player-loading",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 712,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "异度神剑 2 · 黄金之国伊拉",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/player-buffering",
+      "id": "player-buffering",
+      "name": "播放缓冲",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-player-buffering.jpg",
+      "dialogs": [],
+      "hash": "#/preview/player-buffering",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 712,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "异度神剑 2 · 黄金之国伊拉",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/player-transcoding",
+      "id": "player-transcoding",
+      "name": "音频转换",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-player-transcoding.jpg",
+      "dialogs": [],
+      "hash": "#/preview/player-transcoding",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 712,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "异度神剑 2 · 黄金之国伊拉",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/player-offline",
+      "id": "player-offline",
+      "name": "播放连接中断",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-player-offline.jpg",
+      "dialogs": [],
+      "hash": "#/preview/player-offline",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 713,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "异度神剑 2 · 黄金之国伊拉",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/player-missing",
+      "id": "player-missing",
+      "name": "音频文件缺失",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-player-missing.jpg",
+      "dialogs": [],
+      "hash": "#/preview/player-missing",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 712,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "异度神剑 2 · 黄金之国伊拉",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/player-decode",
+      "id": "player-decode",
+      "name": "音频读取失败",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-player-decode.jpg",
+      "dialogs": [],
+      "hash": "#/preview/player-decode",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 712,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "异度神剑 2 · 黄金之国伊拉",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/player-blocked",
+      "id": "player-blocked",
+      "name": "等待点击播放",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-player-blocked.jpg",
+      "dialogs": [],
+      "hash": "#/preview/player-blocked",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 712,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "异度神剑 2 · 黄金之国伊拉",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/lyrics-loading",
+      "id": "lyrics-loading",
+      "name": "歌词载入中",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-lyrics-loading.jpg",
+      "dialogs": [
+        {
+          "height": 852,
+          "scroll": 0,
+          "title": "沉浸播放器"
+        }
+      ],
+      "hash": "#/preview/lyrics-loading",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 712,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "异度神剑 2 · 黄金之国伊拉",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/lyrics-error",
+      "id": "lyrics-error",
+      "name": "歌词载入失败",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-lyrics-error.jpg",
+      "dialogs": [
+        {
+          "height": 852,
+          "scroll": 0,
+          "title": "沉浸播放器"
+        }
+      ],
+      "hash": "#/preview/lyrics-error",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 712,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "异度神剑 2 · 黄金之国伊拉",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/lyrics-empty",
+      "id": "lyrics-empty",
+      "name": "没有歌词",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-lyrics-empty.jpg",
+      "dialogs": [
+        {
+          "height": 852,
+          "scroll": 0,
+          "title": "沉浸播放器"
+        }
+      ],
+      "hash": "#/preview/lyrics-empty",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 712,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "异度神剑 2 · 黄金之国伊拉",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/queue-empty",
+      "id": "queue-empty",
+      "name": "待播清单为空",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-queue-empty.jpg",
+      "dialogs": [
+        {
+          "height": 852,
+          "scroll": 0,
+          "title": "沉浸播放器"
+        }
+      ],
+      "hash": "#/preview/queue-empty",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 712,
+      "panels": [
+        {
+          "className": "np-empty",
+          "contentBottom": 509,
+          "contentTop": 365,
+          "height": 394,
+          "minHeight": "0px",
+          "title": "听到这里，刚刚好",
+          "top": 211
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "异度神剑 2 · 黄金之国伊拉",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/playlists-empty",
+      "id": "playlists-empty",
+      "name": "还没有歌单",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-playlists-empty.jpg",
+      "dialogs": [],
+      "hash": "#/preview/playlists-empty",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 0,
+      "panels": [
+        {
+          "className": "state-panel  playlists-empty-state",
+          "contentBottom": 646,
+          "contentTop": 383,
+          "height": 499,
+          "minHeight": "240px",
+          "title": "还没有私人歌单",
+          "top": 265
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "给生活，一点配乐",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/playlist-empty",
+      "id": "playlist-empty",
+      "name": "歌单没有歌曲",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-playlist-empty.jpg",
+      "dialogs": [],
+      "hash": "#/preview/playlist-empty",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 0,
+      "panels": [
+        {
+          "className": "state-panel  state-panel-list playlist-empty-state",
+          "contentBottom": 732,
+          "contentTop": 469,
+          "height": 327,
+          "minHeight": "240px",
+          "title": "这张歌单还没有歌曲",
+          "top": 437
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "今天的声音",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/favorites-empty",
+      "id": "favorites-empty",
+      "name": "还没有收藏",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-favorites-empty.jpg",
+      "dialogs": [],
+      "hash": "#/preview/favorites-empty",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 0,
+      "panels": [
+        {
+          "className": "state-panel  state-panel-list favorites-empty-state",
+          "contentBottom": 677,
+          "contentTop": 414,
+          "height": 437,
+          "minHeight": "240px",
+          "title": "还没有收藏歌曲",
+          "top": 327
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "一听，就很喜欢",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/playlist-rename",
+      "id": "playlist-rename",
+      "name": "重命名歌单",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-playlist-rename.jpg",
+      "dialogs": [
+        {
+          "height": 327,
+          "scroll": 0,
+          "title": "重命名歌单"
+        }
+      ],
+      "hash": "#/preview/playlist-rename",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 592,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "深夜的耳机",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/playlist-delete",
+      "id": "playlist-delete",
+      "name": "删除歌单确认",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-playlist-delete.jpg",
+      "dialogs": [
+        {
+          "height": 256,
+          "scroll": 0,
+          "title": "删除歌单"
+        }
+      ],
+      "hash": "#/preview/playlist-delete",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 592,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "深夜的耳机",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/playlist-order",
+      "id": "playlist-order",
+      "name": "调整歌曲顺序",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-playlist-order.jpg",
+      "dialogs": [],
+      "hash": "#/preview/playlist-order",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 721,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "深夜的耳机",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/save-pending",
+      "id": "save-pending",
+      "name": "正在保存",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-save-pending.jpg",
+      "dialogs": [],
+      "hash": "#/preview/save-pending",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 2423,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "所有歌曲",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/save-error",
+      "id": "save-error",
+      "name": "收藏保存失败",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-save-error.jpg",
+      "dialogs": [],
+      "hash": "#/preview/save-error",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 2423,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "所有歌曲",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/playlist-save-error",
+      "id": "playlist-save-error",
+      "name": "歌单保存失败",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-playlist-save-error.jpg",
+      "dialogs": [
+        {
+          "height": 468,
+          "scroll": 0,
+          "title": "重命名歌单"
+        }
+      ],
+      "hash": "#/preview/playlist-save-error",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 592,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "深夜的耳机",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/search-artists",
+      "id": "search-artists",
+      "name": "艺人搜索结果",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-search-artists.jpg",
+      "dialogs": [],
+      "hash": "#/preview/search-artists",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 2856,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "寻找「西木康智」",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/search-partial",
+      "id": "search-partial",
+      "name": "搜索部分失败",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-search-partial.jpg",
+      "dialogs": [],
+      "hash": "#/preview/search-partial",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 2687,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "寻找「西木康智」",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/search-empty",
+      "id": "search-empty",
+      "name": "没有搜索结果",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-search-empty.jpg",
+      "dialogs": [],
+      "hash": "#/preview/search-empty",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 111,
+      "panels": [
+        {
+          "className": "state-panel  search-empty",
+          "contentBottom": 696,
+          "contentTop": 437,
+          "height": 602,
+          "minHeight": "602px",
+          "title": "还没有找到这段旋律",
+          "top": 265
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "寻找「zzzz-no-match」",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/albums-empty",
+      "id": "albums-empty",
+      "name": "没有专辑",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-albums-empty.jpg",
+      "dialogs": [],
+      "hash": "#/preview/albums-empty",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 0,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state",
+          "contentBottom": 566,
+          "contentTop": 307,
+          "height": 343,
+          "minHeight": "250px",
+          "title": "还没有专辑",
+          "top": 265
+        }
+      ],
+      "playerTop": 785,
+      "rootScroll": 0,
+      "title": "你的唱片架",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/artists-empty",
+      "id": "artists-empty",
+      "name": "没有艺人",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-artists-empty.jpg",
+      "dialogs": [],
+      "hash": "#/preview/artists-empty",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 0,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state",
+          "contentBottom": 566,
+          "contentTop": 307,
+          "height": 343,
+          "minHeight": "250px",
+          "title": "还没有艺人",
+          "top": 265
+        }
+      ],
+      "playerTop": 785,
+      "rootScroll": 0,
+      "title": "旋律背后的人",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/list-loading",
+      "id": "list-loading",
+      "name": "列表载入中",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-list-loading.jpg",
+      "dialogs": [],
+      "hash": "#/preview/list-loading",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 0,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "所有歌曲",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/list-error",
+      "id": "list-error",
+      "name": "列表载入失败",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-list-error.jpg",
+      "dialogs": [],
+      "hash": "#/preview/list-error",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 111,
+      "panels": [
+        {
+          "className": "state-panel is-error state-panel-list",
+          "contentBottom": 682,
+          "contentTop": 450,
+          "height": 602,
+          "minHeight": "602px",
+          "title": "歌曲列表暂时没有载入",
+          "top": 265
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "所有歌曲",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/detail-loading",
+      "id": "detail-loading",
+      "name": "详情载入中",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-detail-loading.jpg",
+      "dialogs": [],
+      "hash": "#/preview/detail-loading",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 128,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "专辑详情",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/detail-error",
+      "id": "detail-error",
+      "name": "详情载入失败",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-detail-error.jpg",
+      "dialogs": [],
+      "hash": "#/preview/detail-error",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 111,
+      "panels": [
+        {
+          "className": "state-panel is-error state-panel-list",
+          "contentBottom": 682,
+          "contentTop": 450,
+          "height": 602,
+          "minHeight": "602px",
+          "title": "专辑详情暂时没有载入",
+          "top": 265
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "专辑详情",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/more-error",
+      "id": "more-error",
+      "name": "下一页载入失败",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-more-error.jpg",
+      "dialogs": [],
+      "hash": "#/preview/more-error",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 17,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "所有歌曲",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/artwork-missing",
+      "id": "artwork-missing",
+      "name": "封面缺失与读取失败",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-artwork-missing.jpg",
+      "dialogs": [],
+      "hash": "#/preview/artwork-missing",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 0,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "没有封面，也有音乐的样子",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/metadata-empty",
+      "id": "metadata-empty",
+      "name": "元数据缺省",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-metadata-empty.jpg",
+      "dialogs": [],
+      "hash": "#/preview/metadata-empty",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 0,
+      "panels": [],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "让缺失的信息，也能被读懂",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "href": "http://127.0.0.1:4173/#/preview/not-found",
+      "id": "not-found",
+      "name": "页面不存在",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-not-found.jpg",
+      "dialogs": [],
+      "hash": "#/preview/not-found",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 56,
+      "panels": [
+        {
+          "className": "state-panel is-error",
+          "contentBottom": 606,
+          "contentTop": 348,
+          "height": 670,
+          "minHeight": "670px",
+          "title": "这条路还没有唱片",
+          "top": 142
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "这条路还没有唱片",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "actual-loading",
+      "name": "曲库载入中",
+      "href": "http://127.0.0.1:4173/#/loading",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-actual-loading.jpg",
+      "dialogs": [],
+      "hash": "#/loading",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 0,
+      "panels": [
+        {
+          "className": "state-panel  state-panel-loading",
+          "contentBottom": 286,
+          "contentTop": 136,
+          "height": 250,
+          "minHeight": "250px",
+          "title": "正在扫描你的音乐",
+          "top": 86
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "正在扫描你的音乐",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "actual-error",
+      "name": "曲库读取异常",
+      "href": "http://127.0.0.1:4173/#/error",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-actual-error.jpg",
+      "dialogs": [],
+      "hash": "#/error",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error",
+          "contentBottom": 585,
+          "contentTop": 257,
+          "height": 670,
+          "minHeight": "670px",
+          "title": "暂时无法打开音乐库",
+          "top": 86
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "暂时无法打开音乐库",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "actual-directory",
+      "name": "目录不可访问正式入口",
+      "href": "http://127.0.0.1:4173/#/directory-unavailable",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-actual-directory.jpg",
+      "dialogs": [],
+      "hash": "#/directory-unavailable",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 285,
+      "panels": [
+        {
+          "className": "state-panel is-error directory-unavailable-state",
+          "contentBottom": 708,
+          "contentTop": 380,
+          "height": 670,
+          "minHeight": "670px",
+          "title": "暂时读不到这处音乐目录",
+          "top": 209
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "音乐目录暂时不可访问",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "actual-setup",
+      "name": "初次设置正式入口",
+      "href": "http://127.0.0.1:4173/#/setup",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-actual-setup.jpg",
+      "dialogs": [],
+      "hash": "#/setup",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 0,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state",
+          "contentBottom": 530,
+          "contentTop": 251,
+          "height": 363,
+          "minHeight": "250px",
+          "title": "曲库里还没有内容",
+          "top": 209
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "曲库为空",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "actual-search",
+      "name": "搜索无结果正式入口",
+      "href": "http://127.0.0.1:4173/#/search?q=zzzz-no-match",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-actual-search.jpg",
+      "dialogs": [],
+      "hash": "#/search?q=zzzz-no-match",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 55,
+      "panels": [
+        {
+          "className": "state-panel  search-empty",
+          "contentBottom": 640,
+          "contentTop": 381,
+          "height": 602,
+          "minHeight": "602px",
+          "title": "还没有找到这段旋律",
+          "top": 209
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "寻找「zzzz-no-match」",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    },
+    {
+      "id": "actual-loading",
+      "name": "曲库载入中",
+      "href": "http://127.0.0.1:4173/#/loading",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-actual-loading.jpg",
+      "dialogs": [],
+      "hash": "#/loading",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 0,
+      "panels": [
+        {
+          "className": "state-panel  state-panel-loading",
+          "contentBottom": 461,
+          "contentTop": 307,
+          "height": 714,
+          "minHeight": "714px",
+          "title": "正在扫描你的音乐",
+          "top": 27
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "正在扫描你的音乐",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "actual-error",
+      "name": "曲库读取异常",
+      "href": "http://127.0.0.1:4173/#/error",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-actual-error.jpg",
+      "dialogs": [],
+      "hash": "#/error",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 0,
+      "panels": [
+        {
+          "className": "state-panel is-error",
+          "contentBottom": 504,
+          "contentTop": 264,
+          "height": 714,
+          "minHeight": "714px",
+          "title": "暂时无法打开音乐库",
+          "top": 27
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "暂时无法打开音乐库",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "actual-directory",
+      "name": "目录不可访问正式入口",
+      "href": "http://127.0.0.1:4173/#/directory-unavailable",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-actual-directory.jpg",
+      "dialogs": [],
+      "hash": "#/directory-unavailable",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 141,
+      "panels": [
+        {
+          "className": "state-panel is-error directory-unavailable-state",
+          "contentBottom": 645,
+          "contentTop": 405,
+          "height": 714,
+          "minHeight": "714px",
+          "title": "暂时读不到这处音乐目录",
+          "top": 168
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "音乐目录暂时不可访问",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "actual-setup",
+      "name": "初次设置正式入口",
+      "href": "http://127.0.0.1:4173/#/setup",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-actual-setup.jpg",
+      "dialogs": [],
+      "hash": "#/setup",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 6,
+      "panels": [
+        {
+          "className": "state-panel  preview-empty-state",
+          "contentBottom": 567,
+          "contentTop": 348,
+          "height": 579,
+          "minHeight": "579px",
+          "title": "曲库里还没有内容",
+          "top": 168
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "曲库为空",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "actual-search",
+      "name": "搜索无结果正式入口",
+      "href": "http://127.0.0.1:4173/#/search?q=zzzz-no-match",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-actual-search.jpg",
+      "dialogs": [],
+      "hash": "#/search?q=zzzz-no-match",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 6,
+      "panels": [
+        {
+          "className": "state-panel  search-empty",
+          "contentBottom": 567,
+          "contentTop": 348,
+          "height": 579,
+          "minHeight": "579px",
+          "title": "还没有找到这段旋律",
+          "top": 168
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "寻找「zzzz-no-match」",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "actual-songs-empty",
+      "name": "FLAC 格式筛选无结果",
+      "href": "http://127.0.0.1:4173/#/songs",
+      "sizeTag": "desktop",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/desktop-actual-songs-empty.jpg",
+      "dialogs": [],
+      "hash": "#/songs",
+      "horizontal": 0,
+      "mainHeight": 879,
+      "mainScroll": 71,
+      "panels": [
+        {
+          "className": "state-panel  state-panel-list",
+          "contentBottom": 619,
+          "contentTop": 427,
+          "height": 579,
+          "minHeight": "579px",
+          "title": "还没有 FLAC 格式的歌曲",
+          "top": 233
+        }
+      ],
+      "playerTop": 805,
+      "rootScroll": 0,
+      "title": "所有歌曲",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        1108,
+        879
+      ]
+    },
+    {
+      "id": "actual-songs-empty",
+      "name": "FLAC 格式筛选无结果",
+      "href": "http://127.0.0.1:4173/#/songs",
+      "sizeTag": "mobile",
+      "file": "/workspace/music-library/prototypes/listening-room/docs/audits/2026-09-28-scroll/mobile-actual-songs-empty.jpg",
+      "dialogs": [],
+      "hash": "#/songs",
+      "horizontal": 0,
+      "mainHeight": 852,
+      "mainScroll": 178,
+      "panels": [
+        {
+          "className": "state-panel  state-panel-list",
+          "contentBottom": 725,
+          "contentTop": 541,
+          "height": 602,
+          "minHeight": "602px",
+          "title": "还没有 FLAC 格式的歌曲",
+          "top": 332
+        }
+      ],
+      "playerTop": 788,
+      "rootScroll": 0,
+      "title": "所有歌曲",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "viewport": [
+        393,
+        852
+      ]
+    }
+  ]
+}

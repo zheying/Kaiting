@@ -9,6 +9,8 @@ import "./artists.css";
 import "./home.css";
 import "./catalog.css";
 import "./login.css";
+import "./states.css";
+import "./accounts.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode><App /></React.StrictMode>

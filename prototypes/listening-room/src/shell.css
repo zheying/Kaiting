@@ -110,7 +110,8 @@
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb) transparent;
 }
-.library-surface :is(.standard-dialog, .queue-dialog) { scrollbar-gutter: stable; }
+/* Balance the reserved scrollbar space so dialog content stays centered. */
+.library-surface :is(.standard-dialog, .queue-dialog) { scrollbar-gutter: stable both-edges; }
 .library-surface :is(.sidebar-content, .main-content, .standard-dialog, .queue-dialog, .queue-tracks, .add-playlist-list, .np-queue-list, .np-empty)::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -278,7 +279,7 @@
 .library-surface :is(.standard-dialog, .queue-dialog) { background: var(--paper); color: var(--ink); border-color: var(--line); border-radius: 20px; box-shadow: 0 24px 80px #17171929; }
 .library-surface .standard-dialog { max-height: calc(100dvh - 40px); overflow-y: auto; }
 .library-surface :is(.standard-dialog, .queue-dialog)::backdrop { background: #17171945; }
-.library-surface .queue-dialog { padding: 28px 24px 18px; }
+.library-surface .queue-dialog { padding: 14px 12px 9px; }
 .library-surface .queue-current { padding-bottom: 20px; border-bottom: 1px solid var(--line); }
 .library-surface .queue-current > div { gap: 12px; margin-top: 14px; padding: 0; background: transparent; border-radius: 0; }
 .library-surface .queue-current .cover { width: 48px; height: 48px; border-radius: 8px; box-shadow: var(--shadow-card); }
