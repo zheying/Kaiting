@@ -53,14 +53,6 @@ describe("database", () => {
     expect(database.search("First").tracks[0]?.title).toBe("First Song");
   });
 
-  it("stores playlists and favorites", () => {
-    insertTrack("track-1", "First Song", true);
-    const playlist = database.createPlaylist("晚间播放");
-    database.addTrackToPlaylist(playlist.id, "track-1");
-    expect(database.listTracks({ favorite: true })).toHaveLength(1);
-    expect(database.getPlaylist(playlist.id)?.tracks[0]?.id).toBe("track-1");
-  });
-
   it("updates a single track lyrics path", () => {
     insertTrack("track-1", "First Song");
     const lyricsPath = path.join(dir, "metadata", "track-1.lrc");

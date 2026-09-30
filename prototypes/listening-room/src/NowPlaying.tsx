@@ -58,6 +58,7 @@ export function NowPlaying(props: NowPlayingProps) {
   useEffect(() => { if (!props.initialLyrics || props.initialLyrics === "ready") setLyricsStatus("ready"); }, [track.id, props.initialLyrics]);
   function loadLyrics() { setLyricsHeld(false); setLyricsStatus("loading"); lyricsTimer.current = window.setTimeout(() => setLyricsStatus("ready"), 850); }
   const busy = playbackBusy(props.phase);
+  const showPlaybackFeedback = props.phase !== "ready" && props.phase !== "transcoding";
   const [editingTrack, setEditingTrack] = useState<string | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const panelButtons = useRef<Partial<Record<PlayerPanel, HTMLButtonElement | null>>>({});
@@ -69,13 +70,7 @@ export function NowPlaying(props: NowPlayingProps) {
 
   function changeLayout(update: () => void) {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { update(); return; }
-    if (document.startViewTransition) {
-      const transition = document.startViewTransition(() => flushSync(update));
-      // Resizing or starting another transition may skip the animation; the state update still applies.
-      void transition.ready.catch(() => undefined);
-      return;
-    }
-    // Keep the cover and controls connected on browsers without View Transitions.
+    // Keep the animation inside the player; document snapshots can expose offscreen page content.
     const elements = Array.from(stageRef.current?.querySelectorAll<HTMLElement>(".np-artwork, .np-metadata, .np-playback") ?? []);
     const previous = elements.map((element) => element.getBoundingClientRect());
     elements.forEach((element) => element.getAnimations().forEach((animation) => animation.cancel()));
@@ -103,7 +98,7 @@ export function NowPlaying(props: NowPlayingProps) {
     props.onVolumeChange(volume > 0 ? 0 : lastVolume.current);
   }
 
-  return <div className={`now-playing-screen ${isMobile ? "np-mobile" : ""} ${playing ? "np-is-playing" : ""} ${props.phase !== "ready" ? "np-has-feedback" : ""} ${panel === "queue" || (panel === "lyrics" && lyricsStatus !== "empty") ? "np-with-panel" : ""} ${panel === "lyrics" && lyricsStatus === "empty" ? "np-lyrics-open" : ""}`} onKeyDownCapture={(event) => {
+  return <div className={`now-playing-screen ${isMobile ? "np-mobile" : ""} ${playing ? "np-is-playing" : ""} ${showPlaybackFeedback ? "np-has-feedback" : ""} ${panel === "queue" || (panel === "lyrics" && lyricsStatus !== "empty") ? "np-with-panel" : ""} ${panel === "lyrics" && lyricsStatus === "empty" ? "np-lyrics-open" : ""}`} onKeyDownCapture={(event) => {
     if (event.key === "Escape" && panel) { event.preventDefault(); event.stopPropagation(); closePanel(); }
   }}>
     <div className="np-atmosphere" aria-hidden="true">{track.cover && <><img key={track.cover} src={track.cover} alt="" onError={(event) => { event.currentTarget.style.visibility = "hidden"; }} /><img key={`${track.cover}-wash`} src={track.cover} alt="" onError={(event) => { event.currentTarget.style.visibility = "hidden"; }} /></>}<div /></div>
@@ -137,7 +132,7 @@ export function NowPlaying(props: NowPlayingProps) {
           <span className="np-quality" title="当前曲目的音频格式"><Disc3 />{track.format} 无损</span>
           <button ref={(element) => { panelButtons.current.queue = element; }} type="button" className="np-icon np-panel-toggle np-state-toggle" aria-label="待播清单" title={panel === "queue" ? "收起待播清单" : `展开待播清单，${upcoming.length} 首`} aria-pressed={panel === "queue"} aria-expanded={panel === "queue"} aria-controls={panel === "queue" ? "np-companion" : undefined} onClick={() => togglePanel("queue")}><ListMusic /></button>
         </div>
-        <PlaybackFeedback phase={props.phase} onRetry={props.onRetry} onNext={props.onNext} />
+        {showPlaybackFeedback && <PlaybackFeedback phase={props.phase} onRetry={props.onRetry} onNext={props.onNext} />}
       </div>
 
       {panel && <section className={`np-companion ${panel === "lyrics" && lyricsStatus === "empty" ? "np-lyrics-notice" : ""}`} id="np-companion" aria-label={panel === "lyrics" ? "歌词" : undefined} aria-labelledby={panel === "queue" ? "np-companion-title" : undefined}>

@@ -3,5 +3,17 @@ dist
 .git
 data
 .env
+.env.*
+!.env.example
 coverage
 *.log
+artifacts
+.private
+*.bundle
+docs
+docker-compose.override.yml
+docker-compose.override.yaml
+compose.override.yml
+compose.override.yaml
+*.local.yml
+*.local.yaml

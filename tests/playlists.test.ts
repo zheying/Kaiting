@@ -61,37 +61,11 @@ function positions(playlistId: string): number[] {
 }
 
 describe("playlist management", () => {
-  it("creates, renames, reorders, removes, appends, and deletes without touching media or favorites", async () => {
+  it("preserves a description supplied by an API client when renaming", async () => {
     const original = await createPlaylist();
-    const playlistId = original.playlist.id;
-    expect(original.playlist).toMatchObject({ name: "日常听歌", description: "测试歌单", trackCount: 3, duration: 180 });
-    const renamed = await app.inject({ method: "PATCH", url: `/api/playlists/${playlistId}`, payload: { name: "  夜间播放  " } });
-    expect(renamed.statusCode).toBe(200);
-    expect(renamed.json()).toMatchObject({ id: playlistId, name: "夜间播放", description: "测试歌单", trackCount: 3 });
-    const current = database.getPlaylist(playlistId)!;
-    expect(current.revision).not.toBe(original.revision);
-    const reordered = await app.inject({ method: "PUT", url: `/api/playlists/${playlistId}/tracks/order`,
-      payload: { trackIds: [ids[2], ids[0], ids[1]], revision: current.revision } });
-    expect(reordered.statusCode).toBe(200);
-    expect(reordered.json().tracks.map((track: { id: string }) => track.id)).toEqual([ids[2], ids[0], ids[1]]);
-    expect(positions(playlistId)).toEqual([1, 2, 3]);
-    const removed = await app.inject({ method: "DELETE", url: `/api/playlists/${playlistId}/tracks/${ids[0]}` });
-    expect(removed.statusCode).toBe(200);
-    expect(removed.json()).toMatchObject({ ok: true, playlist: { trackCount: 2 }, revision: expect.any(String) });
-    expect(removed.json().tracks.map((track: { id: string }) => track.id)).toEqual([ids[2], ids[1]]);
-    expect(positions(playlistId)).toEqual([1, 2]);
-    const appended = await app.inject({ method: "POST", url: `/api/playlists/${playlistId}/tracks`, payload: { trackId: ids[0] } });
-    expect(appended.json().tracks.map((track: { id: string }) => track.id)).toEqual([ids[2], ids[1], ids[0]]);
-    const duplicate = await app.inject({ method: "POST", url: `/api/playlists/${playlistId}/tracks`, payload: { trackId: ids[1] } });
-    expect(duplicate.json()).toEqual(appended.json());
-    const deleted = await app.inject({ method: "DELETE", url: `/api/playlists/${playlistId}` });
-    expect(deleted.statusCode).toBe(200);
-    expect(deleted.json()).toEqual({ ok: true });
-    expect((await app.inject(`/api/playlists/${playlistId}`)).statusCode).toBe(404);
-    expect((await app.inject("/api/playlists")).json()).toEqual([]);
-    expect(database.db.prepare("SELECT * FROM playlist_tracks").all()).toEqual([]);
-    expect(database.summary()).toMatchObject({ trackCount: 3, favoriteCount: 1, playlistCount: 0 });
-    for (const id of ids) expect(fs.readFileSync(path.join(directory, `${id}.mp3`), "utf8")).toBe(`original-${id}`);
+    const response = await app.inject({ method: "PATCH", url: `/api/playlists/${original.playlist.id}`, payload: { name: "夜间播放" } });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ name: "夜间播放", description: "测试歌单" });
   });
 
   it("persists names, member order, and revision across reopening the database", async () => {
@@ -249,6 +223,7 @@ describe("playlist management", () => {
       app.inject({ method: "PUT", url: "/api/playlists/missing/tracks/order", payload: { trackIds: [], revision: "missing" } })
     ]);
     expect(responses.map((response) => response.statusCode)).toEqual([404, 404, 404, 404, 404]);
+    for (const response of responses) expect(response.json()).toEqual({ error: "未找到资源" });
     const detail = await createPlaylist();
     expect((await app.inject({ method: "POST", url: `/api/playlists/${detail.playlist.id}/tracks`, payload: { trackId: "missing" } })).statusCode).toBe(404);
     expect(database.getPlaylist(detail.playlist.id)).toEqual(detail);

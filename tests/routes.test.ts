@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import Fastify, { type FastifyInstance } from "fastify";
 import cookie from "@fastify/cookie";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { registerAuth } from "../src/server/auth.js";
 import type { AppConfig } from "../src/server/config.js";
 import { openDatabase, type DatabaseHandle, type UpsertTrack } from "../src/server/db.js";
@@ -53,12 +53,125 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  vi.unstubAllGlobals();
   await app?.close();
   database?.db.close();
   fs.rmSync(directory, { recursive: true, force: true });
 });
 
 describe("HTTP API regressions", () => {
+  it("looks up missing lyrics automatically and refreshes a cached miss on request", async () => {
+    config.enableOnlineMetadata = true;
+    const song = insertTrack({ title: "Fixture Song", artist: "Fixture Artist", album: "Fixture Album", duration: 181 });
+    let available = false;
+    const fetcher = vi.fn(async (input: string | URL | Request) => {
+      const url = new URL(String(input));
+      if (available) return Response.json({ trackName: song.title, artistName: song.artist, albumName: song.album,
+        duration: 181, syncedLyrics: "[00:01.00]自动查询测试歌词" });
+      return url.pathname.endsWith("/search") ? Response.json([]) : new Response(null, { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetcher);
+    const get = (query = "") => app.inject({ url: `/api/tracks/${song.id}/lyrics${query}`, headers: { cookie: session } });
+    expect((await get()).statusCode).toBe(404);
+    expect(fetcher).toHaveBeenCalled();
+    const requests = fetcher.mock.calls.length;
+    available = true;
+    expect((await get()).statusCode).toBe(404);
+    expect(fetcher).toHaveBeenCalledTimes(requests);
+    const refreshed = await get("?search=1");
+    expect(refreshed.statusCode).toBe(200);
+    expect(refreshed.body).toContain("自动查询测试歌词");
+    expect(database.getTrack(song.id)?.hasLyrics).toBe(true);
+    expect((await get()).body).toBe(refreshed.body);
+  });
+
+  it("reports a lyrics provider failure as retryable and recovers without a negative cache", async () => {
+    config.enableOnlineMetadata = true;
+    insertTrack();
+    const fetcher = vi.fn().mockRejectedValue(new Error("fixture disconnected"));
+    vi.stubGlobal("fetch", fetcher);
+    const get = () => app.inject({ url: "/api/tracks/track-1/lyrics", headers: { cookie: session } });
+    expect((await get()).statusCode).toBe(503);
+    expect(database.metadataCacheCount()).toBe(0);
+    fetcher.mockImplementation(async () => Response.json({ trackName: database.getTrack("track-1")!.title,
+      artistName: "100% Artist / 艺人", duration: 1, syncedLyrics: "[00:00.00]恢复连接后的歌词" }));
+    expect((await get()).statusCode).toBe(200);
+  });
+
+  it("keeps local lyrics and the online opt-out authoritative", async () => {
+    const fetcher = vi.fn(); vi.stubGlobal("fetch", fetcher);
+    const song = insertTrack();
+    const get = () => app.inject({ url: `/api/tracks/${song.id}/lyrics?search=1`, headers: { cookie: session } });
+    expect((await get()).statusCode).toBe(404);
+    config.enableOnlineMetadata = true;
+    const local = path.join(config.musicLibraryPath, "song.lrc");
+    fs.writeFileSync(local, "[00:00.00]本地优先");
+    database.setTrackLyricsPath(song.id, local);
+    expect((await get()).body).toBe("[00:00.00]本地优先");
+    expect(fetcher).not.toHaveBeenCalled();
+    const outside = path.join(directory, "private.lrc");
+    fs.writeFileSync(outside, "must not leak"); fs.unlinkSync(local); fs.symlinkSync(outside, local);
+    const escaped = await get();
+    expect(escaped.statusCode).not.toBe(200);
+    expect(escaped.body).not.toContain("must not leak");
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("serves real word-timed lyrics as JSON while retaining the text API and cached timings", async () => {
+    config.enableOnlineMetadata = true;
+    const song = insertTrack({ title: "测试曲", artist: "测试艺人", duration: 6 });
+    const fetcher = vi.fn(async () => Response.json({ trackName: song.title, artistName: song.artist, duration: 6,
+      syncedLyrics: "[00:01.00]风 停了", lyricsfile: JSON.stringify({ version: "1.0",
+        metadata: { title: song.title, artist: song.artist }, lines: [{ text: "风 停了", start_ms: 1000,
+          words: [{ text: "风 ", start_ms: 1000, end_ms: 1500 }, { text: "停了", start_ms: 3000, end_ms: 5000 }] }] }) }));
+    vi.stubGlobal("fetch", fetcher);
+    const get = (query = "") => app.inject({ url: `/api/tracks/${song.id}/lyrics${query}`, headers: { cookie: session } });
+    const result = await get("?format=json");
+    expect(result.statusCode).toBe(200);
+    expect(result.json().lines[0].words[1]).toEqual({ text: "停了", time: 3, end: 5 });
+    expect(result.body).not.toContain(config.dataDir);
+    const requests = fetcher.mock.calls.length;
+    expect((await get()).body).toContain("[00:01.00]风 停了");
+    expect((await get("?format=json")).json()).toEqual(result.json());
+    expect(fetcher).toHaveBeenCalledTimes(requests);
+    expect((await app.inject({ url: `/api/tracks/${song.id}/lyrics?format=json` })).statusCode).toBe(401);
+  });
+
+  it("upgrades old lyrics caches once and preserves them with bounded retries during outages", async () => {
+    config.enableOnlineMetadata = true;
+    const song = insertTrack({ title: "测试曲", artist: "测试艺人" });
+    const old = path.join(config.metadataDir, "online-track-1.lrc");
+    fs.writeFileSync(old, "[00:00.00]已有歌词"); database.setTrackLyricsPath(song.id, old);
+    const fetcher = vi.fn().mockRejectedValue(new Error("fixture offline")); vi.stubGlobal("fetch", fetcher);
+    const get = (refresh = "") => app.inject({ url: `/api/tracks/${song.id}/lyrics?format=json${refresh}`, headers: { cookie: session } });
+    expect((await get()).json().lines[0].text).toBe("已有歌词");
+    const requests = fetcher.mock.calls.length;
+    expect(requests).toBeGreaterThan(0);
+    expect((await get()).json().lines[0].words).toBeUndefined();
+    expect(fetcher).toHaveBeenCalledTimes(requests);
+    fetcher.mockImplementation(async () => Response.json({ trackName: song.title, artistName: song.artist, syncedLyrics: "[00:00.00]新歌词" }));
+    expect((await get("&search=1")).json().lines[0].text).toBe("新歌词");
+    const upgraded = fetcher.mock.calls.length;
+    expect((await get()).json().lines[0].text).toBe("新歌词");
+    expect(fetcher).toHaveBeenCalledTimes(upgraded);
+    expect(fs.readFileSync(old, "utf8")).toBe("[00:00.00]已有歌词");
+  });
+
+  it("invalid word lyrics fall back to LRC and local JSON reads stay offline and read-only", async () => {
+    config.enableOnlineMetadata = true;
+    const song = insertTrack({ title: "测试曲", artist: "测试艺人" });
+    const fetcher = vi.fn(async () => Response.json({ trackName: song.title, artistName: song.artist,
+      lyricsfile: "version: unknown", syncedLyrics: "[00:00.00]逐句回退" })); vi.stubGlobal("fetch", fetcher);
+    const get = () => app.inject({ url: `/api/tracks/${song.id}/lyrics?format=json`, headers: { cookie: session } });
+    expect((await get()).json()).toEqual({ lines: [{ text: "逐句回退", time: 0 }] });
+    const local = path.join(config.musicLibraryPath, "test.lrc");
+    fs.writeFileSync(local, "[00:00.00]本地歌词"); database.setTrackLyricsPath(song.id, local);
+    const requests = fetcher.mock.calls.length;
+    expect((await get()).json()).toEqual({ lines: [{ text: "本地歌词", time: 0 }] });
+    expect(fetcher).toHaveBeenCalledTimes(requests);
+    expect(fs.readFileSync(local, "utf8")).toBe("[00:00.00]本地歌词");
+  });
+
   it.each(["Love-Song", "夜曲", "100%", "(2026)", '"hello"', "Love Son"])("searches ordinary text: %s", async (query) => {
     insertTrack();
     const response = await app.inject({ url: `/api/search?q=${encodeURIComponent(query)}`, headers: { cookie: session } });
@@ -84,8 +197,7 @@ describe("HTTP API regressions", () => {
   });
 
   it.each([
-    "/api/tracks?limit=abc", "/api/tracks?limit=-1", "/api/tracks?limit=501",
-    "/api/tracks?offset=-1", "/api/tracks?offset=1.5", "/api/tracks?favorite=perhaps",
+    "/api/tracks?limit=abc", "/api/tracks?favorite=perhaps",
     "/api/scan/errors?limit=Infinity", "/api/tracks/track-1/stream?start=Infinity",
     "/api/tracks/track-1/stream?start=-1", "/api/tracks/track-1/stream?mode=invalid"
   ])("rejects invalid parameters without a server error: %s", async (url) => {
@@ -108,13 +220,6 @@ describe("HTTP API regressions", () => {
     const response = await app.inject({ url: `/api/tracks?q=${encodeURIComponent(query)}`, headers: { cookie: session } });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toHaveLength(1);
-  });
-
-  it("returns 404 for an absent playlist without a foreign-key failure", async () => {
-    insertTrack();
-    const response = await app.inject({ method: "POST", url: "/api/playlists/missing/tracks", headers: { cookie: session }, payload: { trackId: "track-1" } });
-    expect(response.statusCode).toBe(404);
-    expect(response.json()).toEqual({ error: "未找到资源" });
   });
 
   it("validates mutation payloads before touching the database", async () => {

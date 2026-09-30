@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseFile, type IAudioMetadata } from "music-metadata";
 import type { AppConfig } from "../src/server/config.js";
 import { openDatabase, type DatabaseHandle } from "../src/server/db.js";
-import { createScanner } from "../src/server/scanner.js";
+import { createScanner, metadataYear } from "../src/server/scanner.js";
 
 vi.mock("music-metadata", () => ({
   parseFile: vi.fn(async () => {
@@ -75,6 +75,57 @@ afterEach(() => {
   warnSpy.mockRestore();
   database?.db.close();
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+describe("release year metadata", () => {
+  it("notifies background work only after a complete scan, excluding retained missing files and failures", async () => {
+    const first = path.join(libraryDir, "one.flac"), second = path.join(libraryDir, "two.flac");
+    fs.writeFileSync(first, "audio fixture"); fs.writeFileSync(second, "audio fixture");
+    vi.mocked(parseFile).mockResolvedValue({ common: { title: "Song", album: "Album", artist: "Artist", track: { no: 1 }, disk: { no: 1 } }, format: { codec: "FLAC", container: "FLAC", duration: 180 }, native: {}, quality: { warnings: [] } } as IAudioMetadata);
+    const scanner = createScanner(makeConfig(), database);
+    const events: unknown[] = [];
+    const unsubscribe = scanner.subscribe!((event) => events.push({ ...event, running: scanner.isRunning() }));
+    await scanner.scan();
+    expect(events).toEqual([{ type: "started", running: true }, { type: "finished", complete: true, running: false }]);
+    fs.unlinkSync(second); events.length = 0; await scanner.scan();
+    expect(events.at(-1)).toEqual({ type: "finished", complete: false, running: false });
+    fs.unlinkSync(first); events.length = 0; await scanner.scan();
+    expect(events.at(-1)).toEqual({ type: "finished", complete: false, running: false });
+    unsubscribe(); events.length = 0; await scanner.scan(); expect(events).toEqual([]);
+  });
+  it.each([
+    [{ common: { year: 2023 }, native: { vorbis: [{ id: "YEAR", value: "2020" }] } }, 2023],
+    [{ common: { date: "2018-09-21" }, native: {} }, 2018],
+    [{ common: {}, native: { vorbis: [{ id: "YEAR", value: " 2023 " }] } }, 2023],
+    [{ common: {}, native: { vorbis: [{ id: "YEAR", value: "2020" }, { id: "DATE", value: "2023-08-02" }] } }, 2023],
+    [{ common: {}, native: { vorbis: [{ id: "year", value: 2018 }] } }, 2018],
+    ...["", "未知", "20231", "2023oops", -1, null, {}].map((value) => [{ common: {}, native: { vorbis: [{ id: "YEAR", value }] } }, null])
+  ])("reads only valid release years: %j", (metadata, expected) => {
+    expect(metadataYear(metadata as IAudioMetadata)).toBe(expected);
+  });
+  it("re-reads older scan signatures and preserves manual metadata through later scans", async () => {
+    const audio = path.join(libraryDir, "song.flac");
+    fs.writeFileSync(audio, "unchanged audio fixture");
+    const originalFile = fs.readFileSync(audio);
+    const metadata = { common: { title: "Song", album: "Album", artist: "Artist", track: { no: 1 }, disk: { no: 1 } }, format: { codec: "FLAC", container: "FLAC", duration: 180 }, native: { vorbis: [{ id: "YEAR", value: "2023" }] }, quality: { warnings: [] } } as IAudioMetadata;
+    vi.mocked(parseFile).mockResolvedValue(metadata);
+    const scanner = createScanner(makeConfig(), database);
+    await scanner.scan();
+    const song = database.listTracks()[0];
+    expect(song.year).toBe(2023);
+    const cached = database.db.prepare("SELECT signature FROM scanner_state WHERE path = ?").get(song.path) as { signature: string };
+    const oldSignature = JSON.parse(cached.signature); oldSignature[0] = 1;
+    database.db.prepare("UPDATE scanner_state SET signature = ? WHERE path = ?").run(JSON.stringify(oldSignature), song.path);
+    database.db.prepare("UPDATE tracks SET year = NULL").run();
+    await scanner.scan();
+    expect(database.latestScan()).toMatchObject({ parsedFiles: 1, skippedFiles: 0, errorCount: 0 });
+    const album = database.getAlbumMetadata(song.albumKey!)!;
+    database.saveAlbumMetadata(song.albumKey!, { year: 2018, genre: "游戏原声" }, album.revision);
+    await scanner.scan({ force: true });
+    expect(database.getTrack(song.id)).toMatchObject({ year: 2018, genre: "游戏原声" });
+    expect(database.getAlbumMetadata(song.albumKey!)?.original).toEqual({ year: 2023, genre: null });
+    expect(fs.readFileSync(audio)).toEqual(originalFile);
+  });
 });
 
 describe("scanner cached resources", () => {
@@ -261,16 +312,18 @@ describe("incremental scanner", () => {
     expect(database.latestScan()).toMatchObject({ status: "completed", scannedFiles: 1, parsedFiles: 0, skippedFiles: 1, force: false, prune: false });
   });
 
-  it("enumerates a stable album directory only once for discovery and once for cover candidates", async () => {
+  it("keeps directory I/O within a constant budget as the number of songs grows", async () => {
     for (let index = 0; index < 12; index += 1) writeAudio(`song-${index}.mp3`);
     vi.mocked(parseFile).mockResolvedValue(validMetadata());
     const reads = vi.spyOn(fsPromises, "readdir");
     try {
       const scanner = createScanner(makeConfig(), database);
       await scanner.scan();
-      expect(reads).toHaveBeenCalledTimes(2);
+      // 12 首歌共享一个目录；预算为每轮最多两次目录枚举，不随曲目数重复读取。
+      expect(reads.mock.calls.length).toBeLessThanOrEqual(2);
+      reads.mockClear();
       await scanner.scan();
-      expect(reads).toHaveBeenCalledTimes(4);
+      expect(reads.mock.calls.length).toBeLessThanOrEqual(2);
       expect(database.latestScan()).toMatchObject({ parsedFiles: 0, skippedFiles: 12 });
     } finally { reads.mockRestore(); }
   });
@@ -509,4 +562,18 @@ describe("explicit missing-index cleanup", () => {
     expect(database.getPlaylist(playlistId)?.tracks).toHaveLength(1);
     expect(database.latestScan()).toMatchObject({ status: "failed", totalFiles: 0, scannedFiles: 0, prune: true });
   });
+});
+
+it("stops an active scan without pruning or changing source files", async () => {
+  const file = path.join(libraryDir, "song.mp3"); fs.writeFileSync(file, "read-only audio fixture");
+  insertTrack(path.join(libraryDir, "missing.mp3"));
+  let release!: () => void;
+  vi.mocked(parseFile).mockImplementation(async () => { await new Promise<void>((resolve) => { release = resolve; }); throw new Error("fixture metadata"); });
+  const scanner = createScanner(makeConfig(), database);
+  const pending = scanner.scan({ force: true, prune: true });
+  await vi.waitFor(() => expect(parseFile).toHaveBeenCalled());
+  scanner.stop?.(); release(); await pending;
+  expect(database.latestScan()?.status).toBe("interrupted");
+  expect(database.getTrack("track-1")).not.toBeNull();
+  expect(fs.readFileSync(file, "utf8")).toBe("read-only audio fixture");
 });

@@ -1,14 +1,20 @@
 import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs";
+import path from "node:path";
 import Database from "better-sqlite3";
 import { albumKey, albumTitle, discNumber, discSort, inferredRelease, legacyAlbumKey } from "./album-identity.js";
-import type { Album, Artist, LibrarySummary, Page, PageOptions, Playlist, PlaylistDetail, ScanError, ScanJob, ScanOptions, Track, TrackPageOptions } from "../shared/types.js";
+import { albumMetadataConsensus } from "./album-metadata.js";
+import type { Album, AlbumMetadata, AlbumMetadataLookup, AlbumMetadataValues, Artist, LibrarySummary, Page, PageOptions, Playlist, PlaylistDetail, ScanError, ScanJob, ScanOptions, Track, TrackPageOptions } from "../shared/types.js";
 
 type TrackRow = Record<string, unknown>;
 type PlaylistOrderResult = { status: "ok"; detail: PlaylistDetail } | { status: "not_found" } | { status: "conflict" };
 
 export interface DatabaseHandle {
   db: Database.Database;
+  forUser(userId: string): DatabaseHandle;
+  setLibraryRoot(root: string | null): void;
+  getLibraryRoot(): string | null;
+  catalogRevision(): string;
   getTrack(id: string): Track | null;
   getIndexedTrack(filePath: string): UpsertTrack | null;
   listIndexedPaths(): string[];
@@ -21,6 +27,9 @@ export interface DatabaseHandle {
   listAlbums(limit?: number): Album[];
   pageAlbums(options?: PageOptions): Page<Album>;
   getAlbum(key: string): { album: Album; tracks: Track[] } | null;
+  getAlbumMetadata(key: string): AlbumMetadata | null;
+  saveAlbumMetadata(key: string, values: AlbumMetadataValues, revision: string): { status: "ok"; metadata: AlbumMetadata } | { status: "not_found" } | { status: "conflict" };
+  completeAlbumMetadata(key: string, result: AlbumMetadataLookup, revision: string): "updated" | "skipped" | "conflict";
   listArtists(limit?: number): Artist[];
   pageArtists(options?: PageOptions): Page<Artist>;
   getArtist(name: string): { artist: Artist; albums: Album[]; tracks: Track[] } | null;
@@ -149,6 +158,7 @@ function rowToAlbum(row: TrackRow): Album {
     artist,
     year: row.year === null ? null : Number(row.year),
     trackCount: Number(row.track_count ?? 0),
+    genre: row.genre ? String(row.genre) : null,
     discCount: Number(row.disc_count ?? 1),
     duration: Number(row.duration ?? 0),
     artworkTrackId: row.artwork_track_id ? String(row.artwork_track_id) : null
@@ -272,13 +282,86 @@ export function openDatabase(databasePath: string): DatabaseHandle {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS album_metadata_overrides (
+      library_root TEXT NOT NULL,
+      album_key TEXT NOT NULL,
+      year INTEGER,
+      genre TEXT,
+      PRIMARY KEY (library_root, album_key)
+    );
+    CREATE TABLE IF NOT EXISTS album_metadata_enrichment (
+      library_root TEXT NOT NULL,
+      album_key TEXT NOT NULL,
+      manual INTEGER NOT NULL DEFAULT 0,
+      year INTEGER,
+      genre TEXT,
+      release_id TEXT,
+      matched_at TEXT,
+      PRIMARY KEY (library_root, album_key)
+    );
+    INSERT OR IGNORE INTO album_metadata_enrichment(library_root, album_key, manual)
+      SELECT library_root, album_key, 1 FROM album_metadata_overrides;
   `);
+
+  const enrichmentColumns = new Set((db.pragma("table_info(album_metadata_enrichment)") as { name: string }[]).map((column) => column.name));
+  if (!enrichmentColumns.has("source_ids")) db.exec("ALTER TABLE album_metadata_enrichment ADD COLUMN source_ids TEXT");
 
   // Additive migration preserves scan history from versions before incremental scans.
   const scanColumns = new Set((db.pragma("table_info(scan_jobs)") as { name: string }[]).map((column) => column.name));
   for (const column of ["parsed_files", "skipped_files", "force", "prune"]) {
     if (!scanColumns.has(column)) db.exec(`ALTER TABLE scan_jobs ADD COLUMN ${column} INTEGER NOT NULL DEFAULT 0`);
   }
+
+  const playlistColumns = new Set((db.pragma("table_info(playlists)") as { name: string }[]).map((column) => column.name));
+  if (!playlistColumns.has("owner_id")) db.exec("ALTER TABLE playlists ADD COLUMN owner_id TEXT NOT NULL DEFAULT 'admin'");
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS user_favorites (
+      user_id TEXT NOT NULL,
+      track_id TEXT NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+      PRIMARY KEY (user_id, track_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_playlists_owner ON playlists(owner_id);
+    INSERT OR IGNORE INTO user_favorites(user_id, track_id) SELECT 'admin', id FROM tracks WHERE favorite = 1;
+  `);
+  // Paging revisions describe library data, not session heartbeats or player preferences.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS library_revisions (key TEXT PRIMARY KEY, version INTEGER NOT NULL DEFAULT 0);
+    INSERT OR IGNORE INTO library_revisions(key) VALUES ('tracks');
+    CREATE TRIGGER IF NOT EXISTS tracks_revision_insert AFTER INSERT ON tracks BEGIN UPDATE library_revisions SET version = version + 1 WHERE key = 'tracks'; END;
+    CREATE TRIGGER IF NOT EXISTS tracks_revision_update AFTER UPDATE ON tracks BEGIN UPDATE library_revisions SET version = version + 1 WHERE key = 'tracks'; END;
+    CREATE TRIGGER IF NOT EXISTS tracks_revision_delete AFTER DELETE ON tracks BEGIN UPDATE library_revisions SET version = version + 1 WHERE key = 'tracks'; END;
+    CREATE TRIGGER IF NOT EXISTS album_metadata_revision_insert AFTER INSERT ON album_metadata_overrides BEGIN UPDATE library_revisions SET version = version + 1 WHERE key = 'tracks'; END;
+    CREATE TRIGGER IF NOT EXISTS album_metadata_revision_update AFTER UPDATE ON album_metadata_overrides BEGIN UPDATE library_revisions SET version = version + 1 WHERE key = 'tracks'; END;
+    CREATE TRIGGER IF NOT EXISTS album_metadata_revision_delete AFTER DELETE ON album_metadata_overrides BEGIN UPDATE library_revisions SET version = version + 1 WHERE key = 'tracks'; END;
+    CREATE TRIGGER IF NOT EXISTS enrichment_revision_insert AFTER INSERT ON album_metadata_enrichment BEGIN UPDATE library_revisions SET version = version + 1 WHERE key = 'tracks'; END;
+    CREATE TRIGGER IF NOT EXISTS enrichment_revision_update AFTER UPDATE ON album_metadata_enrichment BEGIN UPDATE library_revisions SET version = version + 1 WHERE key = 'tracks'; END;
+    CREATE TRIGGER IF NOT EXISTS enrichment_revision_delete AFTER DELETE ON album_metadata_enrichment BEGIN UPDATE library_revisions SET version = version + 1 WHERE key = 'tracks'; END;
+    CREATE TRIGGER IF NOT EXISTS favorites_revision_insert AFTER INSERT ON user_favorites BEGIN
+      INSERT INTO library_revisions(key, version) VALUES ('favorites:' || NEW.user_id, 1) ON CONFLICT(key) DO UPDATE SET version = version + 1;
+    END;
+    CREATE TRIGGER IF NOT EXISTS favorites_revision_delete AFTER DELETE ON user_favorites BEGIN
+      INSERT INTO library_revisions(key, version) VALUES ('favorites:' || OLD.user_id, 1) ON CONFLICT(key) DO UPDATE SET version = version + 1;
+    END;
+  `);
+  let activeRoot: string | null = null;
+  db.function("active_library_path", (candidate) => {
+    if (!activeRoot) return 1;
+    const relative = path.relative(activeRoot, String(candidate));
+    return relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative) ? 1 : 0;
+  });
+  db.function("active_library_root", () => activeRoot ?? "");
+  // Apply display overrides at read time; the scanner always retains the original tags.
+  db.exec(`CREATE TEMP VIEW library_tracks AS
+    SELECT t.rowid AS source_rowid, t.id, t.path, t.file_name, t.title, t.album, t.artist, t.album_artist,
+      COALESCE(m.genre, NULLIF(TRIM(t.genre), ''), a.genre) AS genre, COALESCE(m.year, t.year, a.year) AS year,
+      t.track_no, t.disc_no, t.duration, t.bitrate, t.codec, t.container, t.lossless, t.format_group,
+      t.artwork_path, t.lyrics_path, t.size, t.mtime_ms, t.favorite, t.added_at, t.updated_at
+    FROM tracks t LEFT JOIN album_metadata_overrides m
+      ON m.library_root = active_library_root() AND m.album_key = release_album_key(t.album, t.album_artist, t.artist, t.path)
+    LEFT JOIN album_metadata_enrichment a
+      ON a.library_root = active_library_root() AND a.album_key = release_album_key(t.album, t.album_artist, t.artist, t.path) AND a.manual = 0
+    WHERE active_library_path(t.path) = 1`);
 
   const deleteFts = db.prepare("DELETE FROM tracks_fts WHERE id = ?");
   const insertFts = db.prepare(`
@@ -336,25 +419,28 @@ export function openDatabase(databasePath: string): DatabaseHandle {
     insertFts.run(track);
   });
 
+  function forUser(userId: string): DatabaseHandle {
+  const favoriteLookup = db.prepare("SELECT 1 FROM user_favorites WHERE user_id = ? AND track_id = ?");
+  const userTrack = (row: TrackRow): Track => ({ ...rowToTrack(row), favorite: Boolean(favoriteLookup.get(userId, row.id)) });
   function trackQuery(options: TrackPageOptions) {
-    const favoriteClause = options.favorite ? "tracks.favorite = 1" : "1 = 1";
+    const favoriteClause = options.favorite ? "EXISTS (SELECT 1 FROM user_favorites uf WHERE uf.track_id = tracks.id AND uf.user_id = @userId)" : "1 = 1";
     if (options.q?.trim()) {
       // Treat input as ordinary words, never as FTS operators or column names.
       const terms = options.q.match(/[\p{L}\p{N}\p{M}]+/gu) ?? [];
-      if (terms.length === 0) return { from: "tracks", where: "0 = 1", order: "tracks.id", params: {} };
+      if (terms.length === 0) return { from: "library_tracks tracks", where: "0 = 1", order: "tracks.id", params: {} };
       const query = terms.map((term) => `"${term}"*`).join(" AND ");
       return {
-        from: "tracks_fts JOIN tracks ON tracks.rowid = tracks_fts.rowid",
-        where: `tracks_fts MATCH @q AND ${favoriteClause}`,
-        order: "rank, tracks.id",
-        params: { q: query }
+        from: "library_tracks tracks",
+        where: `(tracks.source_rowid IN (SELECT rowid FROM tracks_fts WHERE tracks_fts MATCH @q) OR instr(search_lower(tracks.genre), @genreQuery) > 0) AND ${favoriteClause}`,
+        order: "COALESCE((SELECT rank FROM tracks_fts WHERE rowid = tracks.source_rowid AND tracks_fts MATCH @q), 0), tracks.id",
+        params: { q: query, genreQuery: options.q.trim().toLowerCase(), ...(options.favorite ? { userId } : {}) }
       };
     }
     return {
-      from: "tracks",
+      from: "library_tracks tracks",
       where: favoriteClause,
       order: "release_album_title(album, album_artist, path) COLLATE NOCASE, release_album_key(album, album_artist, artist, path), release_disc_sort(album, album_artist, path, disc_no), track_no, title COLLATE NOCASE, tracks.id",
-      params: {}
+      params: options.favorite ? { userId } : {}
     };
   }
 
@@ -367,16 +453,12 @@ export function openDatabase(databasePath: string): DatabaseHandle {
       WHERE ${query.where}
       ORDER BY ${query.order}
       LIMIT @limit OFFSET @offset
-    `).all({ ...query.params, limit, offset }).map((row) => rowToTrack(row as TrackRow));
+    `).all({ ...query.params, limit, offset }).map((row) => userTrack(row as TrackRow));
   }
 
   function pageRevision(): string {
-    // Called after the first SELECT and before the page's read transaction ends.
-    // Local writes, external commits, and reopened connections must invalidate a
-    // multi-page queue even when the number of matching tracks has not changed.
-    const changes = db.prepare("SELECT total_changes() AS changes").get() as { changes: number };
-    const dataVersion = db.pragma("data_version", { simple: true });
-    return `${instanceId}:${changes.changes}:${dataVersion}`;
+    const revisions = db.prepare("SELECT key, version FROM library_revisions WHERE key IN ('tracks', ?)").all(`favorites:${userId}`);
+    return createHash("sha256").update(JSON.stringify([instanceId, activeRoot, revisions])).digest("hex");
   }
 
   const pageTracks = db.transaction((options: TrackPageOptions = {}): Page<Track> => {
@@ -395,16 +477,17 @@ export function openDatabase(databasePath: string): DatabaseHandle {
           ELSE MIN(COALESCE(album_artist, artist)) END AS album_artist,
         MIN(artist) AS artist,
         MIN(year) AS year,
+        MIN(NULLIF(TRIM(genre), '')) AS genre,
         COUNT(*) AS track_count,
         COUNT(DISTINCT release_disc_sort(album, album_artist, path, disc_no)) AS disc_count,
         COALESCE(SUM(duration), 0) AS duration,
         MIN(CASE WHEN artwork_path IS NOT NULL THEN id END) AS artwork_track_id,
         MAX(added_at) AS newest_added_at
-      FROM tracks
+      FROM library_tracks
       GROUP BY album_key
   `;
-  const albumFilter = `(@q = '' OR instr(search_lower(album), @q) > 0 OR instr(search_lower(album_artist), @q) > 0 OR album_key IN (
-    SELECT release_album_key(album, album_artist, artist, path) FROM tracks
+  const albumFilter = `(@q = '' OR instr(search_lower(album), @q) > 0 OR instr(search_lower(album_artist), @q) > 0 OR instr(search_lower(genre), @q) > 0 OR album_key IN (
+    SELECT release_album_key(album, album_artist, artist, path) FROM library_tracks
     WHERE instr(search_lower(album), @q) > 0 OR instr(search_lower(album_artist), @q) > 0 OR instr(search_lower(artist), @q) > 0
   ))`;
 
@@ -415,7 +498,7 @@ export function openDatabase(databasePath: string): DatabaseHandle {
         COUNT(*) AS track_count,
         COALESCE(SUM(duration), 0) AS duration,
         MIN(CASE WHEN artwork_path IS NOT NULL THEN id END) AS artwork_track_id
-      FROM tracks
+      FROM library_tracks
       GROUP BY artist_name
   `;
   const artistFilter = "(@q = '' OR instr(search_lower(artist_name), @q) > 0)";
@@ -463,7 +546,7 @@ export function openDatabase(databasePath: string): DatabaseHandle {
       // Old per-performer and per-disc URLs resolve to the complete release.
       // If it names more than one release, do not silently select or merge them.
       const matches = db.prepare(`
-        SELECT DISTINCT release_album_key(album, album_artist, artist, path) AS album_key FROM tracks
+        SELECT DISTINCT release_album_key(album, album_artist, artist, path) AS album_key FROM library_tracks
         WHERE legacy_album_key(album, album_artist, artist, path) = @key
           OR lower(COALESCE(album, '未知专辑')) || '::' || lower(COALESCE(album_artist, artist, '未知艺人')) = @key
         LIMIT 2
@@ -474,24 +557,94 @@ export function openDatabase(databasePath: string): DatabaseHandle {
     }
     if (!row) return null;
     const tracks = db.prepare(`
-      SELECT * FROM tracks WHERE release_album_key(album, album_artist, artist, path) = ?
+      SELECT * FROM library_tracks WHERE release_album_key(album, album_artist, artist, path) = ?
       ORDER BY release_disc_sort(album, album_artist, path, disc_no), track_no, title COLLATE NOCASE, id
-    `).all(key).map((track) => rowToTrack(track as TrackRow));
+    `).all(key).map((track) => userTrack(track as TrackRow));
     return { album: rowToAlbum(row), tracks };
+  });
+
+  const getAlbumMetadata = db.transaction((requestedKey: string): AlbumMetadata | null => {
+    const detail = getAlbum(requestedKey);
+    if (!detail) return null;
+    const key = detail.album.key;
+    const original = db.prepare(`SELECT MIN(year) AS year, MIN(NULLIF(TRIM(genre), '')) AS genre FROM tracks
+      WHERE active_library_path(path) = 1 AND release_album_key(album, album_artist, artist, path) = ?`).get(key) as AlbumMetadataValues;
+    const overrides = (db.prepare("SELECT year, genre FROM album_metadata_overrides WHERE library_root = ? AND album_key = ?")
+      .get(activeRoot ?? "", key) as AlbumMetadataValues | undefined) ?? { year: null, genre: null };
+    const enrichment = db.prepare("SELECT manual, year, genre, release_id, matched_at, source_ids FROM album_metadata_enrichment WHERE library_root = ? AND album_key = ?")
+      .get(activeRoot ?? "", key) as (AlbumMetadataValues & { manual: number; release_id: string | null; matched_at: string | null; source_ids: string | null }) | undefined;
+    const autoFillBlocked = Boolean(enrichment?.manual || overrides.year !== null || overrides.genre !== null);
+    let sourceIds: { year?: string[]; genre?: string[] } = {};
+    try { sourceIds = JSON.parse(enrichment?.source_ids || "{}") ?? {}; } catch { /* Legacy single-source records remain readable. */ }
+    const sources = (field: "year" | "genre") => {
+      const ids = sourceIds[field];
+      return (Array.isArray(ids) ? ids : enrichment?.[field] != null && enrichment.release_id ? [enrichment.release_id] : [])
+        .filter((id) => typeof id === "string" && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id))
+        .map((id) => `https://musicbrainz.org/release/${id}`);
+    };
+    const automatic = enrichment?.release_id && enrichment.matched_at && !enrichment.manual ? {
+      year: enrichment.year, genre: enrichment.genre, sourceUrl: `https://musicbrainz.org/release/${enrichment.release_id}`, matchedAt: enrichment.matched_at,
+      sources: { year: sources("year"), genre: sources("genre") }
+    } : null;
+    // A remote lookup must not commit against a different set of songs or a changed edition.
+    const identity = detail.tracks.map(({ id, path, title, artist, discNo, trackNo, duration, year, genre }) => [id, path, title, artist, discNo, trackNo, duration, year, genre]);
+    const revision = createHash("sha256").update(JSON.stringify([activeRoot, detail.album, identity, original, overrides, enrichment ?? null])).digest("hex");
+    return { album: detail.album, original, overrides, revision, automatic, autoFillBlocked };
+  });
+
+  const saveAlbumMetadata: DatabaseHandle["saveAlbumMetadata"] = db.transaction((key: string, values: AlbumMetadataValues, revision: string) => {
+    const current = getAlbumMetadata(key);
+    if (!current) return { status: "not_found" as const };
+    if (current.revision !== revision) return { status: "conflict" as const };
+    // Remember an explicit edit, including restoring empty scan values, across scans and restarts.
+    db.prepare(`INSERT INTO album_metadata_enrichment(library_root, album_key, manual) VALUES (?, ?, 1)
+      ON CONFLICT(library_root, album_key) DO UPDATE SET manual = 1, year = NULL, genre = NULL, release_id = NULL, matched_at = NULL, source_ids = NULL`)
+      .run(activeRoot ?? "", current.album.key);
+    const year = values.year === current.original.year ? null : values.year;
+    const genre = values.genre?.trim() || null;
+    const overrideGenre = genre === current.original.genre ? null : genre;
+    if (year === null && overrideGenre === null) {
+      db.prepare("DELETE FROM album_metadata_overrides WHERE library_root = ? AND album_key = ?").run(activeRoot ?? "", current.album.key);
+    } else {
+      db.prepare(`INSERT INTO album_metadata_overrides (library_root, album_key, year, genre) VALUES (?, ?, ?, ?)
+        ON CONFLICT(library_root, album_key) DO UPDATE SET year = excluded.year, genre = excluded.genre`)
+        .run(activeRoot ?? "", current.album.key, year, overrideGenre);
+    }
+    return { status: "ok" as const, metadata: getAlbumMetadata(current.album.key)! };
+  });
+
+  const completeAlbumMetadata: DatabaseHandle["completeAlbumMetadata"] = db.transaction((key, result, revision) => {
+    const current = getAlbumMetadata(key);
+    if (!current || current.revision !== revision) return "conflict";
+    if (current.autoFillBlocked) return "skipped";
+    const candidate = albumMetadataConsensus(current.album, result);
+    if (!candidate) return "skipped";
+    const year = current.album.year === null && candidate.year !== null && Number.isInteger(candidate.year) && candidate.year >= 1000 && candidate.year <= 9999 ? candidate.year : null;
+    const genre = !current.album.genre?.trim() && candidate.genre?.trim() && candidate.genre.length <= 80 && !/[\u0000-\u001f\u007f]/.test(candidate.genre) ? candidate.genre.trim() : null;
+    if (year === null && genre === null) return "skipped";
+    const sourceIds = {
+      year: year !== null ? candidate.sources.year : (current.automatic?.sources?.year ?? []).map((url) => url.slice(url.lastIndexOf("/") + 1)),
+      genre: genre !== null ? candidate.sources.genre : (current.automatic?.sources?.genre ?? []).map((url) => url.slice(url.lastIndexOf("/") + 1))
+    };
+    const representative = sourceIds.year[0] ?? sourceIds.genre[0];
+    db.prepare(`INSERT INTO album_metadata_enrichment(library_root, album_key, year, genre, release_id, matched_at, source_ids) VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(library_root, album_key) DO UPDATE SET year = excluded.year, genre = excluded.genre, release_id = excluded.release_id, matched_at = excluded.matched_at, source_ids = excluded.source_ids`)
+      .run(activeRoot ?? "", current.album.key, year ?? current.automatic?.year ?? null, genre ?? current.automatic?.genre ?? null, representative, now(), JSON.stringify(sourceIds));
+    return "updated";
   });
 
   function playlistSelect(where = "", params: unknown[] = []): Playlist[] {
     return db.prepare(`
       SELECT p.*,
-        COUNT(pt.track_id) AS track_count,
+        COUNT(t.id) AS track_count,
         COALESCE(SUM(t.duration), 0) AS duration
       FROM playlists p
       LEFT JOIN playlist_tracks pt ON pt.playlist_id = p.id
-      LEFT JOIN tracks t ON t.id = pt.track_id
-      ${where}
+      LEFT JOIN library_tracks t ON t.id = pt.track_id
+      ${where ? `${where} AND` : "WHERE"} p.owner_id = ?
       GROUP BY p.id
       ORDER BY p.updated_at DESC, p.id
-    `).all(...params).map((row) => rowToPlaylist(row as TrackRow));
+    `).all(...params, userId).map((row) => rowToPlaylist(row as TrackRow));
   }
 
   const getPlaylist = db.transaction((id: string): PlaylistDetail | null => {
@@ -499,10 +652,10 @@ export function openDatabase(databasePath: string): DatabaseHandle {
     if (!playlist) return null;
     const tracks = db.prepare(`
       SELECT t.* FROM playlist_tracks pt
-      JOIN tracks t ON t.id = pt.track_id
+      JOIN library_tracks t ON t.id = pt.track_id
       WHERE pt.playlist_id = ?
       ORDER BY pt.position, pt.track_id
-    `).all(id).map((row) => rowToTrack(row as TrackRow));
+    `).all(id).map((row) => userTrack(row as TrackRow));
     const revision = createHash("sha256")
       .update(JSON.stringify([id, playlist.name, playlist.description, tracks.map((track) => track.id)]))
       .digest("hex");
@@ -510,8 +663,13 @@ export function openDatabase(databasePath: string): DatabaseHandle {
   });
 
   function writePlaylistOrder(playlistId: string, trackIds: string[]): void {
+    // Reorder the visible subset in its existing slots, retaining songs from other roots.
+    const all = db.prepare("SELECT track_id FROM playlist_tracks WHERE playlist_id = ? ORDER BY position, track_id").all(playlistId) as { track_id: string }[];
+    const visible = new Set(trackIds);
+    let cursor = 0;
+    const merged = all.map((row) => visible.has(row.track_id) ? trackIds[cursor++] : row.track_id);
     const update = db.prepare("UPDATE playlist_tracks SET position = ? WHERE playlist_id = ? AND track_id = ?");
-    trackIds.forEach((trackId, index) => update.run(index + 1, playlistId, trackId));
+    merged.forEach((trackId, index) => update.run(index + 1, playlistId, trackId));
   }
 
   const renamePlaylist = db.transaction((id: string, name: string): Playlist | null => {
@@ -525,12 +683,13 @@ export function openDatabase(databasePath: string): DatabaseHandle {
 
   const addTrackToPlaylist = db.transaction((playlistId: string, trackId: string): PlaylistDetail | null => {
     const current = getPlaylist(playlistId);
-    if (!current || !db.prepare("SELECT id FROM tracks WHERE id = ?").get(trackId)) return null;
+    if (!current || !db.prepare("SELECT id FROM library_tracks WHERE id = ?").get(trackId)) return null;
     if (current.tracks.some((track) => track.id === trackId)) return current;
     // Compact legacy gaps before appending, so every successful mutation keeps positions contiguous.
     writePlaylistOrder(playlistId, current.tracks.map((track) => track.id));
+    const total = db.prepare("SELECT COUNT(*) AS count FROM playlist_tracks WHERE playlist_id = ?").get(playlistId) as { count: number };
     db.prepare("INSERT INTO playlist_tracks (playlist_id, track_id, position, added_at) VALUES (?, ?, ?, ?)")
-      .run(playlistId, trackId, current.tracks.length + 1, now());
+      .run(playlistId, trackId, total.count + 1, now());
     db.prepare("UPDATE playlists SET updated_at = ? WHERE id = ?").run(now(), playlistId);
     return getPlaylist(playlistId);
   });
@@ -562,8 +721,15 @@ export function openDatabase(databasePath: string): DatabaseHandle {
 
   return {
     db,
+    forUser,
+    setLibraryRoot(root) { activeRoot = root ? path.resolve(root) : null; },
+    getLibraryRoot() { return activeRoot; },
+    catalogRevision() {
+      const version = db.prepare("SELECT version FROM library_revisions WHERE key = 'tracks'").get();
+      return createHash("sha256").update(JSON.stringify([instanceId, activeRoot, version])).digest("hex");
+    },
     getIndexedTrack(filePath) {
-      const row = db.prepare("SELECT * FROM tracks WHERE path = ?").get(filePath) as TrackRow | undefined;
+      const row = db.prepare("SELECT * FROM tracks WHERE path = ? AND active_library_path(path) = 1").get(filePath) as TrackRow | undefined;
       if (!row) return null;
       return {
         ...rowToTrack(row),
@@ -574,14 +740,14 @@ export function openDatabase(databasePath: string): DatabaseHandle {
       };
     },
     listIndexedPaths() {
-      return (db.prepare("SELECT path FROM tracks ORDER BY path").all() as { path: string }[]).map((row) => row.path);
+      return (db.prepare("SELECT path FROM library_tracks ORDER BY path").all() as { path: string }[]).map((row) => row.path);
     },
     getTrack(id) {
-      const row = db.prepare("SELECT * FROM tracks WHERE id = ?").get(id) as TrackRow | undefined;
-      return row ? rowToTrack(row) : null;
+      const row = db.prepare("SELECT * FROM library_tracks WHERE id = ?").get(id) as TrackRow | undefined;
+      return row ? userTrack(row) : null;
     },
     getTrackLyricsPath(id) {
-      const row = db.prepare("SELECT lyrics_path FROM tracks WHERE id = ?").get(id) as { lyrics_path?: string | null } | undefined;
+      const row = db.prepare("SELECT lyrics_path FROM library_tracks WHERE id = ?").get(id) as { lyrics_path?: string | null } | undefined;
       if (!row) return undefined;
       return row.lyrics_path ?? null;
     },
@@ -595,7 +761,7 @@ export function openDatabase(databasePath: string): DatabaseHandle {
       txUpsert(track);
     },
     removeMissingTracks(seenPaths) {
-      const rows = db.prepare("SELECT id, path FROM tracks").all() as { id: string; path: string }[];
+      const rows = db.prepare("SELECT id, path FROM library_tracks").all() as { id: string; path: string }[];
       const missing = rows.filter((row) => !pathWasSeen(row.path, seenPaths));
       const tx = db.transaction(() => {
         const delFts = db.prepare("DELETE FROM tracks_fts WHERE id = ?");
@@ -611,6 +777,9 @@ export function openDatabase(databasePath: string): DatabaseHandle {
     listAlbums,
     pageAlbums,
     getAlbum,
+    getAlbumMetadata,
+    saveAlbumMetadata,
+    completeAlbumMetadata,
     listArtists,
     pageArtists,
     getArtist(name) {
@@ -621,15 +790,15 @@ export function openDatabase(databasePath: string): DatabaseHandle {
         SELECT * FROM (${albumSelect})
         WHERE album_key IN (
           SELECT release_album_key(album, album_artist, artist, path)
-          FROM tracks WHERE COALESCE(album_artist, artist, '未知艺人') = ?
+          FROM library_tracks WHERE COALESCE(album_artist, artist, '未知艺人') = ?
         )
         ORDER BY newest_added_at DESC, album_key
       `).all(name).map((album) => rowToAlbum(album as TrackRow));
       const tracks = db.prepare(`
-        SELECT * FROM tracks
+        SELECT * FROM library_tracks
         WHERE COALESCE(album_artist, artist, '未知艺人') = ?
         ORDER BY release_album_title(album, album_artist, path) COLLATE NOCASE, release_album_key(album, album_artist, artist, path), release_disc_sort(album, album_artist, path, disc_no), track_no, title COLLATE NOCASE, id
-      `).all(name).map((row) => rowToTrack(row as TrackRow));
+      `).all(name).map((row) => userTrack(row as TrackRow));
       return { artist, albums, tracks };
     },
     search(q) {
@@ -639,14 +808,19 @@ export function openDatabase(databasePath: string): DatabaseHandle {
       return { tracks, albums, artists };
     },
     toggleFavorite(id, favorite) {
-      db.prepare("UPDATE tracks SET favorite = ?, updated_at = ? WHERE id = ?").run(favorite ? 1 : 0, now(), id);
+      if (!this.getTrack(id)) return null;
+      db.transaction(() => {
+        if (favorite) db.prepare("INSERT OR IGNORE INTO user_favorites(user_id, track_id) VALUES (?, ?)").run(userId, id);
+        else db.prepare("DELETE FROM user_favorites WHERE user_id = ? AND track_id = ?").run(userId, id);
+        if (userId === "admin") db.prepare("UPDATE tracks SET favorite = ?, updated_at = ? WHERE id = ?").run(favorite ? 1 : 0, now(), id);
+      })();
       return this.getTrack(id);
     },
     createPlaylist(name, description = null) {
       const id = randomUUID();
       const timestamp = now();
-      db.prepare("INSERT INTO playlists (id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)")
-        .run(id, name, description, timestamp, timestamp);
+      db.prepare("INSERT INTO playlists (id, name, description, created_at, updated_at, owner_id) VALUES (?, ?, ?, ?, ?, ?)")
+        .run(id, name, description, timestamp, timestamp, userId);
       return playlistSelect("WHERE p.id = ?", [id])[0];
     },
     listPlaylists() {
@@ -655,7 +829,7 @@ export function openDatabase(databasePath: string): DatabaseHandle {
     getPlaylist,
     renamePlaylist: renamePlaylist.immediate,
     deletePlaylist(id) {
-      return db.prepare("DELETE FROM playlists WHERE id = ?").run(id).changes > 0;
+      return db.prepare("DELETE FROM playlists WHERE id = ? AND owner_id = ?").run(id, userId).changes > 0;
     },
     addTrackToPlaylist: addTrackToPlaylist.immediate,
     removeTrackFromPlaylist: removeTrackFromPlaylist.immediate,
@@ -745,11 +919,11 @@ export function openDatabase(databasePath: string): DatabaseHandle {
           COUNT(*) AS track_count,
           COUNT(DISTINCT release_album_key(album, album_artist, artist, path)) AS album_count,
           COUNT(DISTINCT COALESCE(album_artist, artist, '未知艺人')) AS artist_count,
-          SUM(CASE WHEN favorite = 1 THEN 1 ELSE 0 END) AS favorite_count,
+          SUM(CASE WHEN EXISTS (SELECT 1 FROM user_favorites uf WHERE uf.track_id = library_tracks.id AND uf.user_id = @userId) THEN 1 ELSE 0 END) AS favorite_count,
           COALESCE(SUM(duration), 0) AS total_duration
-        FROM tracks
-      `).get() as TrackRow;
-      const playlistCount = db.prepare("SELECT COUNT(*) AS count FROM playlists").get() as { count: number };
+        FROM library_tracks
+      `).get({ userId }) as TrackRow;
+      const playlistCount = db.prepare("SELECT COUNT(*) AS count FROM playlists WHERE owner_id = ?").get(userId) as { count: number };
       return {
         trackCount: Number(counts.track_count ?? 0),
         albumCount: Number(counts.album_count ?? 0),
@@ -761,6 +935,8 @@ export function openDatabase(databasePath: string): DatabaseHandle {
       };
     }
   };
+  }
+  return forUser("admin");
 }
 
 export function makeAlbumKey(album: string | null, albumArtist: string | null, artist: string | null): string {

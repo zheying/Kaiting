@@ -1,6 +1,8 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AppConfig } from "./config.js";
+import type { DatabaseHandle } from "./db.js";
+import { registerAccountAuthentication } from "./accounts.js";
 
 const COOKIE_NAME = "ml_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 14;
@@ -33,7 +35,8 @@ function verifyToken(config: AppConfig, token: string | undefined): boolean {
   }
 }
 
-export async function registerAuth(app: FastifyInstance, config: AppConfig): Promise<void> {
+export async function registerAuth(app: FastifyInstance, config: AppConfig, database?: DatabaseHandle): Promise<void> {
+  if (database) return registerAccountAuthentication(app, config, database);
   app.addHook("preHandler", async (request, reply) => {
     const routePath = request.routeOptions.url ?? request.url.split("?", 1)[0];
     if (routePath !== "/api" && !routePath.startsWith("/api/")) return;

@@ -3,6 +3,7 @@ import path from "node:path";
 export interface AppConfig {
   port: number;
   musicLibraryPath: string;
+  musicLibraryRoots?: string[];
   dataDir: string;
   databasePath: string;
   artworkDir: string;
@@ -11,6 +12,8 @@ export interface AppConfig {
   cookieSecret: string;
   cookieSecure?: boolean;
   enableOnlineMetadata: boolean;
+  scanOnlineMetadata?: boolean;
+  autoCompleteAlbumMetadata?: boolean;
   isProduction: boolean;
 }
 
@@ -38,6 +41,8 @@ export function loadConfig(): AppConfig {
   const cookieSecret = process.env.COOKIE_SECRET ?? (isProduction ? "" : DEVELOPMENT_COOKIE_SECRET);
   const cookieSecure = envBool("COOKIE_SECURE", process.env.COOKIE_SECURE, isProduction);
   const enableOnlineMetadata = envBool("ENABLE_ONLINE_METADATA", process.env.ENABLE_ONLINE_METADATA, false);
+  const scanOnlineMetadata = envBool("SCAN_ONLINE_METADATA", process.env.SCAN_ONLINE_METADATA, true);
+  const autoCompleteAlbumMetadata = envBool("AUTO_COMPLETE_ALBUM_METADATA", process.env.AUTO_COMPLETE_ALBUM_METADATA, true);
   const port = Number(process.env.PORT ?? 3000);
 
   if (!adminPassword.trim()) {
@@ -55,6 +60,7 @@ export function loadConfig(): AppConfig {
   return {
     port,
     musicLibraryPath,
+    musicLibraryRoots: process.env.MUSIC_LIBRARY_ROOTS?.split(path.delimiter).filter(Boolean).map((root) => path.resolve(root)),
     dataDir,
     databasePath: path.join(dataDir, "music-library.sqlite"),
     artworkDir,
@@ -63,6 +69,8 @@ export function loadConfig(): AppConfig {
     cookieSecret,
     cookieSecure,
     enableOnlineMetadata,
+    scanOnlineMetadata,
+    autoCompleteAlbumMetadata,
     isProduction
   };
 }

@@ -1,87 +1,139 @@
-# 代理协作说明
+# 项目协作规范
 
-这个仓库是一个面向个人 NAS 音乐库的 TypeScript 单仓库，包含 React/Vite 客户端和 Fastify/SQLite 服务端。应用将音乐目录视为只读，所有可变状态都写入 `DATA_DIR`。
+本仓库是「开听」：面向个人 NAS 的 TypeScript 音乐库，使用 React/Vite 客户端与 Fastify/SQLite 服务端。曲库只读，账号、索引、缓存和其他可变状态保存在 `DATA_DIR`。安装、配置和日常维护见 [README.md](README.md)。
 
-## 当前结构
+## 沟通与工作方式
 
-- 客户端：`src/client/App.tsx`、`src/client/styles.css`、`src/client/api.ts`。
-- 服务端：`src/server/index.ts`、`src/server/routes.ts`、`src/server/db.ts`、`src/server/scanner.ts`。
-- 共享类型：`src/shared/types.ts`。
-- 测试：`tests/`。
-- 生产构建输出：`dist/`。
-- 运行时数据：默认写入 `data/`。
+- 与用户沟通默认使用中文，包括计划、进度、问题说明、验证结果和交付总结；UI 文案也默认中文。用户明确要求其他语言时遵循其要求。
+- 改动前检查工作区和实际入口，保留已有未提交工作，不覆盖或回滚与本任务无关的改动。
+- 以当前代码、配置和可复现证据为准。历史审查、原型演示和部署记录各有适用范围，不能代替当前正式系统的验证。
+- 本仓库已实现管理员与普通账号，不再按单用户模型开发。
 
-## 运行命令
+## 代码入口
 
-```bash
-npm run typecheck
-npm test
-npm run build
-```
+| 范围 | 入口与职责 |
+| --- | --- |
+| 正式客户端 | `src/client/main.tsx`、`App.tsx`：样式加载、登录与会话入口；`src/client/room/Room.tsx`：音乐室主界面 |
+| 页面与播放器 | `src/client/room/`：账号、专辑信息、歌单排序、胶囊播放器、全屏播放、登录动画及样式 |
+| 客户端 API | `src/client/api.ts`；共享契约在 `src/shared/types.ts`、`src/shared/accounts.ts` |
+| 服务启动与配置 | `src/server/index.ts`、`config.ts` |
+| API 与账号 | `src/server/routes.ts`、`account-routes.ts`、`auth.ts`、`accounts.ts` |
+| 曲库与扫描 | `src/server/db.ts`、`directories.ts`、`scanner.ts`、`album-identity.ts` |
+| 元数据 | `src/server/metadata.ts`、`album-metadata.ts`、`album-enrichment.ts`、`musicbrainz.ts` |
+| 媒体与路径 | `src/server/audio.ts`、`media.ts`、`pathSafety.ts` |
+| 封面尺寸与缓存 | `src/server/artwork.ts`、`src/shared/artwork.ts`；客户端 `src/client/artwork.ts` 与 `room/StateComponents.tsx` |
+| 数据维护 | `src/server/maintenance.ts`、`artwork-import.ts`、`data-lock.ts` |
+| 独立设计原型 | `prototypes/listening-room/`；使用模拟数据，与正式服务分开运行 |
+| 测试 | `tests/`、`e2e/`、`scripts/test-catalog.mjs`、`playwright.config.ts` |
 
-开发模式：
+构建输出为 `dist/`，默认运行时数据为 `data/`，测试产物为 `artifacts/`。正式样式由 `src/client/main.tsx` 引入 `room/*.css`；不要仅修改旧的 `src/client/styles.css` 或原型副本，就认为正式页面已更新。
 
-```bash
-npm run dev
-```
+## 常用命令
 
-本地生产运行（先按 README 配置 `.env` 中的密码、随机密钥、音乐路径和 Cookie 传输方式）：
-
-```bash
-NODE_ENV=production \
-node --env-file=.env dist/server/server/index.js
-```
-
-Docker：
+在仓库根目录执行；环境要求和 `.env` 加载方式见 README。
 
 ```bash
-docker compose up --build
-```
-
-## 实现规则
-
-- 不要修改音乐库目录中的任何文件。扫描器和 API 必须保持曲库只读。
-- 所有用户数据都放在 `DATA_DIR`：包括 SQLite 数据库、封面缓存、元数据缓存、歌单、收藏和扫描记录。
-- 任何基于歌曲记录或请求参数推导出的路径，都必须经过 `safeRealPath`。
-- 浏览器兼容的格式优先直传。只有在 `shouldTranscode(track)` 返回需要，或者请求显式使用 `mode=transcode` 时才调用 FFmpeg。
-- 保持现有 M4A 规则：AAC M4A 直接播放，ALAC M4A 走转码。
-- UI 文案默认保持中文。
-- 除非任务明确要求多账号，否则维持单用户应用模型。
-- 纯 UI 改动避免引入重量级前端依赖。
-
-## 前端说明
-
-- 路由使用 hash URL，例如 `#/albums`、`#/album/:key`、`#/playing`。
-- 底部播放器有意参考 Apple Music Web，包含桌面、紧凑和移动端布局。
-- 用户偏好移动端底部播放器的胶囊造型；后续排版与触控优化应保留这一外形。
-- 移动端布局由 `useMobileLayout()` 优先根据手机 UA 决定；非 iPad 浏览器在小于 480 CSS px 时也使用移动布局，并响应窗口宽度变化。iPad（含桌面 UA 的 iPadOS）仍视为桌面/平板。
-- 全屏播放页分桌面和移动端两套样式路径。移动端包含：
-- 封面居中布局。
-- 播放/暂停时的封面尺寸动画。
-- 移动端待播清单面板。
-- 底部歌词/队列切换标签。
-- 桌面浏览器的最小宽度是有意为之。除非任务明确要求调整移动 UA 布局，不要把它改成完全随宽度无限收缩的实现。
-
-## 服务端说明
-
-- 主要 API 路由位于 `src/server/routes.ts`。
-- 只有在 `NODE_ENV=production` 时才托管前端静态文件；否则 `/*` 会返回 JSON，提示使用 Vite 开发服务。
-- 生产环境必须提供 `ADMIN_PASSWORD` 和至少 32 字符的私有随机 `COOKIE_SECRET`。
-- 生产环境默认 `COOKIE_SECURE=true`；可信局域网 HTTP 直连必须显式配置 `COOKIE_SECURE=false`，HTTPS 反向代理保持 `true`。
-- 开发环境默认登录密码是 `admin`。
-- 在线元数据补全是可选能力，由 `ENABLE_ONLINE_METADATA` 控制。
-- 扫描默认增量且保留缺失索引；显式 `prune` 也必须通过完整遍历、无错误及挂载检查，不能削弱空库/部分目录丢失保护。
-- 服务和数据维护命令共用 `DATA_DIR/.runtime-lock.sqlite` 的独占锁；仅服务取得锁后执行遗留扫描恢复，不能在普通 `openDatabase()` 时把其他连接的活动扫描标记失败。
-- 备份/恢复实现位于 `src/server/maintenance.ts`；恢复只允许新/空目录，必须验证文件与数据库完整性并重定位缓存路径，不自动迁移音乐路径或歌曲 ID。
-
-## 验证
-
-交付代码前运行：
-
-```bash
+npm ci
+npm run dev           # 正式客户端 :3000，开发 API :3001
+npm run prototype     # 独立原型 :4173
 npm run typecheck
 npm run build
-git diff --check
 ```
 
-当改动涉及扫描、音频格式识别、路径安全、数据库行为或 API 合同时，额外运行 `npm test`。
+本地生产启动（先配置 `.env` 并构建）：
+
+```bash
+NODE_ENV=production node --env-file=.env dist/server/server/index.js
+```
+
+Docker 启动：`docker compose up -d --build`。开发脚本和 `npm start` 不会自动加载 `.env`，Compose 会读取它进行配置插值。
+
+## 数据与权限约束
+
+- 不修改音乐目录中的任何文件，包括标签、文件名、目录结构、封面和歌词。扫描、补全、导入、备份和 API 均须保持曲库只读。
+- SQLite 数据库、账号与会话、收藏、歌单、偏好、扫描记录、封面和元数据缓存均写入 `DATA_DIR`。测试使用临时曲库和独立 `DATA_DIR`，不得指向真实 NAS 或用户数据目录。
+- 基于歌曲记录或请求参数访问文件时，必须经过 `safeRealPath`；目录选择只能在已配置的允许根目录内，符号链接不能绕过边界。
+- 管理员管理共享曲库、目录、专辑信息与账号；收藏、歌单和播放偏好按账号隔离，管理员也不能读取其他账号的私人收藏和歌单。
+- 创建账号由服务端生成 12–22 位随机临时密码，仅在创建响应中返回；首次使用和重置密码后必须改密。保留服务端会话撤销、禁止停用/降级自己及至少一位可用管理员的保护。
+
+## 扫描、补全与维护约束
+
+- 首次选择和更换音乐目录自动扫描；常规服务启动不自动进行长时间曲库扫描。目录不可访问时保留原索引，不静默切换到其他目录。
+- 默认增量扫描并保留缺失索引。显式 `prune` 也必须通过非空、完整遍历、无错误及挂载检查，不能削弱空库、部分目录丢失和挂载变化保护。
+- `ENABLE_ONLINE_METADATA` 是在线能力总开关；`SCAN_ONLINE_METADATA` 控制扫描期间的逐曲补全；`AUTO_COMPLETE_ALBUM_METADATA` 控制扫描完成后的后台专辑补全，默认开启但仍受总开关约束，可显式关闭。初次及新增专辑后的完整扫描自动触发，网络查询不应阻塞本地扫描。
+- 专辑信息弹窗只用于人工修正与恢复，不要求用户点击查询、选择候选或保存来完成自动补全；信息完整的专辑也必须能进入编辑。
+- 在线能力开启时，编辑弹窗自动读取发行参考，展示来源与匹配差异。采用候选只修改其提供的草稿字段，保存才生效；查询晚到不能覆盖输入，关闭弹窗须取消读取。网络失败不阻断人工编辑，版本冲突须保留草稿并让用户明确重新载入。
+- 后台补全按字段共识保存缺失年份和流派：确认音乐内容相同后，多个正式发行版对某字段提供的值一致即可保存，冲突字段留空。合辑通用署名或分碟不同必须额外核对完整曲目名称、数量与逐曲时长，具体艺人冲突仍拒绝；不靠相似标题或搜索评分放行。详情失败、结果截断或超过查询预算时跳过；展示优先级为人工设置、扫描值、自动结果。
+- 自动来源按年份、流派分别保留。后续补另一字段不得丢失已有值或来源；曲目证据变化必须使查询缓存失效。查找只发送专辑名和发行 ID，不上传本地曲目、音频或路径。
+- 管理员保存或恢复扫描信息后保留人工管理标记，后台不得再次覆盖。目录、曲库版本或人工编辑变化后丢弃过期查询结果；保留来源、限速、缓存及有界重试。
+- 同一 `DATA_DIR` 的服务与维护命令共用 `.runtime-lock.sqlite` 独占锁。仅服务取得锁后恢复遗留扫描，不能在普通 `openDatabase()` 中把其他连接的活动扫描标记失败。
+- 备份和封面导入须遵守数据锁。恢复仅允许新/空目录，验证文件与 SQLite 完整性并重定位缓存路径；不自动迁移音乐路径或歌曲 ID，不绕过未完成恢复标记。
+
+## 前端与播放约束
+
+- 正式 UI 以定稿原型为基准，保留组件层级、间距、状态反馈和交互。原型中的模拟成功不代表真实 API 行为通过。
+- 路由使用 hash URL，例如 `#/albums`、`#/album/:key`、`#/playing`。纯 UI 改动避免引入重量级依赖。
+- 保留桌面、紧凑和移动端播放器布局，尤其是移动端胶囊外形。移动全屏保留居中封面、播放/暂停缩放、待播清单和歌词/队列切换。
+- `useMobileLayout()` 优先识别手机 UA；非 iPad 浏览器小于 480 CSS px 也使用移动布局，并响应窗口变化。iPad（含桌面 UA 的 iPadOS）保持桌面/平板布局。
+- 桌面最小宽度有意保留。除非任务明确要求，不将桌面改成随宽度无限收缩的布局。
+- 浏览器兼容格式优先直传。仅在 `shouldTranscode(track)` 判定需要或请求显式使用 `mode=transcode` 时调用 FFmpeg；AAC M4A 直传，ALAC M4A 转码。
+- 封面通过 `Artwork` 按实际显示大小与 DPR 选尺寸，不先请求原图。背景和 Media Session 也使用有界尺寸；缩略图仅写 `DATA_DIR/artwork/thumbnails`，源图与缓存路径均须验证，保留鉴权、输入/并发上限和源图变化后的缓存失效。
+- 歌单编辑不得隐式重写当前播放队列；排序保持版本冲突保护，保存失败保留可恢复的草稿。
+
+## 运行与部署约束
+
+- 只有 `NODE_ENV=production` 时才托管 `dist/client`；开发时从 Vite 入口查看前端。
+- 生产必须设置 `ADMIN_PASSWORD` 和至少 32 字符的私有随机 `COOKIE_SECRET`。`ADMIN_PASSWORD` 只初始化管理员，不覆盖数据库中已有密码；开发环境未配置时初始账号为 `admin` / `admin`。
+- 生产默认 `COOKIE_SECURE=true`；可信局域网 HTTP 直连须显式设为 `false`，HTTPS 反向代理保持 `true`。该选项不会自动启用 HTTPS。
+- Docker 曲库挂载保持 `:ro`。部署说明、日志和测试产物不得包含真实密码、Cookie、密钥或 `.env` 内容。
+- 公开文档使用占位主机和路径，不写真实内网地址、SSH 用户名、本机用户目录、NAS 导出路径或运维备份位置。提交前检查文档、截图、日志与 Git 暂存差异，不能只检查 README。
+- 原始部署与验收附件保存在 `artifacts/` 或仓库外私有目录；`docs/` 只提交脱敏的 Markdown 汇总。截图需要检查可见文字和元数据，文本替换不能代替图片审查。已进入历史的敏感内容须清理历史引用，作者署名按用户要求保留。
+
+## 测试与交付
+
+### 先确定预期，再选择验证
+
+- 每次修改默认执行能覆盖本次风险的最小充分验证集，验证范围由行为变化及其依赖决定，不由文件数量或“保险起见”决定。全量测试不是每次编辑、交付、提交或部署的默认步骤。
+- 测试来自需求和失败模式，不要代码写完后再补镜像实现的单元测试来证明正确。需要隔离测试某个系统时，先列出重要失败方式与预期行为，再写代码。
+- 执行前用一句话说明“本次影响什么、选择哪些验证、为何足够”。简单修改不必新增测试计划文档，也不为凑数量而新增测试或固定运行若干个 E2E。
+- 复杂交互与跨层用户流程强烈优先使用针对性 E2E；从真实页面、API 和持久化结果验证。优先复用已有相关用例，只有现有证据不能覆盖需求或故障时才补充测试。
+- 局部修改禁止默认运行整个相关模块。优先精确到用例或文件，必要时再选择功能范围；先用 `--list` 核对选择，并用 `-t`（Vitest）或 `-g`（E2E）缩小。下面的范围命令是可选示例，不是每次逐条执行的清单。
+- 扫描、音频格式、路径安全、数据库行为或 API 契约变更，必须补充相应边界验证；E2E 成功流程不能代替权限、并发、prune、锁和损坏数据保护。
+
+| 改动类型 | 默认验证范围 |
+| --- | --- |
+| 文档、注释 | 核对内容、链接、路径和 diff；不默认构建或运行产品测试 |
+| 纯样式、静态文案 | 检查受影响页面、关键状态及适用视口并留截图；不默认运行 E2E，也不新增证明样式的单元测试 |
+| 局部交互、业务逻辑 | 覆盖改变的行为、主要失败方式和直接受影响的相邻流程；仅选择相关用例 |
+| API、数据库、安全、扫描、播放 | 按实际改动补充对应边界、集成或 E2E 验证；不因属于核心模块就执行全部测试 |
+| 共享基础设施、依赖或构建工具 | 先列出受影响的消费者或运行路径，再扩大到这些范围；改动类型本身不自动触发全量 |
+
+### 扩大范围与停止条件
+
+- 只有出现未覆盖的具体风险、相关失败或新的影响面，才扩大验证；每次扩大须说明新增范围与原因。局部失败先定位并重跑失败用例及直接关联项，不能用全量重跑代替诊断。
+- 全量仅在以下任一条件成立时执行：用户明确要求本次完整回归；适用的 CI 或发布门禁明确要求；已有证据表明影响跨模块且无法可靠界定。最后一种情况须在执行前说明证据及定向验证为何不足，不能只写“更稳妥”。
+- 同一逻辑任务中的连续小调整合并验证。相关代码、依赖、配置和运行环境未变化，且已有结果覆盖最终改动时，复用结果与产物；不因进入提交、部署或交付阶段而重复相同测试。仍须完成部署后的健康检查和必要的目标页面检查。
+- 所选验证通过、已识别风险均有证据后停止。用例数量不设固定上限，也不设最低配额；不能为了少跑测试而遗漏已知风险。
+
+```bash
+npm run test:list
+npm run test:scope -- scan --list
+npm run test:scope -- scan
+npm test -- tests/audio.test.ts
+npm run test:e2e -- playback --list
+npm run test:e2e -- playback
+```
+
+`npm test` 必须指定文件，`test:e2e` 必须指定范围；不要绕过选择入口，默认执行裸 `npx vitest run` 或 `npx playwright test`。功能与 E2E 的范围名称不同，完整对照见 README。新增/移动 `.test.ts` 须更新 `scripts/test-catalog.mjs`，E2E 放在 `e2e/*.spec.ts`。
+
+### 验证产物与交付门槛
+
+- E2E 使用生产构建、临时曲库和独立数据库，保留 `artifacts/e2e/<时间>-<范围>/` 中的报告、截图、trace、请求/服务日志、音乐哈希和 SQLite 校验，以及 `run.json` 的复验命令与源码/构建指纹。
+- E2E 只使用 Playwright 管理的 `chromium` 通道（当前为 Chrome for Testing）；安装命令为 `npx playwright install chromium --no-shell`，Linux CI 加 `--with-deps`。不得改回系统 `chrome` 通道、连接日常浏览器或复用个人 profile。
+- macOS seatbelt 执行环境必须在启动浏览器前停止。需要实际 E2E 时使用获准的执行环境；不得清除环境标志、反复重试或关闭用户 Chrome 来绕过限制。全局预检记录 `browser-preflight.json`，失败即停，零重试且首例失败后停止后续用例。修改启动逻辑时运行 `npm run test:browser` 及相关真实 E2E。
+- 使用外部边界故障注入，不通过修改播放器内部状态或伪造媒体事件冒充播放验收。Chrome 设备模拟不能代替真实 iOS Safari 或 NAS 挂载环境验证。
+- 代码交付前确保最终改动通过 `npm run typecheck`、`npm run build`、`git diff --check`，并完成所需定向验证。基础检查不必在每次中间编辑后重跑；E2E 已成功执行的同一源码生产构建可作为构建证据，无需额外重复。仅文档修改按上表检查。
+- 报告实际验证方式、用例范围与结果、产物及重要未覆盖事项，明确区分页面检查、类型检查、构建、定向测试与全量测试；不能把收集清单或局部通过说成全量通过。
+- 满足上述全量条件时才使用 `test:all`、`test:e2e:all`；完整 CI 使用 `test:ci`，需要 FFmpeg 与独立测试浏览器。保留既有 CI 门禁，不为缩短本地验证而削弱 CI。`test:ci:node` 只是其中的 unit/integration 步骤。
+
+测试背景与验收依据：[整改记录](docs/testing/test-implementation-2026-09-28.md)、[E2E 验收计划](docs/testing/e2e-acceptance-plan.md)、[选择命令验收计划](docs/testing/selector-acceptance-plan.md)。

@@ -1,142 +1,227 @@
-# NAS Music Library
+# 开听 · NAS Music Library
 
-一个面向个人 NAS 的音乐管理 Web/PWA。应用只读扫描音乐目录，把索引、封面缓存、歌词引用、歌单和收藏写入持久化数据目录，并提供漂亮的桌面、平板和手机网页播放体验。
+开听是面向个人 NAS 的音乐库与网页播放器，使用 React/Vite、TypeScript、Fastify 和 SQLite。管理员与普通账号共享曲库，各自保存收藏、歌单和播放偏好。
 
-## 功能
+**音乐目录始终只读。** 扫描与信息补全不改标签、不移动或重命名文件；索引、账号、会话、收藏、歌单、封面及元数据缓存保存在 `DATA_DIR`。
 
-- 单用户登录，适合局域网、Tailscale/ZeroTier、VPN 或反向代理后部署。
-- 只读扫描音乐目录，不修改标签、不移动文件、不重命名文件。
-- 默认增量扫描，跳过未变化的已处理文件；服务中断后可重新扫描，缺失索引清理需单独确认。
-- 支持 `mp3`、`m4a/aac`、`flac`、`alac`、`ogg`、`opus`、`wav`。
-- AAC M4A、MP3、OGG、OPUS、WAV 优先原文件直传；ALAC M4A、FLAC 和不兼容格式按需通过 FFmpeg 转 MP3 流。
-- 扫描本地标签、内嵌封面、同目录封面和 `.lrc` 歌词。
-- SQLite + FTS 搜索，支持歌曲、专辑、艺人和全文搜索。
-- 专辑墙、艺人页、搜索页、收藏、歌单、专辑详情、歌曲列表。
-- 歌曲、收藏、专辑、艺人和各类搜索结果支持分页与总数；搜索地址可在刷新和浏览器返回时恢复。
-- 歌单支持创建、添加/移除歌曲、重命名、删除和保存歌曲顺序；并发排序会提示冲突，保留当前播放队列。
-- 网页播放器、播放队列、进度拖动、音量控制、静音、随机播放、正常/单曲循环/列表循环。
-- 播放页支持桌面和移动端布局；移动端参考 Apple Music Web，包含封面缩放动画和待播清单视图。
-- 可选在线元数据补全：本地标签优先，缺失时查询 MusicBrainz、Cover Art Archive、LRCLIB，并把结果缓存到数据目录。
-- 扫描失败会保留最近任务的错误文件路径和原因，方便定位损坏音频。
+## 已实现的功能
 
-## 技术栈
+- 音乐室首页、专辑、艺人、歌曲、搜索、收藏、私人歌单、账号与管理员页面；正式界面以独立设计原型为基准。
+- 桌面、平板与手机布局，动态登录背景、胶囊播放器、全屏播放、同步歌词、待播队列及加载/空/错误状态。
+- 只读增量扫描，读取本地标签、内嵌或目录封面、`.lrc` 歌词；目录选择后自动扫描，支持进度、错误详情、中断恢复和受保护的缺失索引清理。
+- MP3、M4A/AAC、FLAC、ALAC、OGG、OPUS、WAV；兼容格式直传，FLAC、ALAC 等按需转码。
+- SQLite 全文搜索、分页读取与多碟专辑展示；歌单创建、重命名、添加/移除、拖动排序及并发冲突处理。
+- 专辑年份与流派的人工补充、在线发行版查找，以及扫描后高置信结果自动保存；保留来源与人工管理保护。
+- 数据备份、校验与恢复，以及缺失封面的离线缓存导入。部署支持 Docker Compose 或本地 Node.js。
 
-- 前端：React、Vite、TypeScript、Lucide icons。
-- 后端：Fastify、TypeScript。
-- 数据库：SQLite，包含全文搜索索引。
-- 音频：浏览器直传 + FFmpeg 按需转码。
-- 部署：Docker Compose 或本地 Node.js。
+## Docker 快速启动
 
-## Docker Compose
+准备 Docker Compose 和已挂载的音乐目录，在仓库根目录执行：
 
 ```bash
 cp .env.example .env
-# 编辑 .env，填写密码、随机密钥和主机曲库路径，再启动。
-docker compose up -d --build
+openssl rand -hex 32
 ```
 
-部署前编辑 `.env`，设置自己的 `ADMIN_PASSWORD`，并把 `openssl rand -hex 32` 生成的随机字符串填入 `COOKIE_SECRET`。生产环境会拒绝缺失、少于 32 字符或仍使用仓库公开示例的密钥。密钥应持久保留；更换密钥会使已有登录失效。
-
-把 `MUSIC_LIBRARY_PATH` 改成 NAS 主机上已经挂载的真实音乐目录。Compose 自动读取 `.env`，将该目录只读挂载到容器 `/music`，将主机 `DATA_DIR` 挂载到容器 `/data`，并把主机 `PORT` 转发至容器固定端口 `3000`。修改 `.env` 后重新执行 `docker compose up -d`，让配置生效。
-
-容器使用 `unless-stopped` 重启策略、进程回收和健康检查，日志最多保留 3 个 10 MB 文件。主机还需让 Docker 随系统或用户登录启动，并关闭自动睡眠。可用 `docker compose ps` 查看健康状态；健康检查失败本身不会触发 Docker 自动重启，异常退出才会按重启策略恢复。`MUSIC_LIBRARY_IMAGE` 可指定已构建的镜像标签，默认 `music-library:local`。
-
-若音乐来自另一台 NAS，可使用 [docker-compose.nfs.yml](docker-compose.nfs.yml) 将 `/music` 改为只读 NFS Docker 卷，`/data` 仍放在运行容器的主机磁盘上。需要先创建 NFS 卷，并在 `.env` 设置 `NAS_MUSIC_VOLUME`；`MUSIC_LIBRARY_PATH` 仍需填写 NAS 路径，以满足基础配置合并前的插值检查。使用 `docker compose -f docker-compose.yml -f docker-compose.nfs.yml up -d --build` 启动，或将该配置复制为部署目录的 `docker-compose.override.yml` 自动加载。实际部署、NFS 参数和维护命令见 [192.0.2.10 部署记录](docs/docker-deployment-2026-09-22.md)。
-
-浏览器通过 HTTPS（包括反向代理提供的 HTTPS）访问时，保持 `COOKIE_SECURE=true`。如果只在可信局域网内直接通过 `http://NAS地址:3000` 访问，需显式设置 `COOKIE_SECURE=false`，否则浏览器不会通过 HTTP 发送登录 Cookie。该选项只控制 Cookie，不会为服务启用 HTTPS；从外网访问应通过 HTTPS 或 VPN。
-
-常用环境变量：
-
-- `ADMIN_PASSWORD`：登录密码，生产环境必填。
-- `COOKIE_SECRET`：Cookie 签名密钥，生产环境必填，至少 32 字符，使用随机生成值。
-- `COOKIE_SECURE`：Cookie 是否仅通过 HTTPS 发送；生产默认 `true`，开发默认 `false`。可信局域网 HTTP 部署需显式设置 `false`。
-- `MUSIC_LIBRARY_PATH`：本地运行时是曲库路径；Compose 的 `.env` 中是主机曲库路径，容器内固定 `/music`。
-- `DATA_DIR`：本地运行时是数据库、封面和在线元数据缓存目录；Compose 的 `.env` 中是主机持久化路径，默认 `./data`，容器内固定 `/data`。
-- `ENABLE_ONLINE_METADATA`：设为 `true` 后启用缺失标签、封面、歌词的在线补全。
-- `PORT`：本地运行时是服务监听端口；Compose 中是主机发布端口，默认 `3000`，容器内部固定 `3000`。
-
-在线元数据补全不会修改音乐文件；音乐目录保持只读。补全结果会写到 `DATA_DIR/metadata` 和 `DATA_DIR/artwork`，服务离线时扫描仍会继续使用本地标签。
-
-## 本地开发
+编辑 `.env`：填写初始管理员密码 `ADMIN_PASSWORD`，将生成的随机字符串填入 `COOKIE_SECRET`，设置真实的主机 `MUSIC_LIBRARY_PATH` 和持久化 `DATA_DIR`。若在可信局域网直接使用 HTTP，设 `COOKIE_SECURE=false`；HTTPS 反向代理保持 `true`。
 
 ```bash
-npm install
-npm run dev
+docker compose up -d --build
+docker compose ps
 ```
 
-本地调试入口固定为 `http://localhost:3000`。开发模式下 Vite 监听 `3000`，Fastify API 监听内部端口 `3001` 并由 Vite 代理 `/api`。如果没有设置 `ADMIN_PASSWORD`，开发环境默认密码是 `admin`。
+打开 `http://主机地址:3000`（或 `.env` 中的 `PORT`），用 `admin` 和配置的初始密码登录，在“设置 → 音乐目录”选择目录。首次选择及以后更换目录都会自动扫描。已有账号使用数据库内的密码，修改 `ADMIN_PASSWORD` 不会重置它。
 
-开发模式下请直接打开 `http://localhost:3000/` 查看前端。
+Compose 自动读取 `.env`，将主机音乐目录只读挂载到 `/music`，将主机 `DATA_DIR` 挂载到 `/data`，将主机 `PORT` 转发到容器固定端口 `3000`。配置改变后重新执行 `docker compose up -d`；代码更新后使用 `docker compose up -d --build`。
 
-## 本地生产运行
+容器配置了 `unless-stopped`、进程回收、健康检查，以及最多 3 个 10 MB 的日志文件。健康检查失败本身不会触发自动重启；异常退出才按重启策略恢复。主机需保持 Docker 运行，并避免自动睡眠。
 
-先构建：
+### 使用另一台 NAS 的 NFS 目录
+
+[docker-compose.nfs.yml](docker-compose.nfs.yml) 可将 `/music` 替换为只读 NFS Docker 卷，`/data` 仍放在应用主机磁盘上。先创建 NFS 卷，在 `.env` 设置 `NAS_MUSIC_VOLUME`；基础配置插值仍要求 `MUSIC_LIBRARY_PATH` 非空。
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.nfs.yml up -d --build
+```
+
+也可在部署目录中把该文件复制为 `docker-compose.override.yml` 自动加载。卷创建、路径映射和维护步骤见 [Docker/NFS 部署指南](docs/docker-deployment.md)。示例使用占位地址和路径；真实部署配置保留在仓库外。
+
+## 环境配置
+
+以 [.env.example](.env.example) 和 [服务端配置](src/server/config.ts) 为准。以下默认值指未设置相应变量时；开发脚本的端口固定为前端 `3000`、API `3001`。
+
+| 变量 | 用途与默认值 |
+| --- | --- |
+| `ADMIN_PASSWORD` | 初始管理员 `admin` 的密码；生产必填，开发默认 `admin`。仅首次初始化账号时使用 |
+| `COOKIE_SECRET` | Cookie/会话密钥；生产必须是至少 32 字符的私有随机值，公开示例密钥会被拒绝 |
+| `COOKIE_SECURE` | 生产默认 `true`，开发默认 `false`。可信局域网 HTTP 直连须设为 `false`；HTTPS 保持 `true` |
+| `MUSIC_LIBRARY_PATH` | 本地默认 `./music`；Compose 中必须填写主机曲库路径，容器内为 `/music` |
+| `MUSIC_LIBRARY_ROOTS` | 可选的额外允许根目录；macOS/Linux 用冒号分隔，Windows 用分号分隔。默认只允许主曲库及其子目录 |
+| `DATA_DIR` | 默认 `./data`。本地为数据目录；Compose 中为主机持久化路径，容器内为 `/data` |
+| `ENABLE_ONLINE_METADATA` | 在线能力总开关，默认 `false`；关闭时不发送在线补全请求 |
+| `SCAN_ONLINE_METADATA` | 默认 `true`；总开关开启后，允许扫描期间逐曲查找缺失标签、封面和歌词 |
+| `AUTO_COMPLETE_ALBUM_METADATA` | 默认 `true`；总开关开启后，扫描完成时在后台补齐专辑年份和流派，可显式关闭 |
+| `PORT` | 本地服务或 Compose 主机发布端口，默认 `3000`；容器内部固定 `3000` |
+| `MUSIC_LIBRARY_IMAGE` | Compose 镜像标签，默认 `music-library:local` |
+
+`MUSIC_LIBRARY_ROOTS` 在 Docker 中须使用容器内路径，并自行添加对应的只读卷和环境变量映射；仅在 `.env` 中填写主机路径不能访问未挂载的目录。
+
+`COOKIE_SECURE` 只控制 Cookie，不会为服务启用 HTTPS。外网访问应使用 HTTPS 或 VPN。保存好随机密钥；更换 `COOKIE_SECRET` 会使已有登录会话失效。
+
+## 本地运行与设计原型
+
+本地需要 Node.js 22（至少 22.12）或 24，以及可执行的 FFmpeg。Docker 镜像已包含 FFmpeg。以下命令按 macOS/Linux shell 书写。
+
+### 开发正式系统
+
+```bash
+npm ci
+MUSIC_LIBRARY_PATH="/实际音乐目录" DATA_DIR="./data/development" npm run dev
+```
+
+打开 `http://localhost:3000`。Vite 代理 `/api` 到 `3001`；开发 API 端口本身不托管前端。未配置初始密码且数据库为空时，账号是 `admin` / `admin`。
+
+开发脚本和 `npm start` **不会自动加载 `.env`**。开发时通过进程环境传入配置；建议使用独立的 `DATA_DIR`，不要与运行中的生产服务共享。
+
+### 本地生产启动
+
+复制并编辑 `.env`，填写密码、密钥和本机路径，然后：
+
+```bash
+npm ci
+npm run build
+NODE_ENV=production node --env-file=.env dist/server/server/index.js
+```
+
+生产模式由 Fastify 托管 `dist/client`。本地 HTTP 访问同样需要 `COOKIE_SECURE=false`。`npm start` 适用于配置已注入进程环境的情况。
+
+### 独立设计原型
+
+```bash
+npm run prototype
+```
+
+原型入口为 `http://127.0.0.1:4173/#/home`，状态总览为 `http://127.0.0.1:4173/#/preview`。原型使用模拟数据，供设计和交互对照；正式系统通过真实 API、数据库和音频运行。修改原型不会自动更新正式界面。
+
+原型单独构建和预览使用 `npm run prototype:build`、`npm run prototype:preview`。详见 [原型说明](prototypes/listening-room/README.md)。
+
+## 音乐目录与扫描
+
+管理员在“设置 → 音乐目录”选择服务器允许访问的目录，首次选择和更换目录都会自动扫描并呈现结果。普通账号不能维护目录。切换目录时停止播放、清空队列并更新列表；原目录的索引、收藏和歌单成员保留，当前界面仅显示所选曲库。
+
+日常“重新扫描”采用增量方式：处理新增文件、音频属性变化、本地封面/歌词变化及缓存失效，跳过已处理且未变化的文件。首次扫描或解析规则升级导致缓存失效时需要重新读取；解析失败的文件下次仍会重试。扫描结果包含已检查、重新解析、跳过和错误数，错误详情保留文件路径及原因。
+
+扫描进度页可停止任务，已读取内容保留。服务异常退出后，下次启动把遗留任务标记为失败并保留进度；再次扫描时跳过已完成且未变化的文件。常规服务启动不会自动发起长时间扫描。
+
+管理员 API `POST /api/scan` 支持以下请求，其中 `force` 和 `prune` 不放在日常设置页：
+
+| 请求 | 行为 |
+| --- | --- |
+| 省略请求体或 `{}` | 默认增量扫描，保留暂时失踪的索引 |
+| `{ "force": true }` | 重新解析全部音频元数据；启用扫描期间在线补全时也重试相关查询，保留收藏和歌单 |
+| `{ "prune": true }` | 扫描后清理失踪索引及其收藏、歌单关联，仍不修改音乐文件 |
+
+`prune` 只在非空、完整、无错误且通过挂载检查的扫描后执行。空库、权限/解析错误、挂载身份变化或原有目录整段消失均会阻止清理。它不能用来自动迁移曲库挂载路径；执行前应确认 NAS 与子目录已完整挂载。
+
+## 专辑信息与在线补全
+
+管理员从专辑详情页的“编辑专辑信息”进入，填写四位发行年份和最长 80 字的流派。专辑卡片仅展示信息，不提供编辑入口。信息按曲库与专辑保存在数据库中，对所有成员可见，重新扫描不会覆盖人工设置；留空沿用扫描值。点击“恢复扫描信息”后还需保存才生效。并发编辑产生版本冲突时会要求重新载入。
+
+后台自动补全与人工修正各自独立：
+
+| 方式 | 触发与保存 |
+| --- | --- |
+| 人工修正 | 手动填写或选用“发行参考”的年份与流派，点击“保存信息”后生效；参考查询失败或在线能力关闭时仍可手动编辑 |
+| 扫描后后台补全 | 初次扫描、新增专辑后的增量扫描及重新扫描，只要完整且无文件错误、无遗留缺失索引，随后串行查询；可信字段直接保存，无需打开页面、确认或点击保存。启动时也检查符合条件的已扫描曲库 |
+
+开启在线能力后，后台专辑补全默认启用。建议让本地扫描先完成，再在后台补齐专辑信息：
+
+```dotenv
+ENABLE_ONLINE_METADATA=true
+SCAN_ONLINE_METADATA=false
+AUTO_COMPLETE_ALBUM_METADATA=true
+```
+
+这样扫描只读取本地信息，后台查询随后独立执行。若还需要扫描期间逐曲查找缺失标签、封面与歌词，将 `SCAN_ONLINE_METADATA` 设为 `true`；这会让扫描等待网络查询。在线提供方包括 MusicBrainz、Cover Art Archive 和 LRCLIB，断网时仍可使用本地标签。
+
+专辑查找只向 MusicBrainz 发送专辑名称和候选发行 ID，不上传本地曲目、音频、路径或账号信息。自动判断先核对专辑名称（保留版本字样）、艺人、曲目数和已有年份。合辑通用署名或数字版、实体版的分碟不同，须额外在本地核对完整曲目名称及逐曲时长；具体艺人冲突、曲目数量不同或曲目内容不符时跳过。
+
+曲名可使用 MusicBrainz 明确关联的发行曲名与 recording 原文曲名，处理同一录音的语言差异；发行方的版本前后缀仍保留。本地统一前缀只有能由专辑名称解释时才视为冗余，不任意剥离 Live、Remastered 等字样；逐曲时长最多允许 3 秒差异，重复曲名也必须逐一对应。
+
+确认候选对应同一音乐内容后，年份和流派分别判断：多个正式版本的已知值一致即可补齐该字段，有冲突的字段保持空白，不按多数票猜填。候选缺少某字段不视为冲突；只采用其他可靠候选明确提供的共识值。每次最多检查 100 条搜索结果和 12 个同名发行详情，详情查询失败、搜索截断或超过预算时均不自动保存。年份与流派分别记录支持来源；仅收录 Soundtrack 分类时显示“原声”。
+
+展示优先级为 **人工设置 → 扫描标签 → 自动结果**。管理员保存信息（包括恢复扫描信息）后，该专辑转为人工管理，后续后台任务不再修改，需要调整时继续从编辑入口修正。后台保存后已打开的曲库自动更新，弹窗可查看来源。
+
+开启在线能力后，编辑弹窗会自动读取“发行参考”，复用同一查询缓存，展示日期、地区、格式、曲目数、流派、艺人及 MusicBrainz 来源。曲目数、分碟或艺人等差异会明确标注；较多候选可展开查看，结果截断或详情不完整会提示。点击“采用此版本”只将候选已提供的年份和流派填入草稿，缺失字段保留原输入，取消不会保存。查询晚到不改写表单；目录、曲库版本或人工信息变化使查询失效时保留草稿，需明确重新载入。这与扫描后无人干预的后台补全相互独立。
+
+MusicBrainz 请求共用至少 1.1 秒的间隔，并限制并发、超时和响应大小。专辑查询成功缓存一天，无结果缓存十分钟，连接错误不缓存；缓存也包含本地曲目名称与时长证据，更换同数量歌曲不会复用旧判断。后台连续失败时暂停，最多在 1 分钟、5 分钟后各重试一次；以后完整扫描或服务重启仍可重新检查。
+
+在线文件缓存位于 `DATA_DIR/metadata`、`DATA_DIR/artwork`；专辑查询缓存、补充信息、自动来源和人工管理标记保存在 SQLite 中，均随数据备份保留。
+
+## 浏览、播放与歌单
+
+歌曲列表先显示 40 首，“载入更多”继续显示；“播放全部”使用当前视图完整的匹配集合，不受已显示条数限制。点击单曲从该曲开始播放所属列表。搜索使用 `#/search?q=关键词`，兼容旧的 `#/search/关键词`。
+
+客户端通过分页 API 读取一致的曲库元数据快照，在内存中完成筛选、搜索预览、歌单封面拼接和队列操作；音频与封面按需加载。大型曲库仍需按实际规模评估首屏耗时和浏览器内存。
+
+封面根据实际显示尺寸与屏幕像素密度选择 64、128、256、512、1024 或 1600px 版本；列表、胶囊播放器及歌单拼图不下载原图，模糊背景固定使用 128px，锁屏封面使用 512px。服务端通过 Sharp 按需生成保留比例的 WebP，不放大小源图；缓存写入 `DATA_DIR/artwork/thumbnails`，同源同尺寸复用，并限制转换并发、输入大小和像素数。图片响应使用私有缓存与 ETag，封面文件变化后重新生成，源曲库保持只读。Sharp 随 `npm ci` 安装，无需单独安装图像命令行工具。
+
+多碟专辑按碟展示并连续播放。缺少专辑艺人标签时，仅在专辑名的 `[Disc N]` / `[CD N]` / `[Bonus Disc]` 后缀、碟目录和上一级专辑目录一致时合并发行版。原标签、歌曲 ID、收藏和歌单不变，旧单碟链接仍可访问；其他情况保守维持原分组。
+
+### 播放兼容性
+
+| 格式/操作 | 策略 |
+| --- | --- |
+| 浏览器兼容的 MP3、AAC M4A、OGG、OPUS、WAV | 优先直传原文件 |
+| FLAC、ALAC（含 ALAC M4A）及不兼容格式 | 按 `shouldTranscode(track)` 通过 FFmpeg 输出 MP3 流 |
+| 显式请求 `mode=transcode` | 强制转码；流接口同时支持 `auto`、`direct` |
+
+播放器支持进度拖动、音量/静音、随机播放、顺序播放、单曲与列表循环。移动端保留胶囊外形、全屏封面缩放、歌词及待播清单。iPad 使用桌面/平板布局。
+
+开启 `ENABLE_ONLINE_METADATA` 后，打开歌词面板时会优先读取本地歌词，缺失时自动向 LRCLIB 查询，不依赖 `SCAN_ONLINE_METADATA`。匹配会核对曲名、艺人及可用的专辑和时长信息，歌词仅缓存在 `DATA_DIR`。无匹配结果缓存 24 小时；“重新查找歌词”会刷新查询，仍遵守提供方的限流。网络失败显示可重试状态，不会保存为“没有歌词”。
+
+在线歌词包含有效的 Lyricsfile 逐词时间时，播放器根据音频时钟高亮对应词段，保留停顿与长短差异；仅有逐句 LRC 时使用整句高亮和自动滚动，不推算逐字进度。未提供词结束时间时仅在其起点高亮。旧在线缓存会在打开歌词时按需升级，查询失败仍可使用原歌词；本地音乐文件保持只读。`GET /api/tracks/:id/lyrics?format=json` 返回结构化时间轴，不传 `format` 时保留文本响应。
+
+### 整理歌单
+
+从歌曲“更多”菜单添加到已有歌单或新建歌单。详情页支持重命名、移除和删除；“调整顺序”可拖动手柄，支持触摸与键盘：空格选中，方向键或 Home/End 移动，空格放下，Esc 撤销。点击“保存顺序”提交，取消则放弃草稿。
+
+并发修改会提示冲突；失败保留可重试入口。编辑与删除歌单不会重写当前播放队列，新顺序在下次播放歌单时生效。删除歌单需要确认，仅删除歌单及关联，不删除音频或收藏。
+
+## 账号与权限
+
+首次启动创建管理员 `admin`。升级旧数据时保留曲库，并将既有收藏与歌单归入该账号；旧登录会话需重新登录。播放与界面偏好按账号保存到数据库，不导入旧浏览器的本地播放设置。
+
+管理员在“我的账号 → 用户管理”创建普通账号或管理员。创建时由服务端生成 12–22 位随机临时密码，只在本次响应中返回；新账号首次登录和密码重置后必须设置自己的密码。
+
+普通账号不能扫描、选择目录、补充共享专辑信息或管理用户。管理员同样不能读取其他账号的私人收藏与歌单。账号停用或角色变化会撤销该账号的会话；系统禁止停用/降级自己，并保留至少一位可用管理员。
+
+用户名不区分大小写，密码使用带盐 scrypt 存储；临时密码不存明文。Cookie 为 HttpOnly、SameSite=Lax，服务端会话可撤销。普通改密会退出全部会话，首次改密保留当前会话。
+
+## 数据维护与升级
+
+同一 `DATA_DIR` 只允许一个服务或维护进程使用，由 `.runtime-lock.sqlite` 保持独占。以下维护命令先构建并停止当前音乐服务，再使用相同路径配置运行。
+
+### 备份
 
 ```bash
 npm run build
-```
-
-再复制并编辑 `.env`，填写密码、随机密钥和本机实际曲库路径。Node.js 不会自动加载 `.env`，可使用 Node.js 22 及以上版本的 `--env-file` 参数启动：
-
-```bash
-NODE_ENV=production \
-node --env-file=.env dist/server/server/index.js
-```
-
-生产模式会由 Fastify 托管 `dist/client`。通过本地 HTTP 或局域网 HTTP 直接访问时，将 `.env` 中的 `COOKIE_SECURE` 设为 `false`；通过 HTTPS 反向代理访问时保持 `true`。
-
-## 播放兼容性
-
-- 原文件直传：浏览器可播放的 MP3、AAC M4A、OGG、OPUS、WAV 等格式。
-- 按需转码：FLAC、ALAC M4A 或浏览器不兼容的格式。
-- M4A 规则：AAC M4A 优先直传；ALAC M4A 转码。
-- 转码输出：当前使用 FFmpeg 输出 MP3 流。
-
-系统需要能在运行环境中执行 `ffmpeg`。Docker 镜像会安装 FFmpeg；本地运行时请自行安装。
-
-## 浏览与播放全部
-
-歌曲、收藏、专辑和艺人列表通过“上一页 / 下一页”浏览完整曲库。搜索会分别显示歌曲、专辑、艺人的匹配总数，各分类独立翻页。搜索关键词保存在 `#/search/关键词` 地址中。
-
-在歌曲或收藏列表点击单曲，会从这首歌开始播放当前页。要播放整个曲库、全部收藏或全部搜索结果，点击对应的“播放全部”按钮；全部歌曲加载完成后，点击“开始播放（N 首）”。准备期间可取消，失败可重试；当前播放队列会在确认开始播放时替换。专辑、艺人及歌单详情的播放按钮使用该详情内的完整歌曲列表。
-
-多碟专辑的详情按碟显示，整张专辑连续播放。缺少专辑艺人标签时，只有专辑名末尾的 `[Disc N]` / `[CD N]` / `[Bonus Disc]` 与碟目录一致、上一级目录又与去掉后缀的专辑名一致，才合并为同一发行版，并采用目录确认的碟号。原始标签、歌曲 ID、收藏和歌单不变，旧的单碟链接仍可打开完整专辑。其他情况保持原有分组，避免误合并不同版本。
-
-对于音频和目录均没有封面的专辑，可先停止服务，用离线命令补齐应用缓存（先 `npm run build`）：
-
-```bash
-npm run data:import-artwork -- --data-dir ./data --album-key '专辑 API 返回的 key' --file /绝对路径/cover.jpg --source-url '封面来源网址'
-```
-
-该命令与服务共用数据锁，只更新缺失封面的歌曲，并记录来源；不改写音频或现有封面。重扫会保留有效缓存，新发现的内嵌/目录封面优先。容器执行时沿用 `/data` 映射，将图片单独只读挂载。
-
-## 扫描与中断恢复
-
-“扫描曲库”默认执行增量扫描，处理新增、音频属性变化、本地歌词/封面变化或缓存失效的歌曲，跳过已处理且未变化的文件。首次升级后的扫描会建立增量记录，仍需读取全部音频；之后重扫会显示已检查、重新解析、跳过和错误数。
-
-“扫描选项”提供“重新解析全部”，用于重新读取全部音频元数据，并在启用在线补全时重试相关查询。它耗时更长，但仍保留收藏和歌单。元数据解析失败的文件不会记作成功，下次扫描会重新尝试。
-
-默认扫描保留暂时失踪的索引。确实删除音乐后，可在确认 NAS 及所有子目录完整挂载的情况下，选择“清理缺失索引…”并确认。只有非空、完整、无错误的扫描才执行清理；曲库为空、目录或挂载身份变化、权限不足、音频解析错误均阻止清理。清理会移除失踪歌曲的索引及收藏、歌单关联，音乐文件始终只读。整段原目录已消失时也会保守拒绝清理，不能用此操作自动迁移曲库挂载路径。
-
-服务异常退出后，再次启动会把遗留的“扫描中”标记为失败并保留进度；点击“重新扫描”后，已完成且未变的文件会跳过。应用不会在启动时自动开始长时间扫描。同一个 `DATA_DIR` 仅允许一个服务或维护命令使用，进程退出后占用自动释放。
-
-## 数据备份与恢复
-
-先执行 `npm run build`。备份前停止当前音乐服务，再使用已有 `.env` 的配置运行：
-
-```bash
 node --env-file=.env dist/server/server/maintenance.js backup
 ```
 
-也可以显式指定目录：
+也可显式传参：
 
 ```bash
 npm run data:backup -- --data-dir ./data --music-library-path "/实际音乐目录"
 ```
 
-命令输出完整备份目录，默认位于 `DATA_DIR/backups/backup-时间-标识/`。备份包括 SQLite 快照、`artwork`、`metadata`、文件清单及 SHA-256 校验值，涵盖收藏、歌单、扫描记录和缓存；不复制音乐文件、`.env` 或旧备份。SQLite 快照包含已提交的 WAL 数据。运行中的服务会阻止备份，避免数据库与缓存来自不同时刻。可用 `--backup-root` 指定另一处备份父目录；不能放进音乐目录或正在备份的缓存目录。
+默认输出 `DATA_DIR/backups/backup-时间-标识/`，包括含已提交 WAL 数据的 SQLite 快照、`artwork`、`metadata`、文件清单及 SHA-256。账号、密码哈希、会话、偏好、收藏、歌单、扫描记录和补全信息随数据库保存；不复制音频、`.env` 或旧备份。
 
-恢复必须使用新目录或空目录，命令会拒绝覆盖原有数据：
+可用 `--backup-root` 指定其他备份父目录，但不能放进曲库或正在备份的缓存目录。运行中的服务会阻止备份，保证数据库与缓存一致。完成的备份应另存一份，随机密钥和部署配置也需单独保存。
+
+### 恢复与升级
+
+恢复必须使用新目录或空目录：
 
 ```bash
 node --env-file=.env dist/server/server/maintenance.js restore \
@@ -144,60 +229,71 @@ node --env-file=.env dist/server/server/maintenance.js restore \
   --data-dir "./data-restored"
 ```
 
-恢复会检查每个文件及 SQLite 完整性，再更新指向旧 `DATA_DIR` 的缓存引用。音乐文件路径与歌曲 ID 保持原样，因此曲库仍应挂载在原路径；本机路径与 Docker 的 `/music` 之间迁移不在此工具的范围内。恢复完成后，将 `.env` 的 `DATA_DIR` 改为恢复目录，再按原方式启动服务，检查收藏、歌单、歌词及播放。保留原数据目录，确认恢复结果后再自行归档。
+恢复验证所有文件与 SQLite 完整性，并重定位旧 `DATA_DIR` 的缓存引用。音乐路径和歌曲 ID 保持原样，曲库须挂载在原路径；本机目录与 Docker `/music` 之间的路径迁移不在此工具范围内。
 
-若恢复进程被中断，未完成目录会保留恢复标记并拒绝启动；请换另一个新目录重试，不要删除标记后强行启动。密码与 Cookie 密钥需另行保存，备份工具不会读取或复制 `.env`。默认备份与数据在同一位置，完成的备份目录应另存一份，以应对原磁盘故障。
+完成后修改 `.env` 的 `DATA_DIR`，按原方式启动，检查收藏、歌单、歌词与播放。若恢复中断，未完成目录保留标记并拒绝启动；换新目录重试，不要删标记强行启动。
 
-维护命令可读取环境变量 `DATA_DIR`、`MUSIC_LIBRARY_PATH`，但不会自动加载 `.env`。`npm run data:backup -- --help` 和 `npm run data:restore -- --help` 可查看参数。容器中的维护命令应沿用服务的路径映射，并在原服务停止后执行。
+升级前先停止服务、备份数据，再构建并启动新版。数据库迁移保留既有数据；回退旧版应使用升级前备份。维护脚本不会自动加载 `.env`，可用上述 `node --env-file` 方式或显式参数；容器中须沿用服务路径映射并停止原服务。
 
-## 整理歌单
+### 导入缺失封面
 
-从歌曲的“更多”菜单添加到已有歌单，或新建歌单并添加。歌单详情支持重命名、从歌单移除歌曲，以及“调整顺序”：使用上移/下移按钮整理，点击“保存顺序”提交，或取消放弃草稿。若另一个页面已修改歌单，保存会提示冲突；放弃草稿并重新加载后再调整。
+音频和目录均无封面时，可补齐应用缓存：
 
-重命名、移除、调整顺序和删除歌单都会保留当前播放队列；新顺序在下次点击“播放歌单”时生效。删除歌单需要确认，仅删除歌单和歌曲关联，不删除音乐文件或收藏。网络失败会显示错误并保留可重试的操作入口。
+```bash
+npm run data:import-artwork -- \
+  --data-dir ./data \
+  --album-key '专辑 API 返回的 key' \
+  --file /绝对路径/cover.jpg \
+  --source-url '封面来源网址'
+```
+
+该命令也要求停止服务，只更新缺失封面并记录来源，不改音频或已有封面。重扫保留有效缓存，新发现的内嵌/目录封面优先。容器执行时沿用 `/data`，将导入图片另行只读挂载。各维护命令可追加 `--help` 查看参数。
+
+## 代码结构
+
+| 路径 | 用途 |
+| --- | --- |
+| `src/client/App.tsx`、`src/client/main.tsx` | 正式会话、登录和客户端入口 |
+| `src/client/room/` | 正式页面、播放器、账号、专辑信息表单及样式 |
+| `src/client/api.ts` | 客户端 API 契约 |
+| `src/server/` | 认证、API、SQLite、扫描、媒体、在线补全及维护工具 |
+| `src/shared/` | 共享类型和账号契约 |
+| `prototypes/listening-room/` | 独立设计原型 |
+| `tests/`、`e2e/`、`scripts/` | 单元/集成测试、浏览器验收、选择与 CI 脚本 |
+| `dist/`、`data/`、`artifacts/` | 构建输出、默认运行数据、验证产物；不提交版本库 |
 
 ## API 速览
 
-- `POST /api/auth/login`：登录。
-- `POST /api/auth/logout`：退出登录。
-- `GET /api/me`：当前用户与服务配置。
-- `POST /api/scan`：启动扫描，省略请求体为默认增量；可传 `{ force: true }` 重新解析或 `{ prune: true }` 启用缺失索引清理。
-- `GET /api/scan`：查看最近扫描状态。
-- `GET /api/scan/errors`：查看最近扫描任务的错误文件。
-- `GET /api/summary`：曲库统计。
-- `GET /api/tracks`：歌曲列表，支持 `q`、`limit`、`offset`、`favorite`、`page`。
-- `GET /api/tracks/:id`：歌曲详情。
-- `PATCH /api/tracks/:id/favorite`：收藏/取消收藏。
-- `GET /api/tracks/:id/artwork`：封面。
-- `GET /api/tracks/:id/lyrics`：歌词。
-- `GET /api/tracks/:id/stream`：音频流，支持 `mode=auto|direct|transcode`。
-- `GET /api/search`：全库搜索预览，最多返回 25 首歌曲、12 张专辑、12 位艺人；完整结果使用对应列表接口的 `q` 和分页参数。
-- `GET /api/albums`、`GET /api/albums/:key`：专辑列表和详情；列表支持 `q`、`limit`、`offset`、`page`。
-- `GET /api/artists`、`GET /api/artists/:name`：艺人列表和详情；列表支持 `q`、`limit`、`offset`、`page`。
-- `GET /api/playlists`、`POST /api/playlists`：歌单列表和创建。
-- `GET /api/playlists/:id`：歌单详情。
-- `PATCH /api/playlists/:id`：重命名，请求 `{ name }`，去除首尾空白后须为 1–200 个字符。
-- `DELETE /api/playlists/:id`：删除歌单及歌曲关联。
-- `POST /api/playlists/:id/tracks`：添加歌曲到歌单。
-- `DELETE /api/playlists/:id/tracks/:trackId`：从歌单移除歌曲。
-- `PUT /api/playlists/:id/tracks/order`：请求 `{ trackIds, revision }`，一次保存完整歌曲顺序。
-- `GET /api/metadata/status`：在线元数据开关、提供方和缓存数量。
+主要定义在 [routes.ts](src/server/routes.ts) 和 [account-routes.ts](src/server/account-routes.ts)。除健康检查与登录等入口外需要登录；管理接口由服务端检查权限，个人数据按当前账号隔离。
 
-三个列表接口添加 `page=true` 时返回 `{ items, total, limit, offset, revision }`，`total` 是应用筛选后的总数，`revision` 用于发现跨页加载期间的数据变化。`limit` 范围为 1–500，`offset` 为非负整数；排序包含唯一字段，稳定数据下翻页不会重复或遗漏。省略 `page` 或设为 `false` 仍返回数组，兼容原有调用。歌曲默认每页 80 首，专辑和艺人默认每页 200 项。
+| 范围 | 主要接口 |
+| --- | --- |
+| 健康与会话 | `GET /api/health`；`POST /api/auth/login`、`/api/auth/logout`；`GET /api/me` |
+| 我的账号 | `PATCH /api/account/profile`、`/api/account/preferences`；`POST /api/auth/password`；`GET` / `DELETE /api/account/sessions` |
+| 用户管理 | `GET` / `POST /api/admin/users`；`PATCH /api/admin/users/:id`；`POST /api/admin/users/:id/password` |
+| 目录与扫描 | `GET` / `PUT /api/directories`；`GET` / `POST /api/scan`；`POST /api/scan/stop`；`GET /api/scan/errors` |
+| 曲库状态 | `GET /api/summary`、`/api/catalog/status`、`/api/metadata/status` |
+| 浏览与搜索 | `GET /api/tracks`、`/api/albums`、`/api/artists`、`/api/search`；详情为 `/api/tracks/:id`、`/api/albums/:key`、`/api/artists/:name` |
+| 音轨与媒体 | `PATCH /api/tracks/:id/favorite`；`GET /api/tracks/:id/artwork`、`/api/tracks/:id/lyrics`、`/api/tracks/:id/stream`、`/api/tracks/:id/availability` |
+| 专辑补充信息 | `GET` / `PUT /api/admin/albums/:key/metadata`；`POST /api/admin/albums/:key/metadata/lookup` |
+| 歌单 | `GET` / `POST /api/playlists`；`GET` / `PATCH` / `DELETE /api/playlists/:id` |
+| 歌单成员与顺序 | `POST /api/playlists/:id/tracks`；`DELETE /api/playlists/:id/tracks/:trackId`；`PUT /api/playlists/:id/tracks/order` |
 
-扫描记录包含 `scannedFiles`（已检查）、`parsedFiles`（成功重新解析）、`skippedFiles`（未变跳过）、`errorCount`，以及 `force`/`prune` 选项。只有重新扫描会产生新任务；读取状态不会自动启动扫描。
+主要契约：
 
-歌单详情及添加、移除、排序成功后返回 `{ playlist, tracks, revision }`（移除接口同时保留 `ok: true`）。排序必须提交当前歌单全部成员的无重复排列及读取时的版本；歌单名称、描述或有序成员有变化时返回 `409`，不会写入部分顺序。不存在的歌单返回 `404`，非法参数返回 `400`。重复添加不会重复歌曲，重复移除可安全重试。
+- 歌曲、专辑、艺人列表支持 `q`、`limit`、`offset`；添加 `page=true` 返回 `{ items, total, limit, offset, revision }`，省略时返回数组。`limit` 为 1–500，`offset` 为非负整数；默认歌曲 80 项，专辑/艺人 200 项。歌曲另支持 `favorite`。
+- 搜索预览最多返回 25 首歌曲、12 张专辑和 12 位艺人；完整匹配集合使用相应列表接口。分页 `revision` 用于检测跨页数据变化。
+- 封面接口可带 `?size=64`（仅允许上述六档），返回 WebP；不带尺寸时保留原图接口。所有版本均需登录，支持 `If-None-Match` / `304`，不公开缓存私有曲库图片。
+- 专辑保存提交 `{ year, genre, revision }`，`null` 表示沿用扫描值，版本冲突返回 `409`。查找提交 `{ revision }`，返回候选、推荐 ID、部分失败/截断标记；只缓存查询，不直接写人工覆盖值。
+- 歌单创建支持 `requestId` 安全重试。排序提交 `{ trackIds, revision }`，必须是当前完整成员的无重复排列；版本冲突返回 `409`，不写入部分顺序。重复添加不重复歌曲，重复移除可安全重试。
+- 歌单详情及成员修改返回 `{ playlist, tracks, revision }`；名称去除首尾空白后为 1–200 字符。不存在的歌单返回 `404`，非法参数返回 `400`。
+- 扫描状态含 `scannedFiles`、`parsedFiles`、`skippedFiles`、`errorCount` 和 `force` / `prune`；读取状态不会启动扫描。`/api/catalog/status` 提供曲库版本及后台补全进度，不暴露目录路径或账号信息。
 
-## 验证
+## 开发验证
 
-```bash
-npm run typecheck
-npm test
-npm run build
-```
+遵循 [AGENTS.md](AGENTS.md#测试与交付)：根据本次行为变化及风险选择最小充分验证集，先说明范围与依据。复杂交互与跨层流程优先做针对性 E2E；局部修改优先精确到用例或文件，不默认运行整个相关模块。原型或旧实现通过不能代替正式系统验收。
 
-UI 或样式调整至少运行：
+代码交付的基础检查：
 
 ```bash
 npm run typecheck
@@ -205,8 +301,79 @@ npm run build
 git diff --check
 ```
 
-扫描、路径安全、音频格式、数据库或 API 变更应同时运行 `npm test`。
+仅文档修改核对链接、路径、命令和配置，不默认构建或执行产品测试。纯样式修改以相关页面、状态和视口检查及截图为主，不默认运行 E2E。连续小调整合并验证；已有结果覆盖最终改动时复用，E2E 内已完成的同一源码生产构建不重复执行。出现具体风险、相关失败或新增影响面时才扩大范围；所选验证充分且通过后停止。
 
-## 协作说明
+### 按改动选择范围
 
-面向代码代理和自动化协作者的项目约束写在 `AGENTS.md`。`CLAUDE.md` 保留为 Claude/Cursor 等工具的入口，并指向同一套约束。
+```bash
+npm run test:list
+npm run test:scope -- playback --list
+npm run test:scope -- playback
+npm test -- tests/seek-input.test.ts
+npm run test:scope -- playlists -t 'conflict|revision'
+npm run test:e2e -- playback --list
+npm run test:e2e -- playback
+npm run test:e2e -- playlists -g '重试'
+```
+
+`--list` 仅预览，不执行测试；E2E 预览也不构建或启动服务。可传多个功能取并集，或精确的 `tests/*.test.ts` / `e2e/*.spec.ts` 文件。裸 `npm test` 和 `test:e2e` 会拒绝执行。
+
+| 改动范围 | `test:scope`（单元/集成） | `test:e2e`（浏览器流程） |
+| --- | --- | --- |
+| 认证、账号 | `auth` | `auth` |
+| 目录与扫描 | `scan` | `library-scan` |
+| 播放 | `playback` | `playback` |
+| 歌单 | `playlists` | `playlists` |
+| 曲库、搜索 | `catalog` | `catalog` |
+| 元数据补全 | `metadata` | `album-metadata`、`album-metadata-candidates` |
+| 封面加载 | 精确选择 `tests/artwork.test.ts` | `artwork` |
+| 移动布局与页面逻辑 | `ui` | `mobile-player`，其他页面选择所属功能 |
+| 备份与维护 | `maintenance` | `maintenance` |
+| 路径安全 | `paths` | 按相关扫描/播放/维护流程选择，并保留路径边界测试 |
+
+`test:unit`、`test:integration` 按层级运行；`test:prototype` 仅选择独立原型，`test:scope -- legacy` 选择保留的旧实现。原型与 legacy 均保留在显式全量中，生产功能范围不隐式包含它们。新增或移动 `.test.ts` 须登记 [test-catalog.mjs](scripts/test-catalog.mjs)，新增 E2E spec 自动进入显式全量范围。
+
+### E2E 环境与证据
+
+E2E 使用生产构建、临时曲库和独立 SQLite，默认每次先构建；需要 FFmpeg 和 Playwright 管理的独立测试浏览器。使用 `chromium` 通道，当前锁定版本为 Chrome for Testing；不启动系统 Google Chrome，也不读取个人浏览器资料。首次安装及更新 Playwright 后执行：
+
+```bash
+npx playwright install chromium --no-shell
+# Linux CI 同时安装系统依赖：
+npx playwright install --with-deps chromium --no-shell
+```
+
+运行前统一检查浏览器启动与 AAC 解码能力；检查失败即停止，不让每个用例重复启动。测试保持零重试，首个用例失败后停止后续用例。旧的 `E2E_BROWSER_CHANNEL=chrome` 配置会明确报错，应移除；不会自动回退到系统浏览器。macOS 的受限 seatbelt 执行环境会在启动前被拦截，应从普通终端或获准的执行环境运行同一命令，不要清除环境标志重试。
+
+AAC 直传及 ALAC/FLAC 转码仍以实际播放验收；手机/iPad 为 Chrome 设备模拟，不能替代真实 iOS Safari 验收。`npm run test:browser` 单独检查启动保护与失败处理，不启动真实浏览器，报告位于 `artifacts/browser-isolation/`。
+
+每次生成 `artifacts/e2e/<时间>-<范围>/`，包含 HTML/JSON/JUnit 报告、逐例 trace/截图、网络与服务日志、音乐哈希和 SQLite 校验。`browser-preflight.json` 记录启动检查、浏览器版本和失败原因，`run.json` 记录命令、Git HEAD 与源码/构建 SHA-256，可核对未提交工作区。预检失败时不会生成逐例截图或启动业务服务。查看方式：
+
+```bash
+npx playwright show-report "artifacts/e2e/实际运行目录/html"
+npx playwright show-trace "/实际产物路径/trace.zip"
+```
+
+`npm run test:inventory` 仅收集用例，写入 `artifacts/tests/inventory.json`、`artifacts/tests/e2e-inventory.json`，不执行测试或启动浏览器；清单数量不代表通过数量。`npm run test:selection` 单独验收测试选择命令，产物在 `artifacts/test-selection/`。
+
+### 显式全量与 CI
+
+仅在用户明确要求本次完整回归、适用的 CI/发布门禁明确要求，或有证据表明跨模块影响无法可靠界定时运行。执行前说明依据；每次交付、提交或部署不自动触发全量。保留既有 CI 门禁。
+
+```bash
+npm run test:all             # 全部 unit/integration，含原型与兼容路径
+npm run test:e2e:all         # 全部浏览器 E2E
+npm run test:ci -- --list    # 只预览 CI 阶段
+npm run test:ci             # 类型、构建、选择命令、全部层级及 diff 检查
+```
+
+[CI 工作流](.github/workflows/tests.yml) 使用 Node 22、FFmpeg 和独立 Chrome for Testing，与本地共用启动及 AAC 预检，包含启动保护验收，禁止 `.only`，不接受筛选缩减，并上传 `artifacts/`。`test:ci:node` 只是 unit/integration 全量步骤，不能单独代表完整 CI。`E2E_SKIP_BUILD=1` 仅用于已构建的调试或 CI 阶段。
+
+## 相关文档
+
+- [AGENTS.md](AGENTS.md)：协作与实现约束；[CLAUDE.md](CLAUDE.md) 指向同一份规范。
+- [工程化落地记录](docs/engineering-rollout.md)与[设计验收记录](design-qa.md)：原型到正式系统的实现背景。
+- [测试整改记录](docs/testing/test-implementation-2026-09-28.md)、[原始审查](docs/testing/test-audit-2026-09-28.md)、[E2E 验收计划](docs/testing/e2e-acceptance-plan.md)、[选择命令验收计划](docs/testing/selector-acceptance-plan.md)：范围、失败模式与验证证据。
+- [Docker/NFS 部署指南](docs/docker-deployment.md)：通用部署与维护步骤，不包含实际主机或账号信息。
+
+仓库中的历史验收说明已经脱敏。截图、日志、trace、数据库检查结果和原始部署记录保存在被忽略的 `artifacts/` 或仓库外私有目录；`docs/` 仅提交脱敏的 Markdown 说明。分享报告或提交前，应检查内网地址、个人路径、SSH 账号、Cookie 与凭据。

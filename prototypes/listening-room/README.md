@@ -1,4 +1,4 @@
-# 音泊 · 私人音乐空间
+# 开听 · 私人音乐空间
 
 一套独立的 React / Vite 交互原型，以私人唱片收藏为视觉方向。入口和样式位于本目录，不替换现有客户端或服务端。
 
@@ -77,7 +77,7 @@ npm run prototype:preview
 - `public/artwork/`：独立封面资源。
 - 登录背景通过 Canvas 2D 逐帧生成，运行时不加载背景图片；SVG 仅用于品牌与界面图标。
 - `../../tests/login-scene.test.ts`：稳定尺寸不重建画布、标签页暂停/恢复、减少动态效果与卸载清理的回归测试。
-- `public/favicon.svg`：音泊品牌图标和浏览器收藏图标。
+- `public/favicon.svg`：开听品牌图标和浏览器收藏图标。
 - `design-qa.md`：验收记录。
 - `docs/screenshots/`：浏览器截图。
 

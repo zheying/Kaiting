@@ -21,6 +21,8 @@ services:
       MUSIC_LIBRARY_PATH: "/music"
       DATA_DIR: "/data"
       ENABLE_ONLINE_METADATA: "${ENABLE_ONLINE_METADATA:-false}"
+      SCAN_ONLINE_METADATA: "${SCAN_ONLINE_METADATA:-true}"
+      AUTO_COMPLETE_ALBUM_METADATA: "${AUTO_COMPLETE_ALBUM_METADATA:-true}"
       PORT: "3000"
     volumes:
       - "${DATA_DIR:-./data}:/data"

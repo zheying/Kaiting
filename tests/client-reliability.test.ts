@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { api } from "../src/client/api.js";
-import { createLatestRequest, playbackErrorMessage, scanJustFinished } from "../src/client/async-state.js";
+import { scanJustFinished } from "../src/client/async-state.js";
+import { scanCompletionNotice } from "../src/client/room/room-state.js";
 import type { ScanJob } from "../src/shared/types.js";
 
 function scan(id: string, status: ScanJob["status"]): ScanJob {
@@ -10,39 +11,6 @@ function scan(id: string, status: ScanJob["status"]): ScanJob {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("client request lifecycle", () => {
-  it("cancels superseded requests and rejects late results even when the transport ignores abort", async () => {
-    let resolveFirst!: (response: Response) => void;
-    const fetchMock = vi.fn()
-      .mockImplementationOnce(() => new Promise<Response>((resolve) => { resolveFirst = resolve; }))
-      .mockResolvedValueOnce(Response.json({ tracks: [{ id: "new" }], albums: [], artists: [] }));
-    vi.stubGlobal("fetch", fetchMock);
-    const requests = createLatestRequest();
-    const first = requests.begin();
-    let visibleIds: string[] = [];
-    const firstResult = api.search("old", first.signal).then((result) => {
-      if (first.isCurrent()) visibleIds = result.tracks.map((track) => track.id);
-    });
-    const second = requests.begin();
-    const secondResult = await api.search("new", second.signal);
-    if (second.isCurrent()) visibleIds = secondResult.tracks.map((track) => track.id);
-    resolveFirst(Response.json({ tracks: [{ id: "old" }], albums: [], artists: [] }));
-    await firstResult;
-    expect(first.signal.aborted).toBe(true);
-    expect(fetchMock.mock.calls[0][1].signal).toBe(first.signal);
-    expect(visibleIds).toEqual(["new"]);
-  });
-
-  it("invalidates pending play or detail callbacks on cancel without invalidating the next session", () => {
-    const requests = createLatestRequest();
-    const pending = requests.begin();
-    requests.cancel();
-    expect(pending.isCurrent()).toBe(false);
-    expect(pending.signal.aborted).toBe(true);
-    const resumed = requests.begin();
-    expect(resumed.isCurrent()).toBe(true);
-    expect(pending.isCurrent()).toBe(false);
-  });
-
   it("forwards cancellation for detail and polling endpoints", async () => {
     const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(Response.json({})));
     vi.stubGlobal("fetch", fetchMock);
@@ -86,6 +54,40 @@ describe("scan terminal-state refresh", () => {
   });
 });
 
+describe("scan completion feedback", () => {
+  it("does not announce historical results on initial load or on repeated snapshots", () => {
+    for (const job of [scan("complete", "completed"), { ...scan("partial", "completed"), errorCount: 1 }]) {
+      expect(scanCompletionNotice(undefined, job, 10)).toBe("");
+      expect(scanCompletionNotice(job, { ...job }, 10)).toBe("");
+    }
+    expect(scanCompletionNotice(undefined, scan("empty", "completed"), 0)).toBe("");
+  });
+
+  it("announces each new completion once, including a fast rescan with no observed running snapshot", () => {
+    let previous: ScanJob | null | undefined = undefined;
+    const first = scan("first", "completed");
+    const next = scan("next", "completed");
+    const notices: string[] = [];
+    for (const job of [first, scan("next", "running"), next, { ...next }, scan("fast", "completed")]) {
+      const message = scanCompletionNotice(previous, job, 1);
+      if (message) notices.push(message);
+      previous = job;
+    }
+    expect(notices).toEqual(["扫描完成，音乐已经准备好", "扫描完成，音乐已经准备好"]);
+    expect(scanCompletionNotice(null, first, 1)).toBe("扫描完成，音乐已经准备好");
+  });
+
+  it("distinguishes partial and empty results without reporting failures as success", () => {
+    const running = scan("one", "running");
+    const complete = scan("one", "completed");
+    expect(scanCompletionNotice(running, { ...complete, errorCount: 1 }, 0)).toBe("扫描部分完成，可以查看失败详情");
+    expect(scanCompletionNotice(running, complete, 0)).toBe("扫描完成，未发现可播放文件");
+    expect(scanCompletionNotice(running, scan("one", "failed"), 1)).toBe("");
+    expect(scanCompletionNotice(running, scan("one", "interrupted"), 1)).toBe("");
+    expect(scanCompletionNotice(running, running, 1)).toBe("");
+  });
+});
+
 describe("scan request options", () => {
   it("keeps the default scan body-free and sends explicit force/prune options only when requested", async () => {
     const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(Response.json(scan("new", "running"))));
@@ -100,15 +102,5 @@ describe("scan request options", () => {
     expect(fetchMock.mock.calls[1][1]).toMatchObject({ method: "POST", body: '{"force":true}', signal });
     expect(fetchMock.mock.calls[2][1]).toMatchObject({ method: "POST", body: '{"prune":true}', signal });
     expect(new Headers(fetchMock.mock.calls[1][1].headers).get("Content-Type")).toBe("application/json");
-  });
-});
-
-describe("playback failure feedback", () => {
-  it("explains autoplay denial separately from network and codec failures", () => {
-    expect(playbackErrorMessage(new DOMException("Denied", "NotAllowedError"))).toContain("点击重试");
-    expect(playbackErrorMessage(null, 2)).toContain("NAS 连接");
-    expect(playbackErrorMessage(null, 3)).toContain("解码失败");
-    expect(playbackErrorMessage(null, 4)).toContain("转码服务");
-    expect(playbackErrorMessage(new Error("Unexpected"))).toContain("播放失败");
   });
 });

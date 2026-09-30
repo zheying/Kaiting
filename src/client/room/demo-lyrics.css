@@ -1,0 +1,52 @@
+.np-synced-lyrics { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.np-lyrics-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-shrink: 0; min-height: 44px; padding-inline: 18px; }
+.np-lyrics-toolbar small { font-size: 10px; color: var(--np-muted); white-space: nowrap; }
+.np-lyrics-toolbar > button { min-width: 52px; min-height: 44px; font-size: 10px; color: var(--np-muted); flex-shrink: 0; border-radius: 8px; }
+.np-lyrics-toolbar > button:hover { color: var(--np-ink); background: #ffffff40; }
+.np-lyrics-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-width: none; mask-image: linear-gradient(to bottom, transparent, black 12%, black 80%, transparent); }
+.np-lyrics-scroll::-webkit-scrollbar { display: none; }
+.np-lyrics-lines { padding-inline: 4px; }
+.np-lyric-line { display: block; width: 100%; min-height: 44px; padding: 20px 18px; text-align: left; color: var(--np-muted); font-size: clamp(30px, 3.1vw, 43px); font-weight: 720; line-height: 1.35; letter-spacing: -.8px; border-radius: 10px; overflow-wrap: anywhere; transition: color .45s, background .2s; }
+.np-lyric-text { display: block; transform: scale(.98); transform-origin: left center; transition: transform .5s cubic-bezier(.2,.8,.2,1), filter .5s; }
+.is-following .np-lyric-text { filter: blur(var(--lyric-blur, 0px)); }
+.np-lyric-line.is-current { color: var(--np-ink); }
+.np-lyric-line.is-current > span { transform: scale(1); }
+.np-lyric-word { background: linear-gradient(90deg, var(--np-ink) var(--word-fill), var(--np-muted) var(--word-fill)); background-clip: text; -webkit-background-clip: text; color: transparent; }
+.np-lyric-line:hover, .np-lyric-line:focus-visible { color: var(--np-ink); background: #ffffff24; }
+.np-lyric-line:hover .np-lyric-text, .np-lyric-line:focus-visible .np-lyric-text, .is-browsing .np-lyric-text { filter: none; }
+.np-lyrics-follow { display: grid; place-items: center; flex-shrink: 0; height: 44px; color: var(--np-muted); font-size: 10px; }
+.np-lyrics-follow > span, .np-lyrics-follow > button { display: flex; align-items: center; gap: 8px; }
+.np-lyrics-follow > button { min-height: 44px; color: var(--np-ink); font-size: 11px; padding-inline: 12px; border-radius: 10px; background: #ffffff45; }
+.np-lyrics-follow > button:hover { background: #ffffff80; }
+.np-lyrics-follow svg { width: 14px; height: 14px; }
+.np-lyrics-follow i { display: flex; gap: 3px; align-items: center; height: 12px; }
+.np-lyrics-follow b { width: 3px; height: 5px; border-radius: 2px; background: currentColor; }
+.is-playing .np-lyrics-follow b { animation: np-lyric-pulse .9s ease-in-out infinite alternate; }
+.is-playing .np-lyrics-follow b:nth-child(2) { animation-delay: -.35s; }
+.is-playing .np-lyrics-follow b:nth-child(3) { animation-delay: -.65s; }
+.np-lyrics-status { flex-wrap: wrap; column-gap: 8px; }
+.np-lyrics-status > button { min-height: 44px; color: var(--np-ink); font-size: inherit; text-decoration: underline; text-underline-offset: 3px; }
+@keyframes np-lyric-pulse { to { height: 12px; } }
+@media (max-width: 1080px) and (min-width: 761px) {
+  .np-lyric-line { font-size: 33px; padding-inline: 12px; }
+  .np-lyrics-toolbar { padding-inline: 12px; }
+}
+@media (max-width: 760px) {
+  .np-lyrics-toolbar { padding-inline: 4px; }
+  .np-lyrics-toolbar small { font-size: 9px; }
+  .np-lyrics-lines { padding-inline: 0; }
+  .np-lyric-line { padding: 15px 6px; font-size: 32px; line-height: 1.4; letter-spacing: -.6px; }
+  .np-lyrics-follow { height: 36px; }
+  .np-lyrics-follow > button { min-height: 36px; }
+}
+@media (max-width: 760px) and (max-height: 680px) {
+  .np-lyrics-toolbar { min-height: 32px; }
+  .np-lyrics-toolbar > button { min-height: 32px; }
+  .np-lyric-line { padding-block: 12px; font-size: 27px; }
+  .np-lyrics-follow { height: 30px; }
+  .np-lyrics-follow > button { min-height: 30px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .np-lyric-line, .np-lyric-text, .is-playing .np-lyric-word { transition: none; }
+  .is-playing .np-lyrics-follow b { animation: none; }
+}

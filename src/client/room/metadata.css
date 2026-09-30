@@ -1,0 +1,82 @@
+.album-metadata-line { display: flex; align-items: center; gap: 8px; min-height: 30px; flex-wrap: wrap; }
+.library-surface .album-metadata-line .album-year { margin-block: 0; }
+.album-metadata-action { margin-top: 16px; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); min-height: 32px; }
+.album-metadata-action:hover { color: var(--accent); }
+.album-metadata-action svg { width: 14px; height: 14px; }
+.library-surface .album-metadata-dialog { width: 520px; }
+.album-metadata-dialog .dialog-heading { margin-bottom: 18px; }
+.metadata-album-summary { display: flex; gap: 14px; align-items: center; padding: 8px 0 20px; margin: 0; }
+.metadata-album-summary .metadata-cover { width: 60px; height: 60px; flex: 0 0 60px; border-radius: 9px; overflow: hidden; object-fit: cover; box-shadow: var(--shadow-card); }
+.metadata-album-summary > div { min-width: 0; }
+.metadata-album-summary strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px; line-height: 1.6; font-weight: 600; }
+.metadata-album-summary > div > span { display: block; font-size: 11px; line-height: 1.6; color: var(--muted); margin-top: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.metadata-album-summary .artwork-fallback { display: grid; place-items: center; }
+.metadata-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.metadata-fields-grid { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 14px; align-items: start; }
+.metadata-fields .form-field { margin-top: 20px; gap: 8px; font-size: 11px; }
+.metadata-fields .form-field small { font-size: 10px; line-height: 1.6; color: var(--muted); font-weight: 400; }
+.metadata-fields .form-field .form-error { color: var(--accent); }
+.metadata-note { display: flex; align-items: flex-start; gap: 8px; margin-top: 18px; color: var(--muted); }
+.album-metadata-form .metadata-note p { font-size: 11px; line-height: 1.8; margin: 0; }
+.metadata-note svg { width: 13px; height: 13px; flex: 0 0 13px; margin-top: 3px; }
+.metadata-restore { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; min-height: 36px; margin-right: auto; white-space: nowrap; }
+.metadata-restore svg { width: 13px; height: 13px; }
+.metadata-loading { min-height: 150px; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 12px; color: var(--muted); }
+.album-metadata-form .metadata-error { margin-top: 14px; color: var(--accent); }
+.album-metadata-form .metadata-error p { margin: 0 0 6px; color: inherit; font-size: 12px; }
+.metadata-error button { font-size: 12px; min-height: 32px; }
+.album-metadata-form .metadata-actions { align-items: center; gap: 8px; padding-top: 16px; margin-top: 20px; border-top: 1px solid var(--line); }
+.album-metadata-form .metadata-actions .button { min-height: 38px; padding: 9px 16px; font-size: 12px; }
+.mobile-layout .album-metadata-line { min-height: 36px; }
+.metadata-provenance { padding-block: 14px; border-block: 1px solid var(--line); color: var(--muted); }
+.album-metadata-form .metadata-provenance p { margin: 0; color: inherit; font-size: 11px; line-height: 1.8; }
+.metadata-source-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 11px; line-height: 1.8; }
+.metadata-source { flex-shrink: 0; display: inline-flex; gap: 4px; align-items: center; color: var(--muted); font-size: 10px; min-height: 26px; }
+.metadata-source svg { width: 11px; height: 11px; }
+.metadata-source:hover { color: var(--accent); }
+.mobile-layout .metadata-album-summary .metadata-cover { width: 52px; height: 52px; flex-basis: 52px; }
+.mobile-layout .metadata-album-summary { gap: 12px; }
+.mobile-layout .metadata-album-summary strong { font-size: 12px; }
+.mobile-layout .metadata-fields-grid { grid-template-columns: 104px minmax(0, 1fr); gap: 12px; }
+.mobile-layout .metadata-actions .button, .mobile-layout .metadata-restore { min-height: 40px; }
+.mobile-layout .metadata-actions .button { padding-inline: 12px; }
+.album-metadata-form .metadata-references { margin: 0; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.metadata-reference-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.metadata-reference-heading h3 { display: flex; align-items: baseline; gap: 8px; margin: 0; font-size: 12px; font-weight: 550; }
+.metadata-reference-heading h3 span { font-size: 10px; color: var(--muted); font-weight: 400; }
+.metadata-refresh, .metadata-expand { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; min-height: 30px; color: var(--muted); }
+.metadata-refresh svg, .metadata-expand svg { width: 12px; height: 12px; }
+.album-metadata-form .metadata-reference-message { display: flex; align-items: center; gap: 7px; font-size: 11px; margin: 8px 0 0; line-height: 1.8; }
+.metadata-reference-message svg { width: 13px; height: 13px; }
+.album-metadata-form .metadata-reference-caption { font-size: 10px; margin: 2px 0 10px; line-height: 1.8; }
+.album-metadata-form .metadata-reference-caution { font-size: 10px; color: var(--accent); margin: 5px 0 9px; line-height: 1.7; }
+.metadata-candidate-window { position: relative; isolation: isolate; }
+.metadata-candidate-window::before, .metadata-candidate-window::after { content: ""; position: absolute; inset-inline: 0 8px; height: 18px; z-index: 1; pointer-events: none; opacity: 0; transition: opacity 120ms ease; }
+.metadata-candidate-window::before { top: 0; background: linear-gradient(to bottom, var(--paper), transparent); }
+.metadata-candidate-window::after { bottom: 0; background: linear-gradient(to top, var(--paper), transparent); }
+.metadata-candidate-window.can-scroll-up::before, .metadata-candidate-window.can-scroll-down::after { opacity: 1; }
+.metadata-candidate-list { list-style: none; display: grid; gap: 8px; padding: 1px; margin: 0; max-height: 222px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+.metadata-candidate { padding: 10px 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); min-width: 0; }
+.metadata-candidate.is-selected { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-soft); }
+.metadata-candidate-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.metadata-candidate-top > div { min-width: 0; }
+.metadata-candidate-top strong { font-size: 11px; line-height: 1.7; font-weight: 550; }
+.metadata-candidate-top > div > span { display: block; font-size: 10px; line-height: 1.8; color: var(--muted); }
+.metadata-candidate-use { display: inline-flex; align-items: center; justify-content: center; gap: 3px; flex-shrink: 0; padding: 5px 10px; min-height: 32px; border: 1px solid var(--line); border-radius: 999px; font-size: 10px; color: var(--ink); background: var(--paper); }
+.metadata-candidate-use:hover { color: var(--accent); border-color: var(--accent); }
+.metadata-candidate-use[aria-pressed=true] { color: var(--accent); border-color: transparent; background: transparent; }
+.metadata-candidate-use svg { width: 12px; height: 12px; }
+.metadata-candidate-artist { display: block; font-size: 10px; line-height: 1.7; color: var(--muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin-top: 3px; }
+.metadata-candidate-bottom { display: flex; align-items: end; justify-content: space-between; gap: 8px; margin-top: 4px; }
+.library-surface .album-metadata-form .metadata-candidate-bottom p { font-size: 10px; line-height: 1.7; color: var(--accent); margin: 0; }
+.metadata-candidate-bottom > div > span { font-size: 10px; line-height: 1.7; color: var(--muted); }
+.metadata-candidate-bottom .metadata-source { min-height: 20px; }
+.metadata-expand { margin-top: 5px; }
+.album-metadata-form .metadata-reference-error p { margin: 7px 0; font-size: 11px; line-height: 1.8; }
+.metadata-reference-error .text-button { color: var(--accent); font-size: 11px; min-height: 30px; }
+.album-metadata-form .metadata-actions { position: sticky; bottom: -14px; padding-bottom: 4px; z-index: 1; background: var(--paper); box-shadow: 0 -10px 12px var(--paper); }
+.mobile-layout .metadata-candidate { padding: 9px 10px; }
+.mobile-layout .metadata-candidate-use { min-height: 40px; padding-inline: 9px; }
+.mobile-layout .metadata-refresh, .mobile-layout .metadata-expand { min-height: 36px; }
+.mobile-layout .metadata-candidate-list { max-height: 192px; }
+@media (prefers-reduced-motion: reduce) { .metadata-candidate-window::before, .metadata-candidate-window::after { transition: none; } }

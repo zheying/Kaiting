@@ -1,0 +1,28 @@
+/* Artist artwork shares the collection surface; labels remain on the page. */
+.library-surface .artist-card {
+  display: flex;
+  flex-direction: column;
+  align-self: start;
+  min-width: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.library-surface .artist-card:hover {
+  background: transparent;
+  transform: none;
+}
+.library-surface .artist-card:hover .artist-art,
+.library-surface .artist-card:focus-visible .artist-art { box-shadow: var(--shadow-card-hover); }
+.library-surface .artist-art { flex: none; width: 100%; margin: 0 0 13px; border-radius: var(--radius-card); }
+.library-surface .artist-card h2 { color: var(--ink); font-size: 16px; line-height: 1.4; font-weight: 600; letter-spacing: -.2px; overflow-wrap: anywhere; margin-inline: 2px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.library-surface .artist-card p { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 6px 2px 0; }
+.library-surface :is(.sidebar, .topbar, .artist-grid) button:focus-visible { outline-color: var(--accent); }
+
+@media (max-width: 1100px) {
+  .library-surface .artist-card h2 { font-size: 15px; }
+}
+.mobile-layout.library-surface .artist-card { padding: 0; }
+.mobile-layout.library-surface .artist-art { margin-bottom: 10px; border-radius: var(--radius-card); }
+.mobile-layout.library-surface .artist-card h2 { font-size: 14px; }
+.mobile-layout.library-surface .artist-card p { font-size: 11px; margin: 6px 2px 0; }

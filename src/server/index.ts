@@ -26,17 +26,17 @@ const scanner = createScanner(config, database);
 const app = Fastify({ logger: true });
 
 await app.register(cookie);
-await registerAuth(app, config);
+await registerAuth(app, config, database);
 
 if (config.isProduction) {
   await app.register(fastifyStatic, {
     root: path.resolve("dist/client"),
     prefix: "/",
-    setHeaders(response, filePath) {
+    setHeaders(reply, filePath) {
       if (path.basename(filePath) === "index.html") {
-        response.setHeader("Cache-Control", "no-store, must-revalidate");
+        reply.header("Cache-Control", "no-store, must-revalidate");
       } else {
-        response.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        reply.header("Cache-Control", "public, max-age=31536000, immutable");
       }
     }
   });

@@ -44,7 +44,7 @@ function CreatedAccountDetails({ user, password, onClose }: { user: AccountUser;
   async function copyLogin() {
     setCopyState("copying");
     try {
-      await navigator.clipboard.writeText(`音泊登录信息\n用户名：${user.username}\n临时密码：${password}\n首次登录后请修改密码。`);
+      await navigator.clipboard.writeText(`开听登录信息\n用户名：${user.username}\n临时密码：${password}\n首次登录后请修改密码。`);
       setCopyState("copied");
     } catch { setCopyState("failed"); }
   }
@@ -108,7 +108,7 @@ export function AccountPages({ user, users, sessions, view, scene = "", favorite
   const isAdmin = user?.role === "admin";
   const otherSessions = sessions.filter((session) => !session.current);
   const filteredUsers = users.filter((item) => `${item.username} ${item.displayName}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()) && (filter === "all" || (filter === "admin" ? item.role === "admin" : item.status === filter)));
-  const heading = (title: string, description: string) => <header className="page-heading"><div><span className="eyebrow">音泊 / {view === "users" ? "管理音乐室" : "我的账号"}</span><h1>{title}</h1><p>{description}</p></div>{view === "users" && isAdmin && <button className="button primary" onClick={() => open({ type: "create" })}><Plus />创建账号</button>}</header>;
+  const heading = (title: string, description: string) => <header className="page-heading"><div><span className="eyebrow">开听 / {view === "users" ? "管理音乐室" : "我的账号"}</span><h1>{title}</h1><p>{description}</p></div>{view === "users" && isAdmin && <button className="button primary" onClick={() => open({ type: "create" })}><Plus />创建账号</button>}</header>;
   if (!user) return <div className="account-page">{heading("你的账号，你的音乐", "登录后，管理自己的资料与聆听空间。")}<section className="account-empty"><UserRound /><h2>先登录，再回到这里</h2><p>每个账号拥有各自的收藏、歌单与登录会话。</p><button className="button primary" onClick={onLogin}>前往登录</button></section></div>;
   if (view === "denied" || (view === "users" && !isAdmin)) return <div className="account-page">{heading("这个页面需要管理员权限", "你仍然可以继续聆听，管理自己的收藏与歌单。")}<section className="account-empty"><ShieldOff /><h2>这部分交给管理员</h2><p>用户管理和音乐目录设置仅对管理员开放。需要调整权限时，请联系音乐室管理员。</p><button className="button primary" onClick={() => onNavigate("account")}>回到我的账号</button></section></div>;
 
@@ -168,7 +168,16 @@ export function AccountPages({ user, users, sessions, view, scene = "", favorite
     {heading(view === "users" ? "一起，把音乐留在这里" : view === "security" ? "安心回到你的音乐" : "属于你的，聆听空间", view === "users" ? "共享同一座曲库，每个人都有自己的喜欢。" : view === "security" ? "管理登录密码，以及仍在使用音乐室的设备。" : "照顾你的资料，也照顾每一份喜欢。")}
     <nav className="account-tabs" aria-label="账号页面"><a href="#/account" aria-current={view === "profile" ? "page" : undefined}>个人资料</a><a href="#/account/security" aria-current={view === "security" ? "page" : undefined}>登录与安全</a>{isAdmin && <a href="#/admin/users" aria-current={view === "users" ? "page" : undefined}>用户管理<span>{users.length}</span></a>}</nav>
     {view === "profile" && <>
-      <section className="account-identity" aria-label="我的账号资料"><AccountAvatar user={user} large /><div className="account-identity-copy"><span className={`account-role ${user.role}`}>{isAdmin ? <ShieldCheck /> : <Headphones />}{roleLabel(user.role)}</span><h2>{user.displayName}</h2><p>@{user.username}<span>加入于 {user.joined}</span></p><p className="account-bio">{user.bio || "给自己留一句话，也给音乐留一点时间。"}</p></div><button className="button subtle" onClick={() => open({ type: "profile" })}><Pencil />编辑资料</button></section>
+      <section className="account-identity" aria-label="我的账号资料">
+        <AccountAvatar user={user} large />
+        <div className="account-identity-copy">
+          <span className={`account-role ${user.role}`}>{isAdmin ? <ShieldCheck /> : <Headphones />}{roleLabel(user.role)}</span>
+          <h2>{user.displayName}</h2>
+          <p className="account-identity-meta"><span className="account-username">@{user.username}</span><span className="account-joined">加入于 {user.joined}</span></p>
+          <p className="account-bio">{user.bio || "给自己留一句话，也给音乐留一点时间。"}</p>
+        </div>
+        <button className="button subtle" onClick={() => open({ type: "profile" })}><Pencil />编辑资料</button>
+      </section>
       <section className="account-personal-library" aria-label="我的音乐"><a href="#/favorites"><Heart /><span><strong>{favoriteCount}</strong>首收藏歌曲</span><ChevronRight /></a><a href="#/playlists"><ListMusic /><span><strong>{playlistCount}</strong>张私人歌单</span><ChevronRight /></a><div><LockKeyhole /><p>你的喜欢，只属于你。<small>收藏与歌单跟随账号，其他用户不可见。</small></p></div></section>
       <section className="account-section"><div className="account-section-heading"><div><h2>在音乐室，你可以</h2><p>{isAdmin ? "照顾自己的音乐，也照顾这间音乐室。" : "专心聆听，目录与账号管理交给管理员。"}</p></div></div><div className="account-permissions"><div><Headphones /><span><strong>自由聆听</strong><small>浏览曲库、搜索音乐、创建待播清单</small></span><Check /></div><div><Heart /><span><strong>收藏喜欢的声音</strong><small>管理自己的收藏、私人歌单与排列顺序</small></span><Check /></div>{isAdmin ? <><button onClick={onDirectory}><FolderOpen /><span><strong>管理音乐目录</strong><small>连接目录、扫描文件与查看扫描结果</small></span><ChevronRight /></button><button onClick={() => onNavigate("admin/users")}><Users /><span><strong>管理音乐室成员</strong><small>创建账号、分配角色、管理账号状态</small></span><ChevronRight /></button></> : <div className="account-permission-note"><ShieldCheck /><span><strong>共享曲库，独立空间</strong><small>目录扫描与用户管理由管理员负责</small></span></div>}</div></section>
       <div className="account-signout"><span><span className="account-status-dot" />已登录 · @{user.username}</span><button className="text-button" onClick={() => open({ type: "logout" })}><LogOut />退出登录</button></div>

@@ -10,4 +10,20 @@ data
 *.sqlite-*
 *.sqlite3-*
 coverage
+artifacts/
 *.log
+
+# 私有部署覆盖配置及本地恢复资料，不进入版本库。
+docker-compose.override.yml
+docker-compose.override.yaml
+compose.override.yml
+compose.override.yaml
+*.local.yml
+*.local.yaml
+.private/
+*.bundle
+
+# 运维和验收的原始附件放到 artifacts/ 或仓库外；公开文档只保留脱敏摘要。
+/docs/**
+!/docs/**/
+!/docs/**/*.md

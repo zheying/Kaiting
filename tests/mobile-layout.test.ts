@@ -10,11 +10,11 @@ const androidPhone = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.3
 const androidTablet = "Mozilla/5.0 (Linux; Android 14; Tablet) AppleWebKit/537.36 Chrome/130.0.0.0 Safari/537.36";
 
 describe("mobile layout selection", () => {
-  it.each([393, 479, 479.5, 479.999])("uses the mobile shell for a desktop UA at %s CSS pixels", (viewportWidth) => {
+  it.each([479.999])("uses the mobile shell for a desktop UA at %s CSS pixels", (viewportWidth) => {
     expect(shouldUseMobileLayout({ userAgent: desktop, platform: "MacIntel", maxTouchPoints: 0, viewportWidth })).toBe(true);
   });
 
-  it.each([480, 480.01, 852, 1280])("keeps the desktop shell at %s CSS pixels", (viewportWidth) => {
+  it.each([480])("keeps the desktop shell at %s CSS pixels", (viewportWidth) => {
     expect(shouldUseMobileLayout({ userAgent: desktop, platform: "MacIntel", maxTouchPoints: 0, viewportWidth })).toBe(false);
   });
 

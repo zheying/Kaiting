@@ -1,4 +1,6 @@
-import type { Album, Artist, LibrarySummary, MetadataStatus, Page, PagedSearchResponse, PageOptions, Playlist, PlaylistDetail, ScanError, ScanJob, SearchResponse, Track, TrackPageOptions } from "../shared/types.js";
+import type { LyricsResponse } from "../shared/lyrics.js";
+import type { AccountUser, AccountSession, SessionResponse, UserPreferences, DirectoryState } from "../shared/accounts.js";
+import type { Album, AlbumMetadata, AlbumMetadataLookup, AlbumMetadataValues, Artist, CatalogStatus, LibrarySummary, MetadataStatus, Page, PagedSearchResponse, PageOptions, Playlist, PlaylistDetail, ScanError, ScanJob, SearchResponse, Track, TrackPageOptions } from "../shared/types.js";
 import { collectTrackPages } from "./library-data.js";
 
 export interface ScanOptions {
@@ -13,7 +15,7 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+export async function request<T>(path: string, init?: RequestInit, notifyUnauthorized = true): Promise<T> {
   const headers = new Headers(init?.headers);
   if (init?.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
@@ -33,6 +35,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
+    if (notifyUnauthorized && response.status === 401 && !path.startsWith("/api/auth/")) window.dispatchEvent(new Event("music:session-expired"));
     throw new ApiError(body.error ?? `HTTP ${response.status}`, response.status);
   }
 
@@ -61,8 +64,20 @@ function artistPage(options: PageOptions = {}, signal?: AbortSignal): Promise<Pa
 }
 
 export const api = {
-  me: (signal?: AbortSignal) => request<{ user: { name: string } }>("/api/me", { signal }),
-  login: (password: string) => request<{ ok: true }>("/api/auth/login", { method: "POST", body: JSON.stringify({ password }) }),
+  me: (signal?: AbortSignal, notifyUnauthorized = true) => request<SessionResponse>("/api/me", { signal }, notifyUnauthorized),
+  login: (username: string, password: string) => request<{ ok: true; user: AccountUser }>("/api/auth/login", { method: "POST", body: JSON.stringify({ username, password }) }),
+  password: (currentPassword: string, password: string) => request<{ user: AccountUser; loggedOut: boolean }>("/api/auth/password", { method: "POST", body: JSON.stringify({ currentPassword, password }) }),
+  profile: (profile: Pick<AccountUser, "displayName" | "bio" | "color">) => request<AccountUser>("/api/account/profile", { method: "PATCH", body: JSON.stringify(profile) }),
+  preferences: (preferences: Partial<UserPreferences>) => request<UserPreferences>("/api/account/preferences", { method: "PATCH", body: JSON.stringify(preferences) }),
+  users: () => request<AccountUser[]>("/api/admin/users"),
+  createUser: (body: { username: string; displayName: string; role: string; grantConfirmed: boolean }) => request<{ user: AccountUser; temporaryPassword: string }>("/api/admin/users", { method: "POST", body: JSON.stringify(body) }),
+  updateUser: (id: string, body: { displayName?: string; role?: string; status?: string; grantConfirmed?: boolean }) => request<AccountUser>(`/api/admin/users/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(body) }),
+  resetPassword: (id: string, password: string) => request<AccountUser>(`/api/admin/users/${encodeURIComponent(id)}/password`, { method: "POST", body: JSON.stringify({ password }) }),
+  sessions: () => request<AccountSession[]>("/api/account/sessions"),
+  revokeSessions: (ids: string[]) => request<{ ok: true }>("/api/account/sessions", { method: "DELETE", body: JSON.stringify({ ids }) }),
+  directories: (path?: string) => request<DirectoryState>(`/api/directories${path ? `?path=${encodeURIComponent(path)}` : ""}`),
+  selectDirectory: (path: string) => request<{ directory: DirectoryState; scan: ScanJob | null }>("/api/directories", { method: "PUT", body: JSON.stringify({ path }) }),
+  stopScan: () => request<ScanJob | null>("/api/scan/stop", { method: "POST" }),
   logout: () => request<{ ok: true }>("/api/auth/logout", { method: "POST" }),
   summary: (signal?: AbortSignal) => request<LibrarySummary>("/api/summary", { signal }),
   scan: (options?: ScanOptions, signal?: AbortSignal) => request<ScanJob | null>("/api/scan", {
@@ -71,8 +86,10 @@ export const api = {
   scanStatus: (signal?: AbortSignal) => request<ScanJob | null>("/api/scan", { signal }),
   scanErrors: (signal?: AbortSignal) => request<ScanError[]>("/api/scan/errors", { signal }),
   metadataStatus: (signal?: AbortSignal) => request<MetadataStatus>("/api/metadata/status", { signal }),
+  catalogStatus: (signal?: AbortSignal) => request<CatalogStatus>("/api/catalog/status", { signal }),
   tracks: (params = "", signal?: AbortSignal) => request<Track[]>(`/api/tracks${params}`, { signal }),
   track: (id: string, signal?: AbortSignal) => request<Track>(`/api/tracks/${encodeURIComponent(id)}`, { signal }),
+  availability: (id: string) => request<{ available: true }>(`/api/tracks/${encodeURIComponent(id)}/availability`),
   trackPage,
   albumPage,
   artistPage,
@@ -88,21 +105,25 @@ export const api = {
     collectTrackPages((offset, limit) => trackPage({ ...options, offset, limit }, signal), signal, onProgress),
   albums: (signal?: AbortSignal) => request<Album[]>("/api/albums", { signal }),
   album: (key: string, signal?: AbortSignal) => request<{ album: Album; tracks: Track[] }>(`/api/albums/${encodeURIComponent(key)}`, { signal }),
+  albumMetadata: (key: string, signal?: AbortSignal) => request<AlbumMetadata>(`/api/admin/albums/${encodeURIComponent(key)}/metadata`, { signal }),
+  lookupAlbumMetadata: (key: string, revision: string, signal?: AbortSignal) => request<AlbumMetadataLookup>(`/api/admin/albums/${encodeURIComponent(key)}/metadata/lookup`, { method: "POST", body: JSON.stringify({ revision }), signal }),
+  saveAlbumMetadata: (key: string, values: AlbumMetadataValues, revision: string) => request<AlbumMetadata>(`/api/admin/albums/${encodeURIComponent(key)}/metadata`, { method: "PUT", body: JSON.stringify({ ...values, revision }) }),
   artists: (signal?: AbortSignal) => request<Artist[]>("/api/artists", { signal }),
   artist: (name: string, signal?: AbortSignal) => request<{ artist: Artist; albums: Album[]; tracks: Track[] }>(`/api/artists/${encodeURIComponent(name)}`, { signal }),
   search: (q: string, signal?: AbortSignal) => request<SearchResponse>(`/api/search?q=${encodeURIComponent(q)}`, { signal }),
   favorite: (trackId: string, favorite: boolean) =>
     request<Track>(`/api/tracks/${trackId}/favorite`, { method: "PATCH", body: JSON.stringify({ favorite }) }),
-  lyrics: (trackId: string, search = false) => fetch(`/api/tracks/${trackId}/lyrics${search ? "?search=1" : ""}`, { credentials: "include" }).then((response) => {
+  lyrics: (trackId: string, search = false, signal?: AbortSignal) => fetch(`/api/tracks/${trackId}/lyrics?format=json${search ? "&search=1" : ""}`, { credentials: "include", signal }).then((response) => {
     if (!response.ok) {
-      const error = new Error("暂无歌词") as Error & { status?: number };
+      if (response.status === 401) window.dispatchEvent(new Event("music:session-expired"));
+      const error = new Error(response.status === 404 ? "暂无歌词" : "歌词暂时无法载入") as Error & { status?: number };
       error.status = response.status;
       throw error;
     }
-    return response.text();
+    return response.json() as Promise<LyricsResponse>;
   }),
   playlists: (signal?: AbortSignal) => request<Playlist[]>("/api/playlists", { signal }),
-  createPlaylist: (name: string) => request<Playlist>("/api/playlists", { method: "POST", body: JSON.stringify({ name }) }),
+  createPlaylist: (name: string, requestId?: string) => request<Playlist>("/api/playlists", { method: "POST", body: JSON.stringify({ name, requestId }) }),
   playlist: (id: string, signal?: AbortSignal) => request<PlaylistDetail>(`/api/playlists/${encodeURIComponent(id)}`, { signal }),
   renamePlaylist: (id: string, name: string) =>
     request<Playlist>(`/api/playlists/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ name }) }),

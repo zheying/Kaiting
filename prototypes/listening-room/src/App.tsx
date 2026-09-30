@@ -606,7 +606,7 @@ export function App() {
         <div>{sectionHeading("一听，就很喜欢", "让这些旋律多陪你一会儿。", <button className="text-button" onClick={() => navigate("favorites")}>全部收藏<ChevronRight /></button>)}<div className="home-favorites-list">{trackList(tracks.filter((track) => favorites.has(track.id)).slice(0, 4), { compact: true, limit: 4 })}</div></div>
         <aside className="library-summary"><span className="eyebrow">本地音乐库</span><h3>你的音乐，都在这里。</h3><div className="library-summary-stats"><div><strong>{tracks.length.toLocaleString()}</strong><span>首歌曲</span></div><div><strong>{albums.length}</strong><span>张专辑</span></div></div><p>{durationLabel(tracks.reduce((sum, track) => sum + track.duration, 0))}，慢慢听。</p><button className="text-button" onClick={() => setModal({ type: "info" })}>关于这间音乐室<ChevronRight /></button></aside>
       </section>
-      <footer className="page-footer"><Disc3 size={15} /><span>你的音乐，你的节奏。</span><span>音泊</span></footer>
+      <footer className="page-footer"><Disc3 size={15} /><span>你的音乐，你的节奏。</span><span>开听</span></footer>
     </>;
   }
   function renderAlbums() {
@@ -760,7 +760,7 @@ export function App() {
     return <>
       {pageHeading("音乐库 / 目录", "音乐目录暂时不可访问", "检查挂载状态与访问权限，连接后继续聆听。")}
       <section className="incident-state" aria-label="音乐目录不可访问">
-        <StatePanel className="directory-unavailable-state" tone="error" icon={FolderOpen} eyebrow="目录不可访问" title="暂时读不到这处音乐目录" description={`音泊无法读取 ${blockedPath}。已保存的收藏和歌单不会受影响；连接恢复后可以继续扫描。`} busy={checking} actions={[{ label: checking ? "正在检查…" : "重新检查", onClick: () => retryLibrary("directory"), disabled: checking, busy: checking }, { label: "选择其他目录", variant: "subtle", onClick: () => { setDirectorySelection("/music"); setModal({ type: "directory", returnTo: "directory-unavailable" }); } }, { label: "回到首页", variant: "subtle", onClick: () => navigate("home") }]} />
+        <StatePanel className="directory-unavailable-state" tone="error" icon={FolderOpen} eyebrow="目录不可访问" title="暂时读不到这处音乐目录" description={`开听无法读取 ${blockedPath}。已保存的收藏和歌单不会受影响；连接恢复后可以继续扫描。`} busy={checking} actions={[{ label: checking ? "正在检查…" : "重新检查", onClick: () => retryLibrary("directory"), disabled: checking, busy: checking }, { label: "选择其他目录", variant: "subtle", onClick: () => { setDirectorySelection("/music"); setModal({ type: "directory", returnTo: "directory-unavailable" }); } }, { label: "回到首页", variant: "subtle", onClick: () => navigate("home") }]} />
         <div className="incident-meta" aria-label="目录检查信息">
           <div><span>当前目录</span><strong>{blockedPath}</strong></div>
           <div><span>可能原因</span><strong>NAS 未挂载或访问权限已改变</strong></div>
@@ -802,8 +802,8 @@ export function App() {
     if (!canManageLibrary) return renderLibraryEmpty("preview-empty-state");
     if (!initialSetup) return <>{pageHeading("状态预览 / 曲库", "曲库为空", "目录已经选择，模拟等待首次扫描的状态。")}{renderLibraryEmpty("preview-empty-state")}</>;
     return <>
-      {pageHeading("状态预览 / 初次设置", "先把音乐带进来", "模拟第一次打开音泊、还没有选择音乐目录的状态。")}
-      <StatePanel className="preview-empty-state initial-setup-state" icon={FolderOpen} eyebrow="第一次使用" title="还没有连接音乐目录" description="选择一个本地或 NAS 挂载目录，音泊会以只读方式扫描你的音乐。" actions={[{ label: "打开设置", onClick: () => { setDirectorySelection(""); setModal({ type: "settings" }); } }, { label: "回到首页", variant: "subtle", onClick: () => navigate("home") }]} />
+      {pageHeading("状态预览 / 初次设置", "先把音乐带进来", "模拟第一次打开开听、还没有选择音乐目录的状态。")}
+      <StatePanel className="preview-empty-state initial-setup-state" icon={FolderOpen} eyebrow="第一次使用" title="还没有连接音乐目录" description="选择一个本地或 NAS 挂载目录，开听会以只读方式扫描你的音乐。" actions={[{ label: "打开设置", onClick: () => { setDirectorySelection(""); setModal({ type: "settings" }); } }, { label: "回到首页", variant: "subtle", onClick: () => navigate("home") }]} />
     </>;
   }
   function renderEmptyPreview(kind: string) {
@@ -816,7 +816,7 @@ export function App() {
   function renderScan() {
     if (scan.status === "complete") return renderCompleteScan();
     if (scan.status === "partial") return renderPartialScan();
-    if (scan.status === "idle") return <StatePanel icon={FolderOpen} title="从连接音乐目录开始" description="选择目录后，音泊会自动扫描其中的音乐。" actions={[{ label: "选择目录", onClick: () => setModal({ type: "directory", returnTo: "settings" }) }]} />;
+    if (scan.status === "idle") return <StatePanel icon={FolderOpen} title="从连接音乐目录开始" description="选择目录后，开听会自动扫描其中的音乐。" actions={[{ label: "选择目录", onClick: () => setModal({ type: "directory", returnTo: "settings" }) }]} />;
     if (scan.status === "empty") return <>{pageHeading("音乐库 / 扫描结果", "目录里还没有可播放的音乐", `已检查 ${scan.total} 个文件 · ${scan.path}`)}<StatePanel className="preview-empty-state" icon={FolderOpen} eyebrow="扫描完成 · 0 首歌曲" title="换一处，继续发现音乐" description="目录可能为空，或文件格式暂不支持。确认目录中包含音频文件，也可以选择另一个音乐目录。" actions={[{ label: "更换目录", onClick: () => setModal({ type: "directory", returnTo: "settings" }) }, { label: "重新扫描", variant: "subtle", onClick: () => startDirectoryScan(musicDirectory) }]} /></>;
     if (scan.status === "failed" || scan.status === "interrupted") return <>{pageHeading("音乐库 / 扫描", scan.status === "failed" ? "扫描还没有开始" : "这次扫描中断了", scan.path)}<StatePanel className="preview-empty-state" tone="error" icon={AlertTriangle} eyebrow={scan.status === "failed" ? "无法启动扫描" : `已检查 ${scan.processed.toLocaleString()} 个文件`} title={scan.status === "failed" ? "暂时无法启动扫描任务" : scan.reason === "stopped" ? "扫描已停止" : "音乐目录的连接断开了"} description={scan.status === "failed" ? "扫描服务暂时没有响应。已有曲库、收藏和歌单仍然保留，请稍后重试。" : scan.reason === "stopped" ? "已停止本次扫描，原曲库索引、收藏和歌单均保留。准备好后可以重新扫描。" : "本次扫描尚未完成，原曲库索引没有被删除。确认 NAS 挂载与网络连接后重新扫描。"} actions={[{ label: "重新扫描", onClick: () => startDirectoryScan(musicDirectory) }, { label: "检查目录", variant: "subtle", onClick: () => setModal({ type: "settings" }) }]} /></>;
     const percentage = Math.round(scan.processed / scan.total * 100);
@@ -831,7 +831,7 @@ export function App() {
       </section></>;
   }
   function renderPreviewGallery() {
-    return <>{pageHeading("音泊 / 设计状态", "每一种状态，都有回应", "查看正常、缺省与异常流程；点击恢复操作，可以继续体验下一步。")}
+    return <>{pageHeading("开听 / 设计状态", "每一种状态，都有回应", "查看正常、缺省与异常流程；点击恢复操作，可以继续体验下一步。")}
       <div className="preview-intro"><Info /><p>这里使用独立演示数据。每次进入一个场景会重置该场景，所有操作都只影响当前原型；刷新后恢复默认。动画中的等待状态会停留，便于查看。</p></div>
       {previewGroups.map((group, index) => <section className="preview-group" key={group.name}><div className="preview-group-heading"><span>{String(index + 1).padStart(2, "0")}</span><div><h2>{group.name}</h2><p>{group.description}</p></div><small>{group.items.length} 个状态</small></div><div className="preview-grid">{group.items.map(([id, title]) => <a key={id} href={`#/preview/${id}`}><span>{title}</span><ChevronRight /></a>)}</div></section>)}
     </>;
@@ -923,7 +923,7 @@ export function App() {
   return <div className={`app ${isMobile ? "mobile-layout" : "desktop-layout"} ${dense ? "dense-layout" : ""} ${darkMode ? "dark-theme" : ""} library-surface ${homePage ? "home-surface" : ""} ${catalogPage ? "catalog-surface" : ""}`}>
     <a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); mainRef.current?.focus(); }}>跳到主要内容</a>
     <aside className={`sidebar ${mobileNavOpen ? "sidebar-open" : ""}`} aria-label="音乐库导航" inert={isMobile && !mobileNavOpen}>
-      <button className="brand" aria-label="音泊首页" onClick={() => navigate("home")}><span className="brand-mark" aria-hidden="true"><BrandGlyph /></span><span>音泊</span></button>
+      <button className="brand" aria-label="开听首页" onClick={() => navigate("home")}><span className="brand-mark" aria-hidden="true"><BrandGlyph /></span><span>开听</span></button>
       {isMobile && <IconButton className="close-mobile-nav" label="关闭导航" onClick={() => setMobileNavOpen(false)}><X /></IconButton>}
       <div className="sidebar-content">
         <span className="nav-label">我的音乐</span><nav className="main-nav">{navItems.map(({ route: target, title, icon: Icon }) => <button key={target} aria-label={title} aria-current={!searching && (section === target || section === target.replace(/s$/, "")) ? "page" : undefined} onClick={() => navigate(target)}><Icon /><span>{title}</span>{target === "favorites" && <small>{favorites.size}</small>}</button>)}<button className="compact-playlists" aria-label="我的歌单" aria-current={!searching && (section === "playlists" || section === "playlist") ? "page" : undefined} onClick={() => navigate("playlists")}><ListMusic /><span>我的歌单</span></button></nav>
@@ -994,7 +994,7 @@ export function App() {
       {modal.type === "info" && <><span className="eyebrow">MUSIC LIBRARY · DESIGN CONCEPT 01</span><h2>属于你的，私人音乐空间</h2><p>以唱片收藏为灵感，让浏览、发现与聆听都慢下来。</p><div className="about-stats"><span><strong>{tracks.length.toLocaleString()}</strong>首歌曲</span><span><strong>{albums.length}</strong>张真实专辑</span><span><strong>01</strong>私人音乐室</span></div><div className="prototype-explanation"><Info /><p>这是独立交互原型，使用本地曲库的元数据与封面快照。播放、进度及音量为交互演示，不输出音频；收藏和歌单在刷新后重置。原曲库与现有应用保持不变。</p></div><button className="button primary full-width" onClick={() => setModal(null)}>开始逛逛 <ArrowRight /></button></>}
       {modal.type === "directory" && <>
         <h2>选择音乐目录</h2>
-        <p>选择一个本地或 NAS 挂载目录，音泊会以只读方式扫描其中的音乐文件。</p>
+        <p>选择一个本地或 NAS 挂载目录，开听会以只读方式扫描其中的音乐文件。</p>
         <div className="directory-picker" role="listbox" aria-label="可用音乐目录">
           <div className="directory-picker-heading"><span>可用目录</span><span>只读</span></div>
           {directoryOptions.map((option) => <button type="button" role="option" aria-selected={directorySelection === option.path} aria-disabled={!option.available} className={`directory-option ${directorySelection === option.path ? "is-selected" : ""} ${!option.available ? "is-unavailable" : ""}`} key={option.path} disabled={!option.available} onClick={() => setDirectorySelection(option.path)}><span className="directory-option-icon"><FolderOpen aria-hidden="true" /></span><span><strong>{option.path}</strong><small>{option.detail}</small></span>{directorySelection === option.path && <Check aria-hidden="true" />}</button>)}

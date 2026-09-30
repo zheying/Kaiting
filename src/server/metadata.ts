@@ -1,8 +1,13 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { AppConfig } from "./config.js";
 import type { DatabaseHandle, UpsertTrack } from "./db.js";
+import { fetchMusicBrainzJson } from "./musicbrainz.js";
+import { fetchLyricsJson, LyricsLookupError } from "./lyrics-provider.js";
+import { safeRealPath } from "./pathSafety.js";
+import { parseLyrics } from "../shared/lyrics.js";
+import { parseLyricsfile, readLyricsDocument, type LyricsDocument } from "./lyrics-document.js";
 
 type FetchLike = typeof fetch;
 type LyricsLookupTrack = Pick<UpsertTrack, "id" | "title" | "artist" | "albumArtist" | "album" | "duration">;
@@ -29,9 +34,16 @@ interface LrcLibResponse {
   duration?: number | null;
   syncedLyrics?: string | null;
   plainLyrics?: string | null;
+  lyricsfile?: unknown;
 }
 
-type LrcLibSearchResponse = LrcLibResponse[];
+function isLrcLibResponse(value: unknown): value is LrcLibResponse {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const item = value as Record<string, unknown>;
+  return typeof item.trackName === "string" && typeof item.artistName === "string"
+    && [item.albumName, item.syncedLyrics, item.plainLyrics].every((text) => text == null || typeof text === "string")
+    && (item.duration == null || (typeof item.duration === "number" && Number.isFinite(item.duration)));
+}
 
 interface OnlineMetadata {
   title?: string | null;
@@ -119,12 +131,22 @@ function lyricTitleCandidates(track: LyricsLookupTrack): string[] {
   ]);
 }
 
-function lyricsFromLrcLib(payload: LrcLibResponse | null): string | null {
-  return compact(payload?.syncedLyrics) ?? compact(payload?.plainLyrics);
+const parsedLyrics = new WeakMap<LrcLibResponse, LyricsDocument | null>();
+function lyricsFromLrcLib(payload: LrcLibResponse): LyricsDocument | null {
+  if (parsedLyrics.has(payload)) return parsedLyrics.get(payload)!;
+  const rich = parseLyricsfile(payload.lyricsfile);
+  const legacy = compact(payload.syncedLyrics) ?? compact(payload.plainLyrics);
+  const result = rich && rich.lines.some((line) => line.time !== null) ? rich
+    : legacy ? { text: legacy, lines: parseLyrics(legacy) } : rich;
+  // Preserve the compatible LRC body from this same candidate when available.
+  if (result && rich === result && compact(payload.syncedLyrics)) result.text = payload.syncedLyrics!.trim();
+  parsedLyrics.set(payload, result);
+  return result;
 }
 
-function syncedLyricsFromLrcLib(payload: LrcLibResponse | null): string | null {
-  return compact(payload?.syncedLyrics);
+function syncedLyricsFromLrcLib(payload: LrcLibResponse): LyricsDocument | null {
+  const lyrics = lyricsFromLrcLib(payload);
+  return lyrics?.lines.some((line) => line.time !== null) ? lyrics : null;
 }
 
 function hasCjkOrKana(text: string): boolean {
@@ -180,9 +202,17 @@ function scoreLrcLibResult(track: LyricsLookupTrack, payload: LrcLibResponse): n
   if (!lyrics) return Number.NEGATIVE_INFINITY;
   const titles = lyricTitleCandidates(track);
   const artists = lyricArtistCandidates(track);
+  // Broad searches include unrelated songs. Text/script and synchronization are preferences,
+  // never substitutes for identity. Alternate artist scripts require album + duration evidence.
+  if (!matchesAnyLoose(payload.trackName, titles)) return Number.NEGATIVE_INFINITY;
+  const durationDelta = track.duration && payload.duration ? Math.abs(payload.duration - track.duration) : null;
+  if (durationDelta !== null && durationDelta > 5) return Number.NEGATIVE_INFINITY;
+  if (!matchesAnyLoose(payload.artistName, artists)
+    && !(sameLoose(payload.albumName, track.album) && durationDelta !== null && durationDelta <= 2)) return Number.NEGATIVE_INFINITY;
   let score = 0;
-  if (hasCjkOrKana(lyrics)) score += 32;
-  if (compact(payload.syncedLyrics)) score += 24;
+  if (hasCjkOrKana(lyrics.text)) score += 32;
+  if (syncedLyricsFromLrcLib(payload)) score += 24;
+  if (lyrics.lines.some((line) => line.words?.length)) score += 4;
   if (matchesAnyLoose(payload.trackName, titles)) {
     score += 16;
   } else if (containsAnyLoose(payload.trackName, titles)) {
@@ -204,9 +234,10 @@ function scoreLrcLibResult(track: LyricsLookupTrack, payload: LrcLibResponse): n
   return score;
 }
 
-function selectBestLrcLibResult(track: LyricsLookupTrack, payloads: LrcLibResponse[]): string | null {
-  const syncedPayloads = payloads.filter((payload) => syncedLyricsFromLrcLib(payload));
-  const eligiblePayloads = syncedPayloads.length > 0 ? syncedPayloads : payloads;
+function selectBestLrcLibResult(track: LyricsLookupTrack, payloads: LrcLibResponse[]): LyricsDocument | null {
+  const matches = payloads.filter((payload) => Number.isFinite(scoreLrcLibResult(track, payload)));
+  const syncedPayloads = matches.filter((payload) => syncedLyricsFromLrcLib(payload));
+  const eligiblePayloads = syncedPayloads.length > 0 ? syncedPayloads : matches;
   let bestPayload: LrcLibResponse | null = null;
   let bestScore = Number.NEGATIVE_INFINITY;
   for (const payload of eligiblePayloads) {
@@ -221,6 +252,7 @@ function selectBestLrcLibResult(track: LyricsLookupTrack, payloads: LrcLibRespon
 }
 
 async function fetchJson<T>(url: string, fetcher: FetchLike): Promise<T | null> {
+  if (new URL(url).hostname === "musicbrainz.org") return fetchMusicBrainzJson<T>(url, fetcher).catch(() => null);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12000);
   try {
@@ -324,15 +356,52 @@ async function lookupCoverArt(config: AppConfig, releaseId: string | null | unde
   return artworkPath;
 }
 
-export async function lookupLyrics(config: AppConfig, track: LyricsLookupTrack, database: DatabaseHandle, fetcher: FetchLike = globalThis.fetch): Promise<string | null> {
+const lyricsInFlight = new WeakMap<DatabaseHandle, Map<string, Promise<string | null>>>();
+
+export async function lookupLyrics(config: AppConfig, track: LyricsLookupTrack, database: DatabaseHandle, fetcher: FetchLike = globalThis.fetch, options: { refresh?: boolean } = {}): Promise<string | null> {
+  if (!config.enableOnlineMetadata) return null;
   const artists = lyricArtistCandidates(track);
   const titles = lyricTitleCandidates(track);
   if (titles.length === 0 || artists.length === 0) return null;
-  const key = cacheKey("lrclib:v5", [titles.join("|"), artists.join("|"), track.album, Math.round(track.duration ?? 0)]);
-  const cached = database.getMetadataCache(key) as { lyricsPath?: string | null } | null;
-  if (cached) return cached.lyricsPath ?? null;
+  const key = cacheKey("lrclib:v7", [titles.join("|"), artists.join("|"), track.album, Math.round(track.duration ?? 0)]);
+  let pending = lyricsInFlight.get(database);
+  if (!pending) { pending = new Map(); lyricsInFlight.set(database, pending); }
+  const existing = pending.get(key);
+  if (existing) return existing;
+  const request = lookupLyricsUncached(config, track, database, fetcher, options, key, titles, artists);
+  pending.set(key, request);
+  try { return await request; } finally { pending.delete(key); }
+}
+
+async function lookupLyricsUncached(config: AppConfig, track: LyricsLookupTrack, database: DatabaseHandle, fetcher: FetchLike,
+  options: { refresh?: boolean }, key: string, titles: string[], artists: string[]): Promise<string | null> {
+  const cached = database.getMetadataCache(key) as { lyricsPath?: string | null; expiresAt?: number } | null;
+  if (!options.refresh && cached) {
+    if (cached.lyricsPath) {
+      try {
+        const safePath = safeRealPath(config.metadataDir, cached.lyricsPath);
+        if (readLyricsDocument(await fs.readFile(safePath, "utf8"), safePath.endsWith(".lyrics.json"))) return cached.lyricsPath;
+      } catch { /* A stale cache pointer must not prevent a new search. */ }
+    } else if (cached.expiresAt && cached.expiresAt > Date.now()) return null;
+  }
 
   const candidates: LrcLibResponse[] = [];
+  const deadline = AbortSignal.timeout(20_000);
+  let providerUnavailable = false;
+  const query = async (url: URL, search = false) => {
+    if (providerUnavailable) return;
+    try {
+      const payload = await fetchLyricsJson(url, fetcher, deadline);
+      if (payload === null) return;
+      const values = search ? payload : [payload];
+      if (!Array.isArray(values) || !values.every(isLrcLibResponse)) throw new LyricsLookupError();
+      candidates.push(...values);
+    } catch (error) {
+      if (!(error instanceof LyricsLookupError) || !selectBestLrcLibResult(track, candidates)) throw error;
+      // Optional alternatives must not discard a usable match when the provider goes offline.
+      providerUnavailable = true;
+    }
+  };
 
   for (const title of titles) {
     for (const artist of artists) {
@@ -342,44 +411,46 @@ export async function lookupLyrics(config: AppConfig, track: LyricsLookupTrack, 
       if (track.album) url.searchParams.set("album_name", track.album);
       if (track.duration) url.searchParams.set("duration", String(Math.round(track.duration)));
 
-      const payload = await fetchJson<LrcLibResponse>(url.toString(), fetcher);
-      if (payload) candidates.push(payload);
+      await query(url);
     }
   }
 
   const bestExactLyrics = selectBestLrcLibResult(track, candidates);
-  if (!bestExactLyrics || !hasCjkOrKana(bestExactLyrics)) {
+  if (!bestExactLyrics || !hasCjkOrKana(bestExactLyrics.text)) {
     for (const title of titles) {
       for (const artist of artists) {
         const url = new URL("https://lrclib.net/api/search");
         url.searchParams.set("track_name", title);
         url.searchParams.set("artist_name", artist);
-        const payload = await fetchJson<LrcLibSearchResponse>(url.toString(), fetcher);
-        if (Array.isArray(payload)) candidates.push(...payload);
+        await query(url, true);
       }
     }
   }
 
   if (!selectBestLrcLibResult(track, candidates)) {
-    for (const query of lyricQueryCandidates(track, titles, artists)) {
+    for (const text of lyricQueryCandidates(track, titles, artists)) {
       const url = new URL("https://lrclib.net/api/search");
-      url.searchParams.set("q", query);
-      const payload = await fetchJson<LrcLibSearchResponse>(url.toString(), fetcher);
-      if (Array.isArray(payload)) candidates.push(...payload);
+      url.searchParams.set("q", text);
+      await query(url, true);
       if (selectBestLrcLibResult(track, candidates)) break;
     }
   }
 
   const lyrics = selectBestLrcLibResult(track, candidates);
   if (!lyrics) {
-    database.setMetadataCache(key, "LRCLIB", { lyricsPath: null });
+    database.setMetadataCache(key, "LRCLIB", { lyricsPath: null, expiresAt: Date.now() + 24 * 60 * 60 * 1000 });
     return null;
   }
 
   const lyricsDir = path.join(config.metadataDir, "lyrics");
   await fs.mkdir(lyricsDir, { recursive: true });
-  const lyricsPath = path.join(lyricsDir, safeFileName(`online-${track.id}`, "lrc"));
-  await fs.writeFile(lyricsPath, lyrics, "utf8");
+  const safeDir = safeRealPath(config.metadataDir, lyricsDir);
+  const lyricsPath = path.join(lyricsDir, safeFileName(`online-${track.id}`, "lyrics.json"));
+  const temporary = path.join(safeDir, `${randomUUID()}.tmp`);
+  try {
+    await fs.writeFile(temporary, JSON.stringify({ version: 1, ...lyrics }), { encoding: "utf8", flag: "wx" });
+    await fs.rename(temporary, lyricsPath);
+  } finally { await fs.rm(temporary, { force: true }); }
   database.setMetadataCache(key, "LRCLIB", { lyricsPath });
   return lyricsPath;
 }
@@ -390,7 +461,7 @@ export async function enrichTrackMetadata(
   track: UpsertTrack,
   fetcher: FetchLike = globalThis.fetch
 ): Promise<UpsertTrack> {
-  if (!config.enableOnlineMetadata) return track;
+  if (!config.enableOnlineMetadata || config.scanOnlineMetadata === false) return track;
 
   const needsTags = !track.album || !track.artist || !track.year;
   const online = needsTags ? await lookupMusicBrainz(track, database, fetcher).catch(() => null) : null;

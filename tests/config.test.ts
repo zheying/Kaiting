@@ -9,7 +9,7 @@ const TEST_SECRET = "8cf9409aa69bdc5f5c859f6055e25fcfd7a39767e2c7bfa226b90e4c5d1
 
 beforeEach(() => {
   directory = fs.mkdtempSync(path.join(os.tmpdir(), "music-config-"));
-  for (const key of ["ADMIN_PASSWORD", "COOKIE_SECRET", "COOKIE_SECURE", "ENABLE_ONLINE_METADATA", "PORT"]) {
+  for (const key of ["ADMIN_PASSWORD", "COOKIE_SECRET", "COOKIE_SECURE", "ENABLE_ONLINE_METADATA", "SCAN_ONLINE_METADATA", "AUTO_COMPLETE_ALBUM_METADATA", "PORT"]) {
     vi.stubEnv(key, undefined);
   }
   vi.stubEnv("NODE_ENV", "test");
@@ -73,10 +73,25 @@ describe("deployment configuration", () => {
     expect(loadConfig()).toMatchObject({ cookieSecure: true, enableOnlineMetadata: true, port: 4321 });
   });
 
+  it("allows background album completion without enabling per-track scan requests", () => {
+    expect(loadConfig().scanOnlineMetadata).toBe(true);
+    vi.stubEnv("ENABLE_ONLINE_METADATA", "true"); vi.stubEnv("SCAN_ONLINE_METADATA", "false");
+    expect(loadConfig()).toMatchObject({ enableOnlineMetadata: true, scanOnlineMetadata: false, autoCompleteAlbumMetadata: true });
+    vi.stubEnv("SCAN_ONLINE_METADATA", "invalid");
+    expect(() => loadConfig()).toThrow(/SCAN_ONLINE_METADATA/);
+  });
+
   it("does not silently disable secure cookies when configuration contains a typo", () => {
     setProduction();
     vi.stubEnv("COOKIE_SECURE", "ture");
     expect(() => loadConfig()).toThrow(/COOKIE_SECURE/);
+  });
+
+  it("defaults background album completion on behind the online gate, allows opt-out and rejects misspelled settings", () => {
+    expect(loadConfig()).toMatchObject({ enableOnlineMetadata: false, autoCompleteAlbumMetadata: true });
+    vi.stubEnv("AUTO_COMPLETE_ALBUM_METADATA", "false"); expect(loadConfig().autoCompleteAlbumMetadata).toBe(false);
+    vi.stubEnv("AUTO_COMPLETE_ALBUM_METADATA", "true"); expect(loadConfig().autoCompleteAlbumMetadata).toBe(true);
+    vi.stubEnv("AUTO_COMPLETE_ALBUM_METADATA", "invalid"); expect(() => loadConfig()).toThrow(/AUTO_COMPLETE_ALBUM_METADATA/);
   });
 
   it.each(["0", "65536", "-1", "3000.5", "not-a-port", ""])("rejects invalid configured port %j", (value) => {

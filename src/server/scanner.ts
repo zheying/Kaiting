@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import { constants, statSync } from "node:fs";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
-import { parseFile } from "music-metadata";
+import { parseFile, type IAudioMetadata } from "music-metadata";
 import type { AppConfig } from "./config.js";
 import type { DatabaseHandle, UpsertTrack } from "./db.js";
 import type { ScanOptions } from "../shared/types.js";
@@ -12,10 +12,33 @@ import { enrichTrackMetadata } from "./metadata.js";
 
 export interface Scanner {
   isRunning(): boolean;
+  stop?(): void;
   scan(options?: ScanOptions): Promise<void>;
+  subscribe?(listener: (event: ScanEvent) => void): () => void;
 }
 
-const SCANNER_VERSION = 1;
+export type ScanEvent = { type: "started" } | { type: "finished"; complete: boolean };
+
+const SCANNER_VERSION = 2;
+
+export function metadataYear(metadata: Pick<IAudioMetadata, "common" | "native">): number | null {
+  const parseYear = (value: unknown): number | null => {
+    if (typeof value !== "string" && typeof value !== "number") return null;
+    const match = String(value).trim().match(/^([1-9]\d{3})(?:$|[-/T ])/);
+    return match ? Number(match[1]) : null;
+  };
+  const common = parseYear(metadata.common.year) ?? parseYear(metadata.common.date);
+  if (common !== null) return common;
+  // Some FLAC/Vorbis libraries use YEAR, which music-metadata does not map to common.year.
+  for (const field of ["DATE", "YEAR"]) {
+    for (const tag of metadata.native?.vorbis ?? []) {
+      if (tag.id.toUpperCase() !== field) continue;
+      const year = parseYear(tag.value);
+      if (year !== null) return year;
+    }
+  }
+  return null;
+}
 
 type FileInfo = { path: string; size: number; mtimeMs: number; ctimeMs: number };
 type FileSnapshot = {
@@ -74,10 +97,11 @@ async function folderCoverCandidates(info: DirectoryInfo, cache: CoverCandidates
   return names;
 }
 
-async function walkAudioFiles(root: string): Promise<{ files: string[]; directories: Map<string, string> }> {
+async function walkAudioFiles(root: string, cancelled: () => boolean = () => false): Promise<{ files: string[]; directories: Map<string, string> }> {
   const files: string[] = [];
   const directories = new Map<string, string>();
   async function walk(directory: string): Promise<void> {
+    if (cancelled()) throw new Error("扫描已停止");
     const realDirectory = safeRealPath(root, directory);
     directories.set(realDirectory, await directoryIdentity(root, realDirectory));
     const entries = await fs.readdir(realDirectory, { withFileTypes: true });
@@ -160,7 +184,7 @@ async function inspectTrack(config: AppConfig, snapshot: FileSnapshot, existingI
     artist: normalizeText(common.artist ?? common.artists),
     albumArtist: normalizeText(common.albumartist),
     genre: normalizeText(common.genre),
-    year: common.year ?? null,
+    year: metadataYear(metadata),
     trackNo: common.track.no ?? null,
     discNo: common.disk.no ?? null,
     duration: format.duration ?? null,
@@ -213,6 +237,13 @@ function metadataDatabase(config: AppConfig, database: DatabaseHandle, force: bo
 
 export function createScanner(config: AppConfig, database: DatabaseHandle): Scanner {
   let running = false;
+  let stopped = false;
+  const listeners = new Set<(event: ScanEvent) => void>();
+  const notify = (event: ScanEvent) => {
+    for (const listener of listeners) {
+      try { listener(event); } catch (error) { console.warn("Scan observer failed", error); }
+    }
+  };
   database.db.exec(`
     CREATE TABLE IF NOT EXISTS scanner_state (
       path TEXT PRIMARY KEY,
@@ -233,12 +264,17 @@ export function createScanner(config: AppConfig, database: DatabaseHandle): Scan
 
   return {
     isRunning() { return running; },
+    subscribe(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
+    stop() { if (running) stopped = true; },
     async scan(options: ScanOptions = {}) {
       if (running) return;
       const force = options.force === true;
       const prune = options.prune === true;
       const job = database.createScanJob({ force, prune });
       running = true;
+      stopped = false;
+      let complete = false;
+      notify({ type: "started" });
       let scannedFiles = 0;
       let parsedFiles = 0;
       let skippedFiles = 0;
@@ -250,7 +286,7 @@ export function createScanner(config: AppConfig, database: DatabaseHandle): Scan
         const rootIdentity = await directoryIdentity(root, root);
         const previousRoot = database.db.prepare("SELECT identity FROM scanner_roots WHERE path = ?").get(root) as { identity: string } | undefined;
         const indexedPaths = database.listIndexedPaths();
-        const { files, directories } = await walkAudioFiles(root);
+        const { files, directories } = await walkAudioFiles(root, () => stopped);
         const existingTrackCount = indexedPaths.length;
         const seenPaths = new Set<string>();
         database.updateScanJob(job.id, { totalFiles: files.length, message: force ? "正在完整重扫曲库" : "正在增量扫描曲库" });
@@ -265,6 +301,7 @@ export function createScanner(config: AppConfig, database: DatabaseHandle): Scan
           return;
         }
         for (const filePath of files) {
+          if (stopped) throw new Error("扫描已停止，已有索引已保留。");
           try {
             const realFile = safeRealPath(root, filePath);
             seenPaths.add(realFile);
@@ -303,6 +340,7 @@ export function createScanner(config: AppConfig, database: DatabaseHandle): Scan
           }
         }
 
+        if (stopped) throw new Error("扫描已停止，已有索引已保留。");
         if (await directoryIdentity(root, root) !== rootIdentity) throw new Error("扫描期间曲库挂载发生变化，已保留所有缺失索引。");
         const missingPaths: string[] = [];
         for (const indexed of indexedPaths) {
@@ -338,13 +376,14 @@ export function createScanner(config: AppConfig, database: DatabaseHandle): Scan
           finishedAt: new Date().toISOString(),
           message: `扫描完成：解析 ${parsedFiles}，跳过 ${skippedFiles}` + (removed ? `，清理了 ${removed} 首缺失歌曲的索引` : retained ? `，保留了 ${retained} 首缺失歌曲的索引` : "")
         });
+        complete = errorCount === 0 && retained === 0;
       } catch (error) {
         database.updateScanJob(job.id, {
-          status: "failed", scannedFiles, parsedFiles, skippedFiles, errorCount: errorCount || 1,
+          status: stopped ? "interrupted" : "failed", scannedFiles, parsedFiles, skippedFiles, errorCount: stopped ? errorCount : errorCount || 1,
           finishedAt: new Date().toISOString(),
           message: `${scanFailureMessage(error)}${prune ? "（未清理缺失索引）" : "（已保留现有索引）"}`
         });
-      } finally { running = false; }
+      } finally { running = false; notify({ type: "finished", complete }); }
     }
   };
 }

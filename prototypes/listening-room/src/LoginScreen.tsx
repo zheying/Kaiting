@@ -49,8 +49,8 @@ export function LoginScreen({ isMobile, users, issue = "", onSuccess, onDemo, on
   return <main data-login-issue={issue} className={`login-screen ${isMobile ? "is-mobile" : ""} ${busy ? "is-busy" : ""}`}>
     <LoginBackdrop />
     <section className="login-content" aria-labelledby="login-title">
-      <div className="login-brand"><img src="/favicon.svg" alt="" /><span>音泊</span><small>PRIVATE MUSIC SPACE</small></div>
-      <div className="login-copy"><span className="login-kicker">{passwordUser ? "MAKE IT YOURS" : "WELCOME BACK"}</span><h1 id="login-title">{passwordUser ? "让账号，只属于你" : "欢迎回到音泊"}</h1><p>{passwordUser ? `你好，${passwordUser.displayName}` : "登录私人音乐空间"}</p></div>
+      <div className="login-brand"><img src="/favicon.svg" alt="" /><span>开听</span><small>PRIVATE MUSIC SPACE</small></div>
+      <div className="login-copy"><span className="login-kicker">{passwordUser ? "MAKE IT YOURS" : "WELCOME BACK"}</span><h1 id="login-title">{passwordUser ? "让账号，只属于你" : "欢迎回到开听"}</h1><p>{passwordUser ? `你好，${passwordUser.displayName}` : "登录私人音乐空间"}</p></div>
       {passwordUser && <p className="login-required-note" role="status">首次登录或密码重置后，请先设置自己的密码。</p>}
       {!passwordUser && ["expired", "signed-out", "password-changed"].includes(issue) && <p className="login-session-note" role="status">{issue === "expired" ? "登录已过期，重新登录后会回到刚才的页面。" : issue === "password-changed" ? "密码已更新，所有设备已退出。请使用新密码登录。" : "你已退出音乐室，收藏和歌单已保留。"}</p>}
       <form ref={feedback.formRef} className="login-form" onSubmit={submit} noValidate aria-busy={busy}>

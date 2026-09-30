@@ -1,4 +1,4 @@
-export type ScanStatus = "idle" | "running" | "completed" | "failed";
+export type ScanStatus = "idle" | "running" | "completed" | "failed" | "interrupted";
 
 export interface Page<T> {
   items: T[];
@@ -50,10 +50,66 @@ export interface Album {
   title: string;
   artist: string | null;
   year: number | null;
+  genre?: string | null;
   trackCount: number;
   discCount?: number;
   duration: number;
   artworkTrackId: string | null;
+}
+
+export interface AlbumMetadataValues {
+  year: number | null;
+  genre: string | null;
+}
+
+export interface AlbumMetadata {
+  album: Album;
+  original: AlbumMetadataValues;
+  overrides: AlbumMetadataValues;
+  revision: string;
+  onlineLookupEnabled?: boolean;
+  autoCompleteEnabled?: boolean;
+  autoFillBlocked?: boolean;
+  automatic?: (AlbumMetadataValues & { sourceUrl: string; matchedAt: string; sources?: { year: string[]; genre: string[] } }) | null;
+}
+
+export interface AlbumEnrichmentStatus {
+  enabled: boolean;
+  state: "idle" | "running" | "waiting" | "completed";
+  total: number;
+  checked: number;
+  updated: number;
+  skipped: number;
+  failed: number;
+  finishedAt: string | null;
+}
+
+export interface CatalogStatus {
+  revision: string;
+  scanRunning: boolean;
+  enrichment: AlbumEnrichmentStatus;
+}
+
+export interface AlbumMetadataCandidate extends AlbumMetadataValues {
+  id: string;
+  title: string;
+  artist: string;
+  date: string | null;
+  country: string | null;
+  format: string | null;
+  trackCount: number | null;
+  discCount: number | null;
+  sourceUrl: string;
+  official?: boolean;
+  artistCompatible?: boolean;
+  matches: { artist: boolean; tracks: boolean; discs: boolean; year: boolean; trackList?: boolean };
+}
+
+export interface AlbumMetadataLookup {
+  candidates: AlbumMetadataCandidate[];
+  recommendedId: string | null;
+  partial: boolean;
+  truncated: boolean;
 }
 
 export interface Artist {
