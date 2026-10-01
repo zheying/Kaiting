@@ -22,7 +22,7 @@ const SAMPLE_LINES = [
   [.95, "把今天轻轻收藏"]
 ] as const;
 
-export function DemoLyrics({ trackId, duration, position, readPosition, playing, onSeek, onShowEmpty }: {
+export function DemoLyrics({ trackId, duration, position, readPosition, playing, onSeek, onShowEmpty, variant = "standard" }: {
   trackId: string;
   duration: number;
   position: number;
@@ -30,11 +30,12 @@ export function DemoLyrics({ trackId, duration, position, readPosition, playing,
   playing: boolean;
   onSeek: (position: number) => void;
   onShowEmpty: () => void;
+  variant?: "standard" | "atmosphere";
 }) {
   // 演示数据只有行时间；逐词进度和跟随规则直接复用正式版，不推算不存在的字时间。
   const lines = useMemo(() => SAMPLE_LINES.map(([fraction, text]) => ({ time: Math.floor(Math.max(0, duration) * fraction), text })), [duration]);
-  return <div className="np-demo-lyrics">
-    <div className="np-lyrics-toolbar"><small>原创演示 · 非本曲歌词</small><button type="button" onClick={onShowEmpty} title="查看没有歌词时的显示方式">无歌词</button></div>
-    <SyncedLyrics trackId={trackId} position={position} readPosition={readPosition} playing={playing} onSeek={onSeek} lines={lines} />
+  return <div className="np-demo-lyrics" data-variant={variant} aria-label="原创演示歌词，非本曲歌词">
+    {variant === "standard" && <div className="np-lyrics-toolbar"><small>原创演示 · 非本曲歌词</small><button type="button" onClick={onShowEmpty} title="查看没有歌词时的显示方式">无歌词</button></div>}
+    <SyncedLyrics trackId={trackId} position={position} readPosition={readPosition} playing={playing} onSeek={onSeek} lines={lines} variant={variant} />
   </div>;
 }

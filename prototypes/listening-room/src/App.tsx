@@ -9,6 +9,7 @@ import {
 import library from "./library.json";
 import { CapsulePlayer } from "./CapsulePlayer";
 import { NowPlaying } from "./NowPlaying";
+import { MediaConnectionSettings } from "./MediaConnectionSettings";
 import { usePrototypeAudio } from "./usePrototypeAudio";
 import { PlaylistOrderEditor } from "./PlaylistOrderEditor";
 import { LoginScreen } from "./LoginScreen";
@@ -163,6 +164,7 @@ export function App() {
   const [toast, setToast] = useState("");
   const [pageLimit, setPageLimit] = useState(40);
   const [dense, setDense] = useState(false);
+  const [automaticMediaConnection, setAutomaticMediaConnection] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const [musicDirectory, setMusicDirectory] = useState("/music");
   const [directoryConfigured, setDirectoryConfigured] = useState(true);
@@ -1025,11 +1027,12 @@ export function App() {
           {scan.status !== "idle" && scan.status !== "running" && <button className="settings-scan-result" onClick={() => { setModal(null); navigate("scan"); }}>{scan.status === "complete" ? "上次扫描已全部完成" : scan.status === "empty" ? "上次扫描未发现音乐" : scan.status === "partial" ? "上次扫描有 3 个文件需要处理" : "上次扫描未完成"}<span>查看结果 <ChevronRight /></span></button>}
         </div>
         : <div className="directory-setting"><div className="directory-setting-heading"><span><strong>共享音乐库</strong><small>音乐目录与扫描由管理员维护，你可以自由浏览和聆听。</small></span><span className="setting-badge">只读聆听</span></div></div>}
+        <MediaConnectionSettings automatic={automaticMediaConnection} onAutomaticChange={setAutomaticMediaConnection} />
         <div className="setting-row"><span><strong>紧凑歌曲列表</strong><small>在同一屏里看见更多音乐</small></span><button className={`toggle ${dense ? "on" : ""}`} role="switch" aria-checked={dense} aria-label="紧凑歌曲列表" onClick={() => setDense((value) => !value)}><span /></button></div>
         <div className="setting-row"><span><strong>深色主题</strong><small>降低环境光下的亮度，保留红色强调</small></span><button className={`toggle ${darkMode ? "on" : ""}`} role="switch" aria-checked={darkMode} aria-label="深色主题" onClick={() => setDarkMode((value) => !value)}><span /></button></div>
         <div className="setting-row"><span><strong>曲库快照</strong><small>{directoryUnavailable ? "目录恢复后才能读取快照" : initialSetup ? "选择目录并完成扫描后生成" : scan.status === "running" && libraryMode !== "ready" ? "正在准备首份曲库快照" : libraryDirectoryNeedsScan ? "等待目录扫描后建立快照" : partialScan ? `已载入 ${tracks.length.toLocaleString()} 首歌曲 · 仍有 ${scanFailures.length} 个文件失败` : `${tracks.length.toLocaleString()} 首歌曲 · ${albums.length} 张专辑`}</small></span><span className={`setting-badge ${directoryUnavailable ? "is-error" : initialSetup || libraryDirectoryNeedsScan || partialScan ? "is-pending" : ""}`}>{directoryUnavailable ? "不可用" : initialSetup ? "未生成" : scan.status === "running" && libraryMode !== "ready" ? "生成中" : libraryDirectoryNeedsScan ? "待生成" : partialScan ? "部分" : "已载入"}</span></div>
         <div className="setting-row"><span><strong>设计状态预览</strong><small>查看空态、异常与完整交互流程</small></span><button className="text-button" onClick={() => { setModal(null); navigate("preview"); }}>查看全部<ChevronRight /></button></div>
-        <div className="prototype-explanation"><Info /><p>当前为独立交互演示，扫描和登录使用模拟状态。配置本地曲库后，播放器只读播放真实音乐；未配置时使用明确标注的原创演示音源。音乐文件不会被修改。</p></div>
+        <div className="prototype-explanation"><Info /><p>当前为独立交互演示，扫描、登录和媒体连接检测使用模拟状态。配置本地曲库后，播放器只读播放真实音乐；未配置时使用明确标注的原创演示音源。音乐文件不会被修改。</p></div>
         <button className="button primary full-width" onClick={() => setModal(null)}>就这样，很好</button>
       </>}
     </fieldset>{renderWriteFeedback()}</Modal>}

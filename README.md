@@ -8,6 +8,7 @@
 
 - 音乐室首页、专辑、艺人、歌曲、搜索、收藏、私人歌单、账号与管理员页面；正式界面以独立设计原型为基准。
 - 桌面、平板与手机布局，动态登录背景、胶囊播放器、全屏播放、同步歌词、待播队列及加载/空/错误状态。
+- 音乐驱动的舞台氛围模式，22 种灯光、自动编排、鼓点响应及浮动歌词/待播清单，与普通模式连续播放。
 - 只读增量扫描，读取本地标签、内嵌或目录封面、`.lrc` 歌词；目录选择后自动扫描，支持进度、错误详情、中断恢复和受保护的缺失索引清理。
 - MP3、M4A/AAC、FLAC、ALAC、OGG、OPUS、WAV；兼容格式直传，FLAC、ALAC 等按需转码。
 - SQLite 全文搜索、分页读取与多碟专辑展示；歌单创建、重命名、添加/移除、拖动排序及并发冲突处理。
@@ -55,6 +56,8 @@ docker compose -f docker-compose.yml -f docker-compose.nfs.yml up -d --build
 | `ADMIN_PASSWORD` | 初始管理员 `admin` 的密码；生产必填，开发默认 `admin`。仅首次初始化账号时使用 |
 | `COOKIE_SECRET` | Cookie/会话密钥；生产必须是至少 32 字符的私有随机值，公开示例密钥会被拒绝 |
 | `COOKIE_SECURE` | 生产默认 `true`，开发默认 `false`。可信局域网 HTTP 直连须设为 `false`；HTTPS 保持 `true` |
+| `PUBLIC_ORIGIN` | 可选，音乐室页面的完整 HTTPS 来源，例如 `https://music.example.com`；与 `DIRECT_MEDIA_ORIGIN` 配套 |
+| `DIRECT_MEDIA_ORIGIN` | 可选，直接访问 NAS 的 HTTPS 来源，例如 `https://direct.music.example.com:5443`；留空关闭媒体直连 |
 | `MUSIC_LIBRARY_PATH` | 本地默认 `./music`；Compose 中必须填写主机曲库路径，容器内为 `/music` |
 | `MUSIC_LIBRARY_ROOTS` | 可选的额外允许根目录；macOS/Linux 用冒号分隔，Windows 用分号分隔。默认只允许主曲库及其子目录 |
 | `DATA_DIR` | 默认 `./data`。本地为数据目录；Compose 中为主机持久化路径，容器内为 `/data` |
@@ -67,6 +70,16 @@ docker compose -f docker-compose.yml -f docker-compose.nfs.yml up -d --build
 `MUSIC_LIBRARY_ROOTS` 在 Docker 中须使用容器内路径，并自行添加对应的只读卷和环境变量映射；仅在 `.env` 中填写主机路径不能访问未挂载的目录。
 
 `COOKIE_SECURE` 只控制 Cookie，不会为服务启用 HTTPS。外网访问应使用 HTTPS 或 VPN。保存好随机密钥；更换 `COOKIE_SECRET` 会使已有登录会话失效。
+
+### NAS 媒体直连
+
+页面通过公网服务器反向代理到 NAS 时，可以另外提供直达 NAS 的 HTTPS 入口。配置上面两个来源（仅协议、域名及可选端口，不含路径），浏览器登录后自动检测同一音乐室，获取独立的只读媒体凭证。音频和页面封面优先直连，页面、账号、歌单等 API 继续使用页面入口；系统播放通知封面和全屏背景仍使用有尺寸上限的页面入口图片。探测成功不会重载正在播放的音频；直连音频失败或持续等待时，自动使用公网入口从当前进度重试一次。
+
+直连域名须有浏览器信任的证书，并与页面使用相同主域名及 HTTPS，以便发送 `SameSite=Strict` 的媒体 Cookie。例如 `music.example.com` 与 `direct.music.example.com`。反向代理须保留含端口的 `Host`（Nginx 使用 `proxy_set_header Host $http_host;`），转发 `Origin`、`Range`、`If-Range`，关闭媒体缓冲。直连虚拟主机只需转发 `/api/media/probe`、`/api/media/connect`、`/api/media/status`、`/api/tracks/:id/stream` 和 `/api/tracks/:id/artwork`；可另开放 `/api/health` 用于运维检查。不要把私钥、主登录 Cookie 或票据放进 URL，也不要添加通配 CORS。
+
+入口可以解析到固定内网地址，或以 DNS-only CNAME 跟随家庭 DDNS。前者需网络允许 DNS 返回私有地址；后者可以绕过公网服务器，但在家访问时是否完全留在局域网取决于路由器的 NAT 回环。浏览器权限、DNS 过滤、证书或网络不可达都会使探测回退，不影响原入口播放。设置里的“优先 NAS 直连”偏好仅保存在当前浏览器，可关闭或手动重新检测；提示“NAS 直连可用”表示后续请求可使用该入口，不表示已验证物理网络路径。
+
+媒体凭证有效期 15 分钟，页面后台提前刷新；普通登录会话退出、被撤销、改密或账号停用后，凭证不能再发起读取。已发送或缓冲到客户端的数据不能撤回。证书续期应通过 ACME 安装钩子复制到代理使用的位置，并在配置检查通过后重载。
 
 ## 本地运行与设计原型
 
@@ -167,6 +180,16 @@ MusicBrainz 请求共用至少 1.1 秒的间隔，并限制并发、超时和响
 封面根据实际显示尺寸与屏幕像素密度选择 64、128、256、512、1024 或 1600px 版本；列表、胶囊播放器及歌单拼图不下载原图，模糊背景固定使用 128px，锁屏封面使用 512px。服务端通过 Sharp 按需生成保留比例的 WebP，不放大小源图；缓存写入 `DATA_DIR/artwork/thumbnails`，同源同尺寸复用，并限制转换并发、输入大小和像素数。图片响应使用私有缓存与 ETag，封面文件变化后重新生成，源曲库保持只读。Sharp 随 `npm ci` 安装，无需单独安装图像命令行工具。
 
 多碟专辑按碟展示并连续播放。缺少专辑艺人标签时，仅在专辑名的 `[Disc N]` / `[CD N]` / `[Bonus Disc]` 后缀、碟目录和上一级专辑目录一致时合并发行版。原标签、歌曲 ID、收藏和歌单不变，旧单碟链接仍可访问；其他情况保守维持原分组。
+
+### 舞台氛围模式
+
+在全屏播放页点击右上角的星光图标进入。氛围模式与普通播放页、胶囊共用音源、队列、音量、收藏和循环状态，进出模式不会重新加载歌曲。歌词使用正式歌词服务与完整音频时钟，包含转码跳转的时间偏移。
+
+默认“跟随音乐”，也可选择 22 种灯光编排，以及轻柔/鲜明强度、琥珀/暗红/深蓝色调。灯具位置固定，光束随声音变化；歌词与待播清单浮于舞台之上，开关时不挤压画面。灯光、选曲与画面设置浮窗支持外侧关闭和 Esc 分层关闭。浏览器支持时可进入全屏，闲置时自动隐藏控制。
+
+实时声音分析在播放会话内运行，音量通过分析后的增益控制，因此静音仍能观察节奏。进入氛围模式后，服务端用 FFmpeg 只读提取曲目的声音特征，异步生成编排；音乐不等待分析。分析最多并行两首，单任务限时 60 秒、录音分析范围为 45 分钟；不支持、超时或繁忙时使用实时灯光。WebGL 不可用时提供简化画面，并遵循减少动态效果偏好。
+
+编排缓存保存在 `DATA_DIR/lighting`，最多保留 256 份；源文件或编排版本改变时重建。缓存是可重新生成的派生数据，不纳入现有备份包。不会上传音频或改写曲库。声音分析不支持时保留原生播放；浏览器拒绝恢复已接入的声音输出时显示播放授权重试。
 
 ### 播放兼容性
 
@@ -275,6 +298,7 @@ npm run data:import-artwork -- \
 | 曲库状态 | `GET /api/summary`、`/api/catalog/status`、`/api/metadata/status` |
 | 浏览与搜索 | `GET /api/tracks`、`/api/albums`、`/api/artists`、`/api/search`；详情为 `/api/tracks/:id`、`/api/albums/:key`、`/api/artists/:name` |
 | 音轨与媒体 | `PATCH /api/tracks/:id/favorite`；`GET /api/tracks/:id/artwork`、`/api/tracks/:id/lyrics`、`/api/tracks/:id/stream`、`/api/tracks/:id/availability` |
+| 灯光编排 | `GET /api/tracks/:id/lighting`，需登录，返回 `{ program }`，不接受查询参数 |
 | 专辑补充信息 | `GET` / `PUT /api/admin/albums/:key/metadata`；`POST /api/admin/albums/:key/metadata/lookup` |
 | 歌单 | `GET` / `POST /api/playlists`；`GET` / `PATCH` / `DELETE /api/playlists/:id` |
 | 歌单成员与顺序 | `POST /api/playlists/:id/tracks`；`DELETE /api/playlists/:id/tracks/:trackId`；`PUT /api/playlists/:id/tracks/order` |
@@ -323,6 +347,7 @@ npm run test:e2e -- playlists -g '重试'
 | 认证、账号 | `auth` | `auth` |
 | 目录与扫描 | `scan` | `library-scan` |
 | 播放 | `playback` | `playback` |
+| 氛围灯光 | `atmosphere` | `atmosphere` |
 | 歌单 | `playlists` | `playlists` |
 | 曲库、搜索 | `catalog` | `catalog` |
 | 元数据补全 | `metadata` | `album-metadata`、`album-metadata-candidates` |

@@ -9,7 +9,7 @@ const TEST_SECRET = "8cf9409aa69bdc5f5c859f6055e25fcfd7a39767e2c7bfa226b90e4c5d1
 
 beforeEach(() => {
   directory = fs.mkdtempSync(path.join(os.tmpdir(), "music-config-"));
-  for (const key of ["ADMIN_PASSWORD", "COOKIE_SECRET", "COOKIE_SECURE", "ENABLE_ONLINE_METADATA", "SCAN_ONLINE_METADATA", "AUTO_COMPLETE_ALBUM_METADATA", "PORT"]) {
+  for (const key of ["ADMIN_PASSWORD", "COOKIE_SECRET", "COOKIE_SECURE", "ENABLE_ONLINE_METADATA", "SCAN_ONLINE_METADATA", "AUTO_COMPLETE_ALBUM_METADATA", "PORT", "PUBLIC_ORIGIN", "DIRECT_MEDIA_ORIGIN"]) {
     vi.stubEnv(key, undefined);
   }
   vi.stubEnv("NODE_ENV", "test");
@@ -29,6 +29,19 @@ function setProduction(): void {
 }
 
 describe("deployment configuration", () => {
+  it("局域网媒体默认关闭，两个入口必须配套且使用 HTTPS", () => {
+    expect(loadConfig().mediaConnection).toBeUndefined();
+    vi.stubEnv("PUBLIC_ORIGIN", "https://music.example.test");
+    expect(() => loadConfig()).toThrow(/DIRECT_MEDIA_ORIGIN/);
+    vi.stubEnv("DIRECT_MEDIA_ORIGIN", "https://direct.music.example.test:5443");
+    expect(loadConfig().mediaConnection).toEqual({ publicOrigin: "https://music.example.test", directOrigin: "https://direct.music.example.test:5443" });
+    for (const value of ["http://direct.example.test", "https://u:p@direct.example.test", "https://direct.example.test/path", "https://direct.example.test/?x=1", "https://direct.example.test/#x", "https://music.example.test"]) {
+      vi.stubEnv("DIRECT_MEDIA_ORIGIN", value); expect(() => loadConfig()).toThrow(/ORIGIN/);
+    }
+    vi.stubEnv("PUBLIC_ORIGIN", "http://127.0.0.1:4100");
+    vi.stubEnv("DIRECT_MEDIA_ORIGIN", "http://127.0.0.1:4101");
+    expect(loadConfig().mediaConnection?.directOrigin).toBe("http://127.0.0.1:4101");
+  });
   it("keeps local development usable and only reads configuration before the runtime lock is acquired", () => {
     const config = loadConfig();
     expect(config).toMatchObject({ adminPassword: "admin", isProduction: false, cookieSecure: false, port: 3000, enableOnlineMetadata: false });

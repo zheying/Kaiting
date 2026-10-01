@@ -21,6 +21,7 @@ import { MetadataLookupError } from "./musicbrainz.js";
 import { createAlbumEnricher } from "./album-enrichment.js";
 import { createArtworkStore, matchesArtworkEtag } from "./artwork.js";
 import { artworkSizes, type ArtworkSize } from "../shared/artwork.js";
+import { createLightingStore, LightingError } from "./lighting.js";
 
 interface Dependencies {
   config: AppConfig;
@@ -70,6 +71,8 @@ const pageProperties = {
 export async function registerRoutes(app: FastifyInstance, deps: Dependencies): Promise<void> {
   const { config, database, scanner } = deps;
   const readArtwork = createArtworkStore(config);
+  const lighting = createLightingStore(config);
+  app.addHook("preClose", async () => { lighting.close(); });
   let closing = false;
   const lookupAlbumMetadata = createAlbumMetadataLookup(config, database, undefined, () => !closing);
   const directories = createDirectoryStore(config, database);
@@ -218,6 +221,22 @@ export async function registerRoutes(app: FastifyInstance, deps: Dependencies): 
     const track = userDb(request).getTrack(request.params.id);
     if (!track) return reply.status(404).send(notFound());
     return track;
+  });
+
+  app.get<{ Params: { id: string } }>("/api/tracks/:id/lighting", {
+    preValidation: async (request, reply) => {
+      if (Object.keys(request.query ?? {}).length) return reply.status(400).send({ error: "灯光编排不接受查询参数" });
+    },
+    schema: { params: objectSchema({ id: idProperty }, ["id"]), querystring: objectSchema({}) }
+  }, async (request, reply) => {
+    const track = userDb(request).getTrack(request.params.id);
+    if (!track) return reply.status(404).send(notFound());
+    reply.header("Cache-Control", "private, no-store");
+    try { return { program: await lighting.read({ path: track.path, duration: track.duration ?? 0 }) }; }
+    catch (error) {
+      const status = error instanceof LightingError ? error.statusCode : 503;
+      return reply.status(status).send({ error: "本曲灯光分析暂未完成，灯光正实时跟随声音。" });
+    }
   });
 
   app.get<{ Params: { id: string } }>("/api/tracks/:id/availability", async (request, reply) => {

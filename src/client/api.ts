@@ -1,4 +1,5 @@
 import type { LyricsResponse } from "../shared/lyrics.js";
+import type { LightingProgram } from "../shared/lighting-program.js";
 import type { AccountUser, AccountSession, SessionResponse, UserPreferences, DirectoryState } from "../shared/accounts.js";
 import type { Album, AlbumMetadata, AlbumMetadataLookup, AlbumMetadataValues, Artist, CatalogStatus, LibrarySummary, MetadataStatus, Page, PagedSearchResponse, PageOptions, Playlist, PlaylistDetail, ScanError, ScanJob, SearchResponse, Track, TrackPageOptions } from "../shared/types.js";
 import { collectTrackPages } from "./library-data.js";
@@ -64,6 +65,7 @@ function artistPage(options: PageOptions = {}, signal?: AbortSignal): Promise<Pa
 }
 
 export const api = {
+  lighting: (id: string, signal?: AbortSignal) => request<{ program: LightingProgram }>(`/api/tracks/${encodeURIComponent(id)}/lighting`, { signal }),
   me: (signal?: AbortSignal, notifyUnauthorized = true) => request<SessionResponse>("/api/me", { signal }, notifyUnauthorized),
   login: (username: string, password: string) => request<{ ok: true; user: AccountUser }>("/api/auth/login", { method: "POST", body: JSON.stringify({ username, password }) }),
   password: (currentPassword: string, password: string) => request<{ user: AccountUser; loggedOut: boolean }>("/api/auth/password", { method: "POST", body: JSON.stringify({ currentPassword, password }) }),

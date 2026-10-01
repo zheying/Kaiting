@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { flushSync } from "react-dom";
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Disc3, FastForward, Heart, ListMusic, MessageSquareText, MoreHorizontal, LoaderCircle, AlertTriangle, Pause, Play, Repeat, Repeat1, Rewind, Shuffle, Volume2, VolumeX, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Disc3, FastForward, Heart, ListMusic, MessageSquareText, MoreHorizontal, LoaderCircle, AlertTriangle, Pause, Play, Repeat, Repeat1, Rewind, Shuffle, Sparkles, Volume2, VolumeX, X } from "lucide-react";
 import { SyncedLyrics } from "./SyncedLyrics.js";
 import type { LyricLine } from "./lyrics.js";
 import { useSeekInput } from "../seek-input.js";
@@ -10,9 +10,17 @@ import { sizedArtworkUrl } from "../artwork.js";
 import { Artwork, PlaybackFeedback } from "./StateComponents.js";
 import { playbackBusy, type PlaybackPhase } from "./room-state.js";
 
+import type { AtmosphereAudio } from "./atmosphere-audio.js";
+import type { AtmospherePalette, AtmosphereTheme } from "./atmosphere-scene.js";
+import type { LightingProgram, RealMusicTrack } from "../../shared/lighting-program.js";
+import { AtmosphereMode } from "./AtmosphereMode.js";
+
 type PlayerTrack = { id: string; title: string; artist: string; duration: number; format: string; cover: string; lossless?: boolean };
 type PlayerPanel = "lyrics" | "queue";
 type NowPlayingProps = {
+  analysis: AtmosphereAudio;
+  analysisNotice: string;
+  availableTracks: Pick<RealMusicTrack, "id" | "title" | "artist" | "album" | "duration">[];
   phase: PlaybackPhase;
   onRetry: () => void;
   initialPanel?: PlayerPanel;
@@ -54,6 +62,27 @@ function Control({ label, children, onClick, active, disabled, className = "" }:
 
 export function NowPlaying(props: NowPlayingProps) {
   const { track, album, queue, playing, position, volume, favorite, shuffle, repeat, isMobile } = props;
+  const [atmosphere, setAtmosphere] = useState(false);
+  const [theme, setTheme] = useState<AtmosphereTheme>("auto");
+  const [palette, setPalette] = useState<AtmospherePalette>("aurora");
+  const [vivid, setVivid] = useState(true);
+  const atmosphereEntry = useRef<HTMLButtonElement>(null);
+  const [lighting, setLighting] = useState<{ trackId: string; program: LightingProgram | null; notice: string }>({ trackId: "", program: null, notice: "" });
+  useEffect(() => {
+    if (!atmosphere) return;
+    const controller = new AbortController();
+    setLighting({ trackId: track.id, program: null, notice: "" });
+    void api.lighting(track.id, controller.signal).then(({ program }) => {
+      if (!controller.signal.aborted) setLighting({ trackId: track.id, program, notice: "" });
+    }).catch(() => {
+      if (!controller.signal.aborted) setLighting({ trackId: track.id, program: null, notice: "本曲灯光分析暂未完成，灯光正实时跟随声音。" });
+    });
+    return () => controller.abort();
+  }, [atmosphere, track.id]);
+  function closeAtmosphere() {
+    setAtmosphere(false);
+    requestAnimationFrame(() => atmosphereEntry.current?.focus({ preventScroll: true }));
+  }
   const [panel, setPanel] = useState<PlayerPanel | null>(props.initialPanel ?? null);
   const [lyricsStatus, setLyricsStatus] = useState<"ready" | "loading" | "error" | "empty">("loading");
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
@@ -107,14 +136,54 @@ export function NowPlaying(props: NowPlayingProps) {
     });
   }
   function closePanel() {
+    if (atmosphere) { setPanel(null); return; }
     if (panel) panelButtons.current[panel]?.focus();
     changeLayout(() => setPanel(null));
   }
-  function togglePanel(nextPanel: PlayerPanel) { changeLayout(() => setPanel((current) => current === nextPanel ? null : nextPanel)); }
+  function togglePanel(nextPanel: PlayerPanel) {
+    const update = () => setPanel((current) => current === nextPanel ? null : nextPanel);
+    if (atmosphere) update(); else changeLayout(update);
+  }
   function toggleMute() {
     if (volume > 0) lastVolume.current = volume;
     props.onVolumeChange(volume > 0 ? 0 : lastVolume.current);
   }
+
+  function renderCompanion(kind: PlayerPanel) {
+    const panelId = atmosphere ? `av-${kind}-content` : "np-companion";
+    return <section className={`np-companion ${kind === "lyrics" && lyricsStatus === "empty" ? "np-lyrics-notice" : ""}`} id={panelId} aria-label={kind === "lyrics" ? "歌词" : undefined} aria-labelledby={kind === "queue" ? `${panelId}-title` : undefined}>
+        {kind === "queue" && <div className="np-panel-heading"><div><h2 id={`${panelId}-title`}>接下来播放<small>{upcoming.length} 首</small></h2></div><div className="np-queue-modes"><Control className="np-state-toggle" label={shuffle ? "关闭随机播放" : "随机播放"} active={shuffle} onClick={props.onToggleShuffle}><Shuffle /></Control><Control className="np-state-toggle" label={repeatLabel} active={repeat > 0} onClick={props.onToggleRepeat}>{repeat === 2 ? <Repeat1 /> : <Repeat />}</Control></div></div>}
+        {kind === "queue" ? <>
+          <div className="np-queue-summary"><span>{repeat === 2 ? "单曲循环中" : shuffle ? "随机播放已开启" : "按顺序播放"}</span><button disabled={!upcoming.length} onClick={props.onClearQueue}>清空待播</button></div>
+          {upcoming.length ? <div className="np-queue-list">{upcoming.map((item, index) => {
+            const sourceIndex = currentIndex + 1 + index;
+            return <div className={`np-queue-item ${editingTrack === item.id ? "np-queue-editing" : ""}`} key={item.id}>
+              <button className="np-queue-select" aria-label={`播放 ${item.title}`} onClick={() => props.onSelectTrack(item.id)}><span className="np-queue-number">{String(index + 1).padStart(2, "0")}</span><Artwork src={item.cover} alt={`${item.title} 封面`} /><span><strong>{item.title}</strong><small>{item.artist}</small></span><span className="np-queue-duration">{time(item.duration)}</span></button>
+              <button type="button" className="np-icon np-queue-more" aria-label={`编辑待播歌曲 ${item.title}`} aria-expanded={editingTrack === item.id} onClick={() => setEditingTrack((current) => current === item.id ? null : item.id)}><MoreHorizontal /></button>
+              <div className="np-queue-actions"><Control label={`上移 ${item.title}`} disabled={index === 0} onClick={() => props.onMoveTrack(sourceIndex, -1)}><ArrowUp /></Control><Control label={`下移 ${item.title}`} disabled={index === upcoming.length - 1} onClick={() => props.onMoveTrack(sourceIndex, 1)}><ArrowDown /></Control><Control label={`移除 ${item.title}`} onClick={() => props.onRemoveTrack(item.id)}><X /></Control></div>
+            </div>;
+          })}</div> : <div className="np-empty"><div className="np-empty-content">
+            <span className="np-empty-icon" aria-hidden="true"><ListMusic /></span>
+            <h3>听到这里，刚刚好</h3>
+            <p>{repeat === 1 ? "本轮播放结束后，将从头循环。" : <>暂时没有待播歌曲<br />回曲库再挑些喜欢的音乐吧。</>}</p>
+            <button type="button" className="np-empty-action" onClick={props.onClose}>回到音乐库</button>
+          </div></div>}
+        </> : lyricsStatus === "loading" || lyricsStatus === "error" ? <div className="np-lyrics-status is-request-state" role={lyricsStatus === "error" ? "alert" : "status"}>{lyricsStatus === "loading" ? <LoaderCircle className="button-spinner" /> : <AlertTriangle />}<strong>{lyricsStatus === "loading" ? "正在加载歌词…" : "歌词暂时没有载入"}</strong>{lyricsStatus === "error" && <><span>检查连接后重试，音乐播放不受影响。</span><button onClick={loadLyrics}>重新载入歌词</button></>}</div> : showLyrics ? <SyncedLyrics trackId={track.id} position={position} readPosition={props.readPosition} playing={playing} onSeek={props.onSeek} lines={lyrics} variant={atmosphere ? "atmosphere" : "standard"} /> : <div className="np-lyrics-status" role="status"><MessageSquareText /><span>暂时没有找到匹配的歌词</span><button type="button" onClick={loadLyrics}>重新查找歌词</button></div>}
+      </section>;
+  }
+
+  if (atmosphere) return <AtmosphereMode
+    audio={props.analysis} analysisNotice={props.analysisNotice || (lighting.trackId === track.id ? lighting.notice : "")}
+    program={lighting.trackId === track.id ? lighting.program : null}
+    availableTracks={props.availableTracks} onSelectTrack={props.onSelectTrack}
+    theme={theme} onTheme={setTheme} palette={palette} onPalette={setPalette} vivid={vivid} onVivid={setVivid}
+    title={track.title} artist={track.artist} trackId={track.id} duration={track.duration}
+    playing={playing} position={position} volume={volume} favorite={favorite} phase={props.phase} panel={panel}
+    onClose={closeAtmosphere} onClosePanel={closePanel} onTogglePanel={togglePanel}
+    onTogglePlay={props.onTogglePlay} onPrevious={props.onPrevious} onNext={props.onNext}
+    onSeek={props.onSeek} onVolume={props.onVolumeChange} onFavorite={props.onToggleFavorite} onRetry={props.onRetry}
+    renderPanel={renderCompanion}
+  />;
 
   return <div className={`now-playing-screen ${isMobile ? "np-mobile" : ""} ${playing ? "np-is-playing" : ""} ${showPlaybackFeedback ? "np-has-feedback" : ""} ${panel === "queue" || (panel === "lyrics" && lyricsStatus !== "empty") ? "np-with-panel" : ""} ${panel === "lyrics" && lyricsStatus === "empty" ? "np-lyrics-open" : ""}`} onKeyDownCapture={(event) => {
     if (event.key === "Escape" && panel) { event.preventDefault(); event.stopPropagation(); closePanel(); }
@@ -123,7 +192,7 @@ export function NowPlaying(props: NowPlayingProps) {
     <header className="np-header">
       <button className="np-back" onClick={props.onClose} aria-label="收起播放器" title="收起播放器"><ChevronDown /><span>返回音乐库</span></button>
       <div className="np-header-title"><span>正在聆听</span><button onClick={props.onOpenAlbum}>{album.name}</button></div>
-      <span className="np-demo">私人音乐空间</span>
+      <button ref={atmosphereEntry} className="np-icon av-entry" onClick={() => setAtmosphere(true)} aria-label="进入氛围模式" title="进入氛围模式"><Sparkles /></button>
     </header>
 
     <div className="np-stage" ref={stageRef}>
@@ -153,25 +222,7 @@ export function NowPlaying(props: NowPlayingProps) {
         {showPlaybackFeedback && <PlaybackFeedback phase={props.phase} onRetry={props.onRetry} onNext={props.onNext} />}
       </div>
 
-      {panel && <section className={`np-companion ${panel === "lyrics" && lyricsStatus === "empty" ? "np-lyrics-notice" : ""}`} id="np-companion" aria-label={panel === "lyrics" ? "歌词" : undefined} aria-labelledby={panel === "queue" ? "np-companion-title" : undefined}>
-        {panel === "queue" && <div className="np-panel-heading"><div><h2 id="np-companion-title">接下来播放<small>{upcoming.length} 首</small></h2></div><div className="np-queue-modes"><Control className="np-state-toggle" label={shuffle ? "关闭随机播放" : "随机播放"} active={shuffle} onClick={props.onToggleShuffle}><Shuffle /></Control><Control className="np-state-toggle" label={repeatLabel} active={repeat > 0} onClick={props.onToggleRepeat}>{repeat === 2 ? <Repeat1 /> : <Repeat />}</Control></div></div>}
-        {panel === "queue" ? <>
-          <div className="np-queue-summary"><span>{repeat === 2 ? "单曲循环中" : shuffle ? "随机播放已开启" : "按顺序播放"}</span><button disabled={!upcoming.length} onClick={props.onClearQueue}>清空待播</button></div>
-          {upcoming.length ? <div className="np-queue-list">{upcoming.map((item, index) => {
-            const sourceIndex = currentIndex + 1 + index;
-            return <div className={`np-queue-item ${editingTrack === item.id ? "np-queue-editing" : ""}`} key={item.id}>
-              <button className="np-queue-select" aria-label={`播放 ${item.title}`} onClick={() => props.onSelectTrack(item.id)}><span className="np-queue-number">{String(index + 1).padStart(2, "0")}</span><Artwork src={item.cover} alt={`${item.title} 封面`} /><span><strong>{item.title}</strong><small>{item.artist}</small></span><span className="np-queue-duration">{time(item.duration)}</span></button>
-              <button type="button" className="np-icon np-queue-more" aria-label={`编辑待播歌曲 ${item.title}`} aria-expanded={editingTrack === item.id} onClick={() => setEditingTrack((current) => current === item.id ? null : item.id)}><MoreHorizontal /></button>
-              <div className="np-queue-actions"><Control label={`上移 ${item.title}`} disabled={index === 0} onClick={() => props.onMoveTrack(sourceIndex, -1)}><ArrowUp /></Control><Control label={`下移 ${item.title}`} disabled={index === upcoming.length - 1} onClick={() => props.onMoveTrack(sourceIndex, 1)}><ArrowDown /></Control><Control label={`移除 ${item.title}`} onClick={() => props.onRemoveTrack(item.id)}><X /></Control></div>
-            </div>;
-          })}</div> : <div className="np-empty"><div className="np-empty-content">
-            <span className="np-empty-icon" aria-hidden="true"><ListMusic /></span>
-            <h3>听到这里，刚刚好</h3>
-            <p>{repeat === 1 ? "本轮播放结束后，将从头循环。" : <>暂时没有待播歌曲<br />回曲库再挑些喜欢的音乐吧。</>}</p>
-            <button type="button" className="np-empty-action" onClick={props.onClose}>回到音乐库</button>
-          </div></div>}
-        </> : lyricsStatus === "loading" || lyricsStatus === "error" ? <div className="np-lyrics-status is-request-state" role={lyricsStatus === "error" ? "alert" : "status"}>{lyricsStatus === "loading" ? <LoaderCircle className="button-spinner" /> : <AlertTriangle />}<strong>{lyricsStatus === "loading" ? "正在寻找这首歌的歌词" : "歌词暂时没有载入"}</strong><span>{lyricsStatus === "loading" ? "音乐会继续播放，请稍等片刻。" : "检查连接后重试，音乐播放不受影响。"}</span>{lyricsStatus === "error" && <button onClick={loadLyrics}>重新载入歌词</button>}</div> : showLyrics ? <SyncedLyrics trackId={track.id} position={position} readPosition={props.readPosition} playing={playing} onSeek={props.onSeek} lines={lyrics} /> : <div className="np-lyrics-status" role="status"><MessageSquareText /><span>暂时没有找到匹配的歌词</span><button type="button" onClick={loadLyrics}>重新查找歌词</button></div>}
-      </section>}
+      {panel && renderCompanion(panel)}
     </div>
   </div>;
 }

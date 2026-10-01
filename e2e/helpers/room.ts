@@ -17,7 +17,7 @@ export const PERSONAL_PASSWORD = "fixture-listener-password-2026";
 export const ALBUM = "试音室 100% / 夜曲";
 export const ARTIST = "E2E 艺人 / Artist";
 export const titles = { aac: "AAC 晨光", alac: "ALAC 夜色", flac: "FLAC 雨声", mp3: "MP3 星河" };
-type RoomOptions = { extraTracks?: number; badAudio?: boolean; metadata?: boolean; autoEnrich?: boolean; artist?: string; discs?: number; onlineLyrics?: boolean; artwork?: boolean };
+type RoomOptions = { extraTracks?: number; badAudio?: boolean; metadata?: boolean; autoEnrich?: boolean; artist?: string; discs?: number; onlineLyrics?: boolean; artwork?: boolean; audioDuration?: number; rhythmic?: boolean; mediaConnection?: boolean };
 type Upstream = { mode: "unique" | "ambiguous" | "error"; delay: number; requests: string[]; albums: string[]; variants?: Record<string, unknown>[]; lyrics: "found" | "missing" | "error"; lyricsfile?: string };
 export type Track = { id: string; title: string; path: string; favorite: boolean; albumKey: string; duration: number };
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -39,7 +39,9 @@ function generateAudio(directory: string, options: RoomOptions, album = ALBUM) {
   for (const [index, [format, title]] of Object.entries(titles).entries()) {
     const extension = format === "alac" || format === "aac" ? "m4a" : format;
     const file = path.join(directory, `${format}.${extension}`);
-    const result = spawnSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=440:duration=6",
+    const duration = options.audioDuration ?? 6;
+    const signal = options.rhythmic ? `aevalsrc='0.38*sin(2*PI*75*t)*exp(-18*mod(t,0.5))+0.04*sin(2*PI*440*t)':s=44100:d=${duration}` : `sine=frequency=440:duration=${duration}`;
+    const result = spawnSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", signal,
       "-c:a", format === "mp3" ? "libmp3lame" : format, "-metadata", `title=${title}`, "-metadata", `album=${album}`,
       "-metadata", `artist=${options.artist ?? ARTIST}`, "-metadata", `album_artist=${options.artist ?? ARTIST}`, "-metadata", `track=${index + 1}`,
       "-metadata", `disc=${1 + index % (options.discs ?? 1)}`, file], { encoding: "utf8", timeout: 15_000 });
@@ -57,6 +59,11 @@ export class RoomFixture {
   readonly data = path.join(this.directory, "data");
   readonly upstream: Upstream = { mode: "unique", delay: 0, requests: [], albums: [ALBUM], lyrics: "found" };
   url = "";
+  directMediaOrigin = "";
+  directMediaBlocked = false;
+  directMediaStalled = false;
+  directMediaRequests: { method: string; url: string }[] = [];
+  private directMediaServer?: http.Server;
   process: ChildProcess | null = null;
   logs = "";
   private sourceHashes: Record<string, string> = {};
@@ -108,10 +115,26 @@ export class RoomFixture {
     }
     const port = await freePort();
     this.url = `http://127.0.0.1:${port}`;
+    if (this.options.mediaConnection && !this.directMediaServer) {
+      this.directMediaServer = http.createServer((req, res) => {
+        this.directMediaRequests.push({ method: req.method ?? "GET", url: req.url ?? "/" });
+        if (this.directMediaStalled && req.url?.includes("/stream")) return;
+        if (this.directMediaBlocked) { res.writeHead(503); res.end(); return; }
+        const upstream = http.request(this.url + req.url, { method: req.method, headers: req.headers }, (response) => {
+          res.writeHead(response.statusCode ?? 502, response.headers); response.pipe(res);
+        });
+        upstream.on("error", () => { if (!res.headersSent) res.writeHead(502); res.end(); });
+        res.on("close", () => upstream.destroy());
+        req.pipe(upstream);
+      });
+      this.directMediaServer.listen(0, "127.0.0.1"); await once(this.directMediaServer, "listening");
+      this.directMediaOrigin = `http://127.0.0.1:${(this.directMediaServer.address() as net.AddressInfo).port}`;
+    }
     const child = this.process = spawn(process.execPath, ["--import", path.join(ROOT, "e2e/helpers/upstream.mjs"), "dist/server/server/index.js"], {
       cwd: ROOT, stdio: ["ignore", "pipe", "pipe"],
       env: { ...process.env, NODE_ENV: "production", PORT: String(port), DATA_DIR: data, MUSIC_LIBRARY_PATH: this.music, MUSIC_LIBRARY_ROOTS: "",
         ADMIN_PASSWORD, COOKIE_SECRET: this.secret, COOKIE_SECURE: "false", ENABLE_ONLINE_METADATA: String(Boolean(this.options.metadata)),
+        PUBLIC_ORIGIN: this.options.mediaConnection ? this.url : undefined, DIRECT_MEDIA_ORIGIN: this.options.mediaConnection ? this.directMediaOrigin : undefined,
         SCAN_ONLINE_METADATA: "false", AUTO_COMPLETE_ALBUM_METADATA: this.options.autoEnrich === undefined ? undefined : String(this.options.autoEnrich), E2E_METADATA_ORIGIN: this.upstreamOrigin }
     });
     child.stdout?.on("data", (value) => { this.logs += value; }); child.stderr?.on("data", (value) => { this.logs += value; });
@@ -163,6 +186,7 @@ export class RoomFixture {
   async dispose() {
     try {
       await this.stop();
+      if (this.directMediaServer) { this.directMediaServer.closeAllConnections(); await new Promise<void>((resolve) => this.directMediaServer!.close(() => resolve())); }
       if (this.upstreamServer) { this.upstreamServer.closeAllConnections(); await new Promise<void>((resolve) => this.upstreamServer!.close(() => resolve())); }
       if (Object.keys(this.sourceHashes).length) {
         const after = hashes(this.music);
@@ -181,6 +205,7 @@ export class RoomFixture {
     } finally {
       await this.info.attach("server.log", { body: this.logs, contentType: "text/plain" });
       await this.info.attach("upstream-requests.json", { body: JSON.stringify(this.upstream.requests), contentType: "application/json" });
+      if (this.options.mediaConnection) await this.info.attach("direct-media-requests.json", { body: JSON.stringify(this.directMediaRequests), contentType: "application/json" });
       fs.rmSync(this.directory, { recursive: true, force: true });
     }
   }

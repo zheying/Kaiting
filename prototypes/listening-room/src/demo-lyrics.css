@@ -1,3 +1,3 @@
 /* 基础歌词样式随正式 SyncedLyrics 导入；这里只保留原型的演示工具栏。 */
 .np-demo-lyrics { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.np-demo-lyrics > .np-synced-lyrics > .np-lyrics-toolbar { display: none; }
+.np-demo-lyrics[data-variant=standard] > .np-synced-lyrics > .np-lyrics-toolbar { display: none; }

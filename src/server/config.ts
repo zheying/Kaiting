@@ -11,6 +11,7 @@ export interface AppConfig {
   adminPassword: string;
   cookieSecret: string;
   cookieSecure?: boolean;
+  mediaConnection?: { publicOrigin: string; directOrigin: string };
   enableOnlineMetadata: boolean;
   scanOnlineMetadata?: boolean;
   autoCompleteAlbumMetadata?: boolean;
@@ -32,6 +33,24 @@ const PUBLIC_COOKIE_SECRETS = new Set([
   "replace-with-a-long-random-secret",
   "change-me"
 ]);
+
+function mediaConnection(): AppConfig["mediaConnection"] {
+  const publicValue = process.env.PUBLIC_ORIGIN?.trim();
+  const directValue = process.env.DIRECT_MEDIA_ORIGIN?.trim();
+  if (!publicValue && !directValue) return undefined;
+  function origin(name: string, value: string | undefined) {
+    try {
+      const url = new URL(value ?? "");
+      const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+      if ((url.protocol !== "https:" && !(loopback && url.protocol === "http:")) || url.username || url.password || url.pathname !== "/" || url.search || url.hash) throw new Error();
+      return url.origin;
+    } catch { throw new Error(`${name} must be an HTTPS origin without a path (HTTP is allowed only on loopback)`); }
+  }
+  const publicOrigin = origin("PUBLIC_ORIGIN", publicValue);
+  const directOrigin = origin("DIRECT_MEDIA_ORIGIN", directValue);
+  if (publicOrigin === directOrigin) throw new Error("DIRECT_MEDIA_ORIGIN must differ from PUBLIC_ORIGIN");
+  return { publicOrigin, directOrigin };
+}
 
 export function loadConfig(): AppConfig {
   const isProduction = process.env.NODE_ENV === "production";
@@ -68,6 +87,7 @@ export function loadConfig(): AppConfig {
     adminPassword,
     cookieSecret,
     cookieSecure,
+    mediaConnection: mediaConnection(),
     enableOnlineMetadata,
     scanOnlineMetadata,
     autoCompleteAlbumMetadata,

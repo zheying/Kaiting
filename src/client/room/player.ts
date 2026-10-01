@@ -4,7 +4,9 @@ import type { UserPreferences } from "../../shared/accounts.js";
 import type { PlaybackPhase } from "./room-state.js";
 import { api, streamUrl } from "../api.js";
 import { sizedArtworkUrl } from "../artwork.js";
+import { isDirectMediaUrl, mediaConnectionFailed, mediaUrl } from "../media-connection.js";
 import { clampPlaybackPosition, isPlaybackAtEnd, playbackLoadPosition } from "./playback-position.js";
+import { AtmosphereAudio } from "./atmosphere-audio.js";
 
 export function usesTranscodedStream(track: Pick<Track, "path" | "codec" | "container" | "formatGroup">) {
   const name = track.path.toLowerCase();
@@ -38,6 +40,8 @@ export function useRoomPlayer(tracks: Track[], preferences: UserPreferences, lib
   const intention = useRef(false);
   const completed = useRef(false);
   const operation = useRef(0);
+  const recoveryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function cancelRecovery() { if (recoveryTimer.current) clearTimeout(recoveryTimer.current); recoveryTimer.current = null; }
   const restored = useRef(false);
   const [hydrated, setHydrated] = useState(false);
   const latest = useRef({ queue, currentId, position, shuffle, repeat });
@@ -46,10 +50,19 @@ export function useRoomPlayer(tracks: Track[], preferences: UserPreferences, lib
   // The lyrics view samples the actual media clock locally; the rest of the UI
   // keeps its existing timeupdate cadence. Include the offset for transcoded seeks.
   const readPosition = useCallback(() => completed.current ? timelineDuration.current : directSeek.current ?? Math.min(timelineDuration.current || Infinity, offset.current + activeAudio.current.currentTime), []);
+  const [analysisNotice, setAnalysisNotice] = useState("");
+  const [analysis] = useState(() => new AtmosphereAudio(() => activeAudio.current, readPosition, setAnalysisNotice));
+  const analysisDisposal = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (analysisDisposal.current) clearTimeout(analysisDisposal.current);
+    // React StrictMode 重放 effect 时继续使用同一音频图。
+    return () => { analysisDisposal.current = setTimeout(() => analysis.dispose(), 0); };
+  }, [analysis]);
 
   function acceptPlayback(audio: HTMLAudioElement) {
     if (audio !== activeAudio.current || !trackRef.current || completed.current) { audio.pause(); return; }
     if (audio.paused) return;
+    cancelRecovery();
     intention.current = true;
     const previous = retainedAudio.current;
     retainedAudio.current = audio;
@@ -61,22 +74,44 @@ export function useRoomPlayer(tracks: Track[], preferences: UserPreferences, lib
 
   function requestPlay() {
     const audio = activeAudio.current;
+    const analysisReady = analysis.unlock(audio);
     const generation = ++operation.current;
     intention.current = true;
-    void audio.play().then(() => {
+    void Promise.all([analysisReady, audio.play()]).then(() => {
       if (generation !== operation.current || audio !== activeAudio.current) return;
       acceptPlayback(audio);
       syncMediaSession.current();
     }).catch((error: unknown) => {
       if (generation !== operation.current || audio !== activeAudio.current || (error instanceof DOMException && error.name === "AbortError")) return;
+      if (!(error instanceof DOMException && error.name === "NotAllowedError") && recoverDirect(audio)) return;
       intention.current = false; setIsPlaying(false);
       audio.pause();
       setPhase(error instanceof DOMException && error.name === "NotAllowedError" ? "blocked" : navigator.onLine ? "decode" : "offline");
       syncMediaSession.current();
     });
     syncMediaSession.current();
+    scheduleRecovery(audio);
   }
-  function load(track: Track, value: number, autoplay: boolean) {
+  function recoverDirect(audio: HTMLAudioElement) {
+    if (audio !== activeAudio.current || !trackRef.current || completed.current || !isDirectMediaUrl(audio.src)) return false;
+    const position = readPosition(); const autoplay = intention.current;
+    mediaConnectionFailed(audio.src);
+    load(trackRef.current, position, autoplay, true);
+    return true;
+  }
+  function scheduleRecovery(audio: HTMLAudioElement) {
+    if (recoveryTimer.current || !isDirectMediaUrl(audio.src) || !intention.current) return;
+    const source = audio.src; const generation = operation.current; const position = readPosition();
+    recoveryTimer.current = setTimeout(() => {
+      recoveryTimer.current = null;
+      if (generation !== operation.current || audio !== activeAudio.current || audio.src !== source || !intention.current) return;
+      if (readPosition() > position + 0.1 && audio.readyState >= 3) { scheduleRecovery(audio); return; }
+      recoverDirect(audio);
+    }, 4000);
+  }
+  function load(track: Track, value: number, autoplay: boolean, forcePublic = false) {
+    cancelRecovery();
+    analysis.resetTransients();
     operation.current++; intention.current = autoplay;
     const outgoing = activeAudio.current;
     outgoing.pause();
@@ -101,7 +136,9 @@ export function useRoomPlayer(tracks: Track[], preferences: UserPreferences, lib
     const transcode = usesTranscodedStream(track);
     offset.current = transcode ? target.position : 0;
     directSeek.current = transcode ? null : target.position;
-    audio.src = streamUrl(track.id, transcode ? target.position : undefined);
+    // 跨源音频须带凭证并通过 CORS，Web Audio 分析才能继续输出有效声音。
+    audio.crossOrigin = "use-credentials";
+    audio.src = mediaUrl(streamUrl(track.id, transcode ? target.position : undefined), forcePublic);
     audio.preload = "metadata";
     setPhase(autoplay ? transcode ? "transcoding" : "loading" : "ready");
     // Called directly from the click/touch handler, retaining the browser's user activation.
@@ -126,6 +163,8 @@ export function useRoomPlayer(tracks: Track[], preferences: UserPreferences, lib
     else if (!intention.current || audio.paused) requestPlay();
   }
   function pausePlayback() {
+    cancelRecovery();
+    analysis.resetTransients();
     operation.current++; intention.current = false;
     audioPair.forEach((audio) => audio.pause()); setIsPlaying(false); setPhase("ready");
     syncMediaSession.current();
@@ -135,6 +174,7 @@ export function useRoomPlayer(tracks: Track[], preferences: UserPreferences, lib
     else resumePlayback();
   }
   function seek(value: number) {
+    analysis.resetTransients();
     const audio = activeAudio.current;
     const track = trackRef.current;
     if (!track || !Number.isFinite(value)) return;
@@ -159,6 +199,7 @@ export function useRoomPlayer(tracks: Track[], preferences: UserPreferences, lib
     play(state.queue[next]);
   }
   function finishTrack(advance: boolean) {
+    cancelRecovery();
     const audio = activeAudio.current;
     const track = trackRef.current;
     if (!track) return;
@@ -179,6 +220,7 @@ export function useRoomPlayer(tracks: Track[], preferences: UserPreferences, lib
   }
   function retry() { if (trackRef.current) load(trackRef.current, completed.current || activeAudio.current.ended ? 0 : readPosition(), true); }
   function clear() {
+    cancelRecovery();
     operation.current++; intention.current = false; completed.current = false; trackRef.current = null;
     directSeek.current = null; offset.current = 0; timelineDuration.current = 0;
     latest.current.queue = []; latest.current.currentId = "";
@@ -187,8 +229,8 @@ export function useRoomPlayer(tracks: Track[], preferences: UserPreferences, lib
     setQueue([]); setCurrentId(""); setPosition(0); setDuration(0); setIsPlaying(false); setHasEnded(false); setPhase("ready");
     syncMediaSession.current();
   }
-  const handlers = useRef({ nextTrack, seek, resumePlayback, pausePlayback, previousTrack, finishTrack, acceptPlayback });
-  handlers.current = { nextTrack, seek, resumePlayback, pausePlayback, previousTrack, finishTrack, acceptPlayback };
+  const handlers = useRef({ nextTrack, seek, resumePlayback, pausePlayback, previousTrack, finishTrack, acceptPlayback, recoverDirect, scheduleRecovery });
+  handlers.current = { nextTrack, seek, resumePlayback, pausePlayback, previousTrack, finishTrack, acceptPlayback, recoverDirect, scheduleRecovery };
   useEffect(() => {
     if (restored.current || !libraryReady) return;
     restored.current = true;
@@ -199,7 +241,7 @@ export function useRoomPlayer(tracks: Track[], preferences: UserPreferences, lib
     const track = map.get(preferences.currentId);
     if (track) { if (!queue.some((item) => item.id === track.id)) queue.unshift(track); setQueue(queue); load(track, preferences.position, false); }
   }, [tracks, libraryReady]);
-  useEffect(() => { audioPair.forEach((audio) => { audio.volume = Math.max(0, Math.min(1, volume / 100)); }); }, [audioPair, volume]);
+  useEffect(() => { analysis.setVolume(volume, audioPair); }, [analysis, audioPair, volume]);
   useEffect(() => {
     const removeListeners = audioPair.map((audio) => {
       const isActive = () => audio === activeAudio.current && Boolean(trackRef.current) && !completed.current;
@@ -217,10 +259,11 @@ export function useRoomPlayer(tracks: Track[], preferences: UserPreferences, lib
       const play = () => { if (!isActive()) audio.pause(); };
       const playing = () => handlers.current.acceptPlayback(audio);
       const pause = () => { if (isActive() && audio.paused && !audio.ended && audio.readyState > 0) { intention.current = false; setIsPlaying(false); } };
-      const waiting = () => { if (isActive() && intention.current && !audio.error && trackRef.current) setPhase(usesTranscodedStream(trackRef.current) && audio.readyState === 0 ? "transcoding" : "buffering"); };
+      const waiting = () => { if (isActive() && intention.current && !audio.error && trackRef.current) { setPhase(usesTranscodedStream(trackRef.current) && audio.readyState === 0 ? "transcoding" : "buffering"); handlers.current.scheduleRecovery(audio); } };
       const ended = () => { if (isActive() && audio.ended) handlers.current.finishTrack(true); };
       const error = () => {
         if (!isActive() || !audio.error) return;
+        if (handlers.current.recoverDirect(audio)) return;
         const generation = ++operation.current;
         intention.current = false; setIsPlaying(false);
         audio.pause();
@@ -236,6 +279,7 @@ export function useRoomPlayer(tracks: Track[], preferences: UserPreferences, lib
       };
     });
     return () => {
+      cancelRecovery();
       operation.current++; intention.current = false; retainedAudio.current = null;
       removeListeners.forEach((remove) => remove());
       audioPair.forEach(releaseAudio);
@@ -297,5 +341,5 @@ export function useRoomPlayer(tracks: Track[], preferences: UserPreferences, lib
       try { session.setPositionState?.(); } catch { /* Unsupported platform position. */ }
     };
   }, [audioPair, readPosition]);
-  return { hydrated, queue, setQueue, currentId, current, isPlaying, hasEnded, position, readPosition, seekRevision, duration, volume, setVolume, shuffle, setShuffle, repeat, setRepeat, phase, play, togglePlay, nextTrack, previousTrack, seek, retry, clear };
+  return { hydrated, queue, setQueue, currentId, current, isPlaying, hasEnded, position, readPosition, analysis, analysisNotice, seekRevision, duration, volume, setVolume, shuffle, setShuffle, repeat, setRepeat, phase, play, togglePlay, nextTrack, previousTrack, seek, retry, clear };
 }

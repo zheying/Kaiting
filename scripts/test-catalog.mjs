@@ -8,13 +8,15 @@ export const layers = {
   ],
   integration: [
     "accounts-integration", "album-enrichment", "album-grouping", "album-metadata", "album-metadata-consensus", "artwork", "artwork-import",
-    "auth", "legacy-auth", "data-lock", "db", "library-pagination", "maintenance", "media", "metadata", "pathSafety",
+    "auth", "legacy-auth", "data-lock", "db", "library-pagination", "lighting", "maintenance", "media", "media-connection", "metadata", "pathSafety",
     "playlist-client", "playlists", "routes", "runtime-startup", "scan-recovery", "scanner"
   ]
 };
 
 // 这里选择 unit/integration 的近似覆盖；真实浏览器流程另用 test:e2e 选择。
 export const scopes = {
+  "media-connection": { description: "NAS 媒体握手、跨域访问、账号隔离与凭证撤销", tests: ["media-connection", "config"] },
+  atmosphere: { description: "正式氛围模式的声音特征分析、只读缓存与并发边界", tests: ["lighting"] },
   playback: { description: "音频策略、HTTP/转码、进度、手势、队列及播放器反馈", tests: [
     "audio", "media", "routes", "playback-position", "seek-input", "mobile-layout", "library-data", "client-reliability"
   ] },

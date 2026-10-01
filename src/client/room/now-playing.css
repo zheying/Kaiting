@@ -224,3 +224,7 @@
   .np-artwork, .np-icon, .np-back > svg, .np-state-toggle svg { transition: none; }
   .np-atmosphere > img, .np-companion { animation: none; }
 }
+
+/* 氛围入口沿用播放器的图标按钮。 */
+.av-entry { justify-self: end; color: var(--np-muted); }
+.av-entry:hover { color: var(--np-ink); }

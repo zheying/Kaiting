@@ -3,6 +3,7 @@ import { CircleAlert, Disc3, FileQuestion, FolderOpen, LoaderCircle, Play, Refre
 import { playbackBusy, playbackCopy, type PlaybackPhase } from "./room-state.js";
 import { isLibraryArtwork, sizedArtworkUrl } from "../artwork.js";
 import { artworkSizeFor, type ArtworkSize } from "../../shared/artwork.js";
+import { mediaConnectionFailed, mediaUrl, useMediaConnection } from "../media-connection.js";
 
 const mobilePlaybackCopy: Partial<Record<PlaybackPhase, { title: string; detail: string }>> = {
   offline: { title: "连接中断", detail: "检查网络或 NAS 后重试" },
@@ -12,6 +13,7 @@ const mobilePlaybackCopy: Partial<Record<PlaybackPhase, { title: string; detail:
 };
 
 export function Artwork({ src, alt, className = "cover", lazy = true }: { src?: string; alt: string; className?: string; lazy?: boolean }) {
+  useMediaConnection();
   const imageRef = useRef<HTMLImageElement>(null);
   const [size, setSize] = useState<ArtworkSize>();
   const [failedSource, setFailedSource] = useState<string>();
@@ -37,10 +39,10 @@ export function Artwork({ src, alt, className = "cover", lazy = true }: { src?: 
   }, [src, local, failed]);
   // Deliberately omit src until layout is known. Starting with the original
   // would let the browser download it before ResizeObserver can replace it.
-  const requestSrc = src && local ? size ? sizedArtworkUrl(src, size) : undefined : src;
+  const requestSrc = src && local ? size ? mediaUrl(sizedArtworkUrl(src, size)) : undefined : src;
   return !src || failed
     ? <span className={`${className} artwork-fallback`} role="img" aria-label={`${alt || "专辑封面"}，暂无封面`}><Disc3 aria-hidden="true" /></span>
-    : <img ref={imageRef} src={requestSrc} alt={alt} className={className} loading={lazy ? "lazy" : "eager"} decoding="async" draggable={false} onError={() => { if (requestSrc) setFailedSource(src); }} />;
+    : <img ref={imageRef} crossOrigin={local ? "use-credentials" : undefined} src={requestSrc} alt={alt} className={className} loading={lazy ? "lazy" : "eager"} decoding="async" draggable={false} onError={() => { if (requestSrc && !mediaConnectionFailed(requestSrc)) setFailedSource(src); }} />;
 }
 
 export function PlaybackFeedback({ phase, onRetry, onNext, compact = false, isMobile = false }: { phase: PlaybackPhase; onRetry: () => void; onNext: () => void; compact?: boolean; isMobile?: boolean }) {

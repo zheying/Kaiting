@@ -4,6 +4,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { DatabaseHandle } from "./db.js";
 import type { AppConfig } from "./config.js";
 import { defaultPreferences, type AccountUser, type AccountSession, type UserPreferences } from "../shared/accounts.js";
+import { registerMediaConnection } from "./media-connection.js";
 
 const scrypt = promisify(nodeScrypt);
 export const sessionCookie = "ml_session";
@@ -116,6 +117,10 @@ export function createAccountStore(database: DatabaseHandle, config: AppConfig) 
       }
       return { user: toUser(row), sessionId: String(row.session_id) };
     },
+    mediaSession(id: string) {
+      const row = db.prepare("SELECT s.id AS session_id, u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = ? AND s.expires_at > ? AND u.status = 'active' AND u.must_change_password = 0").get(id, Date.now()) as Row | undefined;
+      return row ? { user: toUser(row), sessionId: String(row.session_id) } : null;
+    },
     user(id: string) { const row = find(id); return row ? toUser(row) : null; },
     list(actor: AccountUser) { requireAdmin(actor); return (db.prepare("SELECT * FROM users ORDER BY created_at, id").all() as Row[]).map(toUser); },
     preferences(id: string): UserPreferences {
@@ -215,10 +220,12 @@ export async function registerAccountAuthentication(app: FastifyInstance, config
   const accounts = createAccountStore(database, config);
   await accounts.initialize();
   app.decorate("accounts", accounts);
+  const media = registerMediaConnection(app, config, accounts);
   app.addHook("preHandler", async (request, reply) => {
     const route = request.routeOptions.url ?? request.url.split("?", 1)[0];
     if (route !== "/api" && !route.startsWith("/api/")) return;
     reply.header("Cache-Control", "no-store");
+    if (media.isDirect(request)) return media.authorize(request, reply);
     if (!["GET", "HEAD", "OPTIONS"].includes(request.method)) {
       const origin = request.headers.origin;
       let foreignOrigin = false;

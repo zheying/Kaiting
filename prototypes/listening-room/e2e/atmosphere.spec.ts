@@ -163,11 +163,18 @@ test("播放页同步正式版的转换提示、错误反馈与无歌词状态",
     await expect(player.locator(".playback-feedback")).toHaveCount(0);
     await expect.poll(() => playing(page)).toBe(true);
 
+    await page.goto("/#/preview/lyrics-loading");
+    await expect(player.getByText("正在加载歌词…", { exact: true })).toBeVisible();
+    await player.getByRole("button", { name: "进入氛围模式", exact: true }).click();
+    await expect(player.getByText("正在加载歌词…", { exact: true })).toBeVisible();
+    await expect(player.getByText("音乐会继续播放，请稍等片刻。", { exact: true })).toHaveCount(0);
+    await page.screenshot({ path: info.outputPath(`lyrics-loading-${layout}.png`) });
     await page.goto("/#/preview/lyrics-empty");
     await expect(player.getByText("暂时没有找到匹配的歌词", { exact: true })).toBeVisible();
     await page.screenshot({ path: info.outputPath(`lyrics-empty-${layout}.png`) });
     await player.getByRole("button", { name: "重新查找歌词", exact: true }).click();
-    await expect(player.getByText("正在寻找这首歌的歌词", { exact: true })).toBeVisible();
+    await expect(player.getByText("正在加载歌词…", { exact: true })).toBeVisible();
+    await expect(player.getByText("音乐会继续播放，请稍等片刻。", { exact: true })).toHaveCount(0);
     await expect(player.getByText("原创演示 · 非本曲歌词", { exact: true })).toBeVisible();
     await page.screenshot({ path: info.outputPath(`lyrics-ready-${layout}.png`) });
   }
@@ -203,14 +210,37 @@ test("原型歌词同步正式版逐行规则，暂停、跳转、跟随和切�
     await player.getByRole("button", { name: "进入氛围模式", exact: true }).click();
     await expect(current).toHaveAttribute("aria-label", stopped!);
     await expect(player.locator(".np-lyric-word")).toHaveCount(0);
+    const toolbar = player.locator(".np-lyrics-toolbar");
+    const lyricsToggle = player.getByRole("button", { name: "氛围歌词", exact: true });
+    await expect(toolbar).toHaveCount(1);
+    await expect(toolbar).toHaveText("");
+    await expect(player.getByRole("button", { name: "收起歌词", exact: true })).toHaveCount(0);
+    await expect(player.getByText("点击播放，查看歌词动效", { exact: true })).toHaveCount(0);
+    await lyricsToggle.click();
+    await expect(player.getByRole("complementary", { name: "氛围歌词面板" })).toHaveCount(0);
+    await lyricsToggle.click();
+    await expect(current).toHaveAttribute("aria-label", stopped!);
     await lines.nth(2).click();
     await expect(current).toHaveAttribute("aria-label", labels[2]);
     await player.locator(".np-lyrics-scroll").hover();
     await page.mouse.wheel(0, 350);
     await expect(player.getByRole("button", { name: "回到当前歌词", exact: true })).toBeVisible();
+    const returnBounds = await player.getByRole("button", { name: "回到当前歌词", exact: true }).boundingBox();
+    const lyricBounds = await player.locator(".np-lyrics-scroll").boundingBox();
+    expect(Math.abs(returnBounds!.x + returnBounds!.width / 2 - lyricBounds!.x - lyricBounds!.width / 2)).toBeLessThan(1);
     await player.getByRole("button", { name: "回到当前歌词", exact: true }).click();
     await expect(player.locator(".np-synced-lyrics")).toHaveClass(/is-following/);
     await expect(current).toBeInViewport();
+    // 暂停浏览后，播放手势应恢复跟随；不依赖下一句歌词触发归位。
+    await player.locator(".np-lyrics-scroll").hover();
+    await page.mouse.wheel(0, 500);
+    await expect(player.getByRole("button", { name: "回到当前歌词", exact: true })).toBeVisible();
+    await player.getByRole("button", { name: "氛围播放", exact: true }).click();
+    await expect.poll(() => playing(page)).toBe(true);
+    await expect(player.getByRole("button", { name: "回到当前歌词", exact: true })).toHaveCount(0, { timeout: 1000 });
+    await expect(current).toBeInViewport();
+    await player.getByRole("button", { name: "氛围暂停", exact: true }).click();
+    await lines.nth(2).click();
     await page.screenshot({ path: info.outputPath(`line-lyrics-atmosphere-${layout}.png`) });
     await player.getByRole("button", { name: "返回播放页", exact: true }).click();
     await expect(current).toHaveAttribute("aria-label", labels[2]);
@@ -221,6 +251,38 @@ test("原型歌词同步正式版逐行规则，暂停、跳转、跟随和切�
     await expect(player.locator(".np-lyric-word")).toHaveCount(0);
     await expect(current.locator(".np-lyric-text")).toHaveCSS("filter", "blur(0px)");
     await page.screenshot({ path: info.outputPath(`line-lyrics-normal-${layout}.png`) });
+  }
+});
+
+test("原型设置同步 NAS 直连开关、检测状态与取消行为", async ({ page }, info) => {
+  for (const [layout, width, height] of [["desktop", 1280, 900], ["mobile", 393, 852]] as const) {
+    await page.setViewportSize({ width, height });
+    await page.goto("/#/songs");
+    if (layout === "mobile") await page.getByRole("button", { name: "打开导航", exact: true }).click();
+    await page.getByRole("button", { name: "音乐室设置", exact: true }).click();
+    const settings = page.getByRole("dialog", { name: "音乐室设置", exact: true });
+    const automatic = settings.getByRole("switch", { name: "优先 NAS 直连", exact: true });
+    const retry = settings.getByRole("button", { name: "重新检测直连", exact: true });
+    const status = settings.getByTestId("media-connection-status");
+    await expect(automatic).toBeChecked();
+    await expect(status).toHaveText("NAS 直连可用");
+    await retry.click();
+    await expect(status).toHaveText("正在检测直连…");
+    await expect(retry).toBeDisabled();
+    await automatic.click();
+    await expect(status).toHaveText("仅使用公网中转");
+    // 检测中的关闭必须取消晚到的模拟结果，不能重新打开用户已关掉的选项。
+    await page.waitForTimeout(1000);
+    await expect(automatic).not.toBeChecked();
+    await expect(status).toHaveText("仅使用公网中转");
+    await expect(retry).toBeDisabled();
+    await page.screenshot({ path: info.outputPath(`media-connection-public-${layout}.png`) });
+    await automatic.click();
+    await expect(status).toHaveText("正在检测直连…");
+    await expect(status).toHaveText("NAS 直连可用");
+    await expect(retry).toBeEnabled();
+    await page.screenshot({ path: info.outputPath(`media-connection-direct-${layout}.png`) });
+    await settings.getByRole("button", { name: "关闭对话框", exact: true }).click();
   }
 });
 
@@ -466,7 +528,7 @@ test("氛围面板轻柔开关，舞台与控件不位移，快速互切和键�
   await page.getByRole("button", { name: "氛围歌词", exact: true }).click();
   await expect(page.getByRole("complementary", { name: "氛围歌词面板" })).toHaveCSS("opacity", "1");
   expect(await page.locator(".av-companion").evaluate((node) => node.getAnimations().filter((animation) => animation.playState === "running").length)).toBe(0);
-  await page.getByRole("button", { name: "收起歌词", exact: true }).click();
+  await page.getByRole("button", { name: "氛围歌词", exact: true }).click();
   await expect(page.locator(".av-companion")).toHaveCount(0);
 });
 

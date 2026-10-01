@@ -14,6 +14,8 @@ import type { ScanJob } from "../../shared/types.js";
 import { useRoomData, mapPlaylist, type Album, type Track, type Playlist, type RoomResource } from "./data.js";
 import { buildAlbumMap, buildArtistIndex, errorMessage } from "./catalog-data.js";
 import { useRoomPlayer } from "./player.js";
+import { startMediaConnection } from "../media-connection.js";
+import { MediaConnectionSettings } from "./MediaConnectionSettings.js";
 import { CapsulePlayer } from "./CapsulePlayer.js";
 import { NowPlaying } from "./NowPlaying.js";
 import { AlbumMetadataForm } from "./AlbumMetadataForm.js";
@@ -117,6 +119,7 @@ function StatePanel({ icon: Icon, eyebrow, title, description, actions = [], ton
 }
 
 export function Room({ session, onUserChange, onLogout }: { session: SessionResponse; onUserChange: (user: AccountUser) => void; onLogout: (reason?: string) => void | Promise<void> }) {
+  useEffect(startMediaConnection, []);
   const data = useRoomData(session);
   const { tracks, albums, playlists, setPlaylists } = data;
   const albumMap = useMemo(() => buildAlbumMap(albums, tracks), [albums, tracks]);
@@ -902,6 +905,8 @@ export function Room({ session, onUserChange, onLogout }: { session: SessionResp
     {hasCurrent && (route === "playing" || (section === "preview" && (routeId?.startsWith("lyrics-") || routeId === "queue-empty"))) && <Modal key={route === "playing" ? "player" : routeId} className="now-playing-dialog" label="沉浸播放器" onClose={closePlayer}>
       {renderWriteFeedback(true)}
       <NowPlaying
+        analysis={player.analysis} analysisNotice={player.analysisNotice}
+        availableTracks={tracks.map((track) => ({ id: track.id, title: displayTitle(track), artist: track.artist, album: track.album ?? "", duration: track.duration }))}
         phase={phase} onRetry={retryPlayback}
         track={{ ...current, duration: player.duration || current.duration, title: displayTitle(current), cover: currentAlbum.cover }} album={currentAlbum}
         queue={queue.map((track) => ({ ...track, title: displayTitle(track), cover: (albumMap.get(track.albumId)?.cover ?? "") }))}
@@ -964,6 +969,7 @@ export function Room({ session, onUserChange, onLogout }: { session: SessionResp
         </div>
         : <div className="directory-setting"><div className="directory-setting-heading"><span><strong>共享音乐库</strong><small>音乐目录与扫描由管理员维护，你可以自由浏览和聆听。</small></span><span className="setting-badge">只读聆听</span></div></div>}
         {resourceNotice("directory")}{resourceNotice("summary")}
+        <MediaConnectionSettings />
         <div className="setting-row"><span><strong>紧凑歌曲列表</strong><small>在同一屏里看见更多音乐</small></span><button className={`toggle ${dense ? "on" : ""}`} role="switch" aria-checked={dense} aria-label="紧凑歌曲列表" onClick={() => setDense((value) => !value)}><span /></button></div>
         <div className="setting-row"><span><strong>深色主题</strong><small>降低环境光下的亮度，保留红色强调</small></span><button className={`toggle ${darkMode ? "on" : ""}`} role="switch" aria-checked={darkMode} aria-label="深色主题" onClick={() => setDarkMode((value) => !value)}><span /></button></div>
         <div className="setting-row"><span><strong>曲库快照</strong><small>{directoryUnavailable ? "目录恢复后才能读取快照" : initialSetup ? "选择目录并完成扫描后生成" : scan.status === "running" && libraryMode !== "ready" ? "正在准备首份曲库快照" : libraryDirectoryNeedsScan ? "等待目录扫描后建立快照" : partialScan ? `已载入 ${tracks.length.toLocaleString()} 首歌曲 · 仍有 ${scanFailureCount} 个文件失败` : `${tracks.length.toLocaleString()} 首歌曲 · ${albums.length} 张专辑`}</small></span><span className={`setting-badge ${directoryUnavailable ? "is-error" : initialSetup || libraryDirectoryNeedsScan || partialScan ? "is-pending" : ""}`}>{directoryUnavailable ? "不可用" : initialSetup ? "未生成" : scan.status === "running" && libraryMode !== "ready" ? "生成中" : libraryDirectoryNeedsScan ? "待生成" : partialScan ? "部分" : "已载入"}</span></div>
