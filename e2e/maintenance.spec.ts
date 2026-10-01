@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import Database from "better-sqlite3";
+import sharp from "sharp";
 import { test, expect, titles, createPlaylist, addSong, login, ROOT } from "./helpers/room.js";
 
 test("CLI 备份恢复到新目录后，页面读回收藏歌单和重定位的封面缓存", async ({ page, room }, info) => {
@@ -18,9 +19,9 @@ test("CLI 备份恢复到新目录后，页面读回收藏歌单和重定位的�
     transcripts.push({ entry, args, status: result.status, stdout: result.stdout, stderr: result.stderr });
     expect(result.status, result.stderr).toBe(0); return result.stdout;
   };
-  // 自带 1px PNG，离线导入缓存，不读取或下载真实用户封面。
+  // 合成可完整解码的 PNG，并让恢复后的页面实际走缩略图缩放。
   const image = path.join(room.directory, "cover.png");
-  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD1sAAAAASUVORK5CYII=", "base64");
+  const png = await sharp({ create: { width: 256, height: 256, channels: 3, background: "#758f83" } }).png().toBuffer();
   fs.writeFileSync(image, png);
   cli("artwork-import.js", ["--data-dir", room.data, "--album-key", album.key, "--file", image, "--source-url", "https://example.test/fixture.png"]);
   const output = cli("maintenance.js", ["backup", "--data-dir", room.data, "--backup-root", path.join(room.directory, "backups"), "--music-library-path", room.music]);
@@ -44,5 +45,20 @@ test("CLI 备份恢复到新目录后，页面读回收藏歌单和重定位的�
   await expect(page.locator(".playlist-tracks .track-identity strong")).toHaveText([titles.aac]);
   const cover = await page.request.get(`${room.url}/api/tracks/${song.id}/artwork`);
   expect(cover.ok()).toBe(true); expect(await cover.body()).toEqual(png);
-  await expect(page.locator(".playlist-tracks img").first()).toBeVisible();
+  const thumbnail = await page.request.get(`${room.url}/api/tracks/${song.id}/artwork?size=64`);
+  expect(thumbnail.status()).toBe(200);
+  expect(thumbnail.headers()["content-type"]).toBe("image/webp");
+  const { info: thumbnailInfo } = await sharp(await thumbnail.body()).raw().toBuffer({ resolveWithObject: true });
+  expect([thumbnailInfo.width, thumbnailInfo.height]).toEqual([64, 64]);
+  const playlistCover = page.locator(".playlist-tracks img").first();
+  await expect(playlistCover).toBeVisible();
+  await expect(playlistCover).toHaveJSProperty("complete", true);
+  await expect.poll(() => playlistCover.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+  await info.attach("restored-artwork.json", {
+    body: JSON.stringify({
+      thumbnail: { status: thumbnail.status(), contentType: thumbnail.headers()["content-type"], width: thumbnailInfo.width, height: thumbnailInfo.height },
+      displayed: await playlistCover.evaluate((image: HTMLImageElement) => ({ src: image.currentSrc, complete: image.complete, width: image.naturalWidth, height: image.naturalHeight })),
+    }, null, 2),
+    contentType: "application/json",
+  });
 });
