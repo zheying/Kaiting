@@ -2,7 +2,7 @@ import { test, expect, titles } from "./helpers/room.js";
 import fs from "node:fs";
 
 for (const format of ["aac", "alac", "flac"] as const) {
-  test(`${format.toUpperCase()} 实际播放、暂停 seek、自然结束和刷新后从零重播`, async ({ page, room }) => {
+  test(`${format.toUpperCase()} 实际播放、暂停 seek、自然结束和刷新后从零重播`, async ({ page, room }, info) => {
     await room.ready(page);
     const song = await room.track(page.request, titles[format]);
     const streams: { url: string; mime: string; status: number }[] = [];
@@ -16,6 +16,14 @@ for (const format of ["aac", "alac", "flac"] as const) {
     await expect.poll(async () => Number(await progress.inputValue())).toBeGreaterThan(0.2);
     expect(streams.some((stream) => stream.mime.includes(format === "aac" ? "audio/mp4" : "audio/mpeg"))).toBe(true);
     await player.getByRole("button", { name: "暂停", exact: true }).click();
+    // 暂停在结尾前一秒，刷新后仍须保留未完成的位置。
+    await progress.press("End"); await progress.press("ArrowLeft");
+    await expect(progress).toHaveValue("5");
+    await expect.poll(async () => (await room.api(page.request, "/api/me")).preferences.position).toBe(5);
+    await page.goto(room.url + "/#/home");
+    await page.reload();
+    await expect(page.getByRole("button", { name: "继续播放", exact: true })).toBeVisible();
+    await expect(progress).toHaveValue("5");
     await progress.press("Home"); await progress.press("ArrowRight"); await progress.press("ArrowRight");
     await expect(progress).toHaveValue("2");
     await player.getByRole("button", { name: "播放", exact: true }).click();
@@ -23,7 +31,11 @@ for (const format of ["aac", "alac", "flac"] as const) {
     await expect(player.getByRole("button", { name: "播放", exact: true })).toBeVisible({ timeout: 15_000 });
     await page.goto(room.url + "/#/home");
     await expect(page.getByRole("button", { name: "重新播放", exact: true })).toBeVisible();
-    await expect.poll(async () => (await room.api(page.request, "/api/me")).preferences.position).toBeGreaterThanOrEqual(song.duration - 0.1);
+    await expect.poll(async () => (await room.api(page.request, "/api/me")).preferences.position).toBe(song.duration);
+    await info.attach("completion-position.json", {
+      body: JSON.stringify({ format, indexedDuration: song.duration, mediaDuration: Number(await progress.getAttribute("max")), savedPosition: (await room.api(page.request, "/api/me")).preferences.position }, null, 2),
+      contentType: "application/json",
+    });
     await page.reload();
     await expect(page.getByRole("button", { name: "重新播放", exact: true })).toBeVisible();
     const before = streams.length;

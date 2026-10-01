@@ -379,7 +379,10 @@ export function Room({ session, onUserChange, onLogout }: { session: SessionResp
 
   useEffect(() => { setOrderDraft(null); }, [pageRoute]);
   const preferenceSnapshot = useRef(session.preferences);
-  preferenceSnapshot.current = { dense, darkMode, volume, shuffle, repeat, queue: queue.map((track) => track.id).slice(0, 10000), currentId, position };
+  // Native media duration can exclude encoder padding that remains in the index.
+  // Persist a confirmed endpoint on the same timeline used when restoring it.
+  const savedPosition = player.hasEnded && current.duration > 0 ? current.duration : position;
+  preferenceSnapshot.current = { dense, darkMode, volume, shuffle, repeat, queue: queue.map((track) => track.id).slice(0, 10000), currentId, position: savedPosition };
   const preferenceWrites = useRef(Promise.resolve());
   function persistPreferences() {
     if (!player.hydrated) return;
@@ -390,7 +393,7 @@ export function Room({ session, onUserChange, onLogout }: { session: SessionResp
     if (!player.hydrated) return;
     const timer = window.setTimeout(persistPreferences, 800);
     return () => window.clearTimeout(timer);
-  }, [player.hydrated, player.seekRevision, dense, darkMode, volume, shuffle, repeat, queue, currentId, isPlaying]);
+  }, [player.hydrated, player.seekRevision, player.hasEnded, dense, darkMode, volume, shuffle, repeat, queue, currentId, isPlaying]);
   useEffect(() => {
     if (!player.hydrated || !currentId || !isPlaying) return;
     const timer = window.setInterval(persistPreferences, 10_000);
