@@ -11,6 +11,7 @@ import { musicPlugin } from "../server/music-plugin.js";
 import { lightingLooks, type PreparedMusic, type MusicCatalog } from "../src/lighting-program.js";
 import snapshot from "../src/library.json" with { type: "json" };
 import { observeBeats, beatObservation, resetBeatObservation, brightest } from "./beat-observation.js";
+import { observeContinuity, continuityMark, continuitySince } from "./playback-continuity.js";
 
 test.use({ video: { mode: "on", size: { width: 1280, height: 800 } } });
 
@@ -22,7 +23,7 @@ const representative = [
   { id: "d8cd560eb9b07fb0e963b831", title: "Nameless Name", kind: "rock" },
   { id: "4bb42fd006edab652d6d3133", title: "OCTOPATH TRAVELER II メインテーマ", kind: "orchestra" }
 ];
-const addedLooks = ["duet", "rain", "afterglow", "horizon", "lattice", "searchlights"];
+const addedLooks = ["petals", "windows", "fan", "relay"];
 const drumTrack = { id: "c31f53049e8d99a6428409f0", title: "四足のアルス/グーラ" };
 const root = process.env.PROTOTYPE_MUSIC_ROOT ?? loadEnv("production", process.cwd(), "PROTOTYPE_").PROTOTYPE_MUSIC_ROOT;
 const privateRoot = process.env.E2E_REPORT_DIR!;
@@ -105,6 +106,122 @@ async function seek(page: Page, seconds: number) {
   await range.press("Tab");
   await expect.poll(async () => Math.abs((await media(page)).time - Math.floor(seconds))).toBeLessThan(1.5);
 }
+
+test("真实音频时钟驱动歌词，暂停、回拖和模式切换保持对齐", async ({ page }, info) => {
+  test.setTimeout(120_000);
+  await page.goto("/#/playing");
+  const player = page.getByRole("dialog", { name: "沉浸播放器" });
+  await expect(player.getByRole("button", { name: "播放", exact: true })).toBeEnabled({ timeout: 90_000 });
+  await player.getByRole("button", { name: "歌词", exact: true }).click();
+  await expect(player.locator(".np-lyric-word")).toHaveCount(0);
+  const lines = player.getByRole("button", { name: /^跳转到 / });
+  const labels = await lines.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("aria-label")!));
+  const timestamp = labels[1].match(/跳转到 (\d+):(\d+)/)!;
+  const boundary = Number(timestamp[1]) * 60 + Number(timestamp[2]);
+  const range = player.getByRole("slider", { name: "播放进度", exact: true });
+  await range.fill(String(boundary - 1)); await range.press("Tab");
+  await expect.poll(async () => (await media(page)).time).toBeCloseTo(boundary - 1, 0);
+  const current = player.locator(".np-lyric-line.is-current");
+  await expect(current).toHaveAttribute("aria-label", labels[0]);
+  await player.getByRole("button", { name: "播放", exact: true }).click();
+  await expect.poll(async () => (await media(page)).time).toBeGreaterThan(boundary + .3);
+  await expect(current).toHaveAttribute("aria-label", labels[1]);
+  await player.getByRole("button", { name: "暂停", exact: true }).click();
+  await expect.poll(async () => (await media(page)).paused).toBe(true);
+  const stopped = await media(page);
+  await player.getByRole("button", { name: "进入氛围模式", exact: true }).click();
+  await expect(current).toHaveAttribute("aria-label", labels[1]);
+  await page.waitForTimeout(300);
+  expect((await media(page)).time).toBeCloseTo(stopped.time, 2);
+  await lines.first().click();
+  await expect.poll(async () => (await media(page)).time).toBe(0);
+  await expect(current).toHaveAttribute("aria-label", labels[0]);
+  await page.screenshot({ path: info.outputPath("real-lyrics-after-rewind.png") });
+  await page.setViewportSize({ width: 393, height: 852 });
+  await lines.nth(1).click();
+  await expect.poll(async () => (await media(page)).time).toBeCloseTo(boundary, 2);
+  await expect(current).toHaveAttribute("aria-label", labels[1]);
+  await expect(player.locator(".np-lyric-word")).toHaveCount(0);
+  await page.screenshot({ path: info.outputPath("real-lyrics-mobile.png") });
+  await player.getByRole("button", { name: "返回播放页", exact: true }).click();
+  await expect(current).toHaveAttribute("aria-label", labels[1]);
+  const finalMedia = await media(page);
+  expect(finalMedia.src).toBe(stopped.src);
+  expect(finalMedia.time).toBeCloseTo(boundary, 2);
+  expect(finalMedia.paused).toBe(true);
+  fs.writeFileSync(info.outputPath("lyrics-clock.json"), JSON.stringify({ boundary, stopped, finalMedia, currentLine: await current.getAttribute("aria-label") }, null, 2));
+});
+
+test("普通播放与氛围模式共用音源，往返切换和收起播放页不中断且队列一致", async ({ page }, info) => {
+  test.setTimeout(120_000);
+  await observeContinuity(page);
+  await page.goto("/#/playing");
+  const player = page.getByRole("dialog", { name: "沉浸播放器" });
+  await expect(player.getByRole("button", { name: "播放", exact: true })).toBeEnabled({ timeout: 90_000 });
+  await player.getByRole("button", { name: "播放", exact: true }).click();
+  await expect.poll(async () => (await media(page)).paused, { timeout: 15_000 }).toBe(false);
+  const initial = await media(page);
+  await expect.poll(async () => (await media(page)).time).toBeGreaterThan(initial.time + .5);
+  await player.getByRole("slider", { name: "音量", exact: true }).fill("31");
+  await player.getByRole("button", { name: "待播清单", exact: true }).click();
+  const upcoming = await player.locator(".np-queue-select").allTextContents();
+  expect(upcoming.length).toBeGreaterThan(1);
+  await player.getByRole("button", { name: "随机播放", exact: true }).click();
+  await player.getByRole("button", { name: "顺序播放，点击切换列表循环", exact: true }).click();
+  await player.getByRole("button", { name: "待播清单", exact: true }).click();
+  const start = await continuityMark(page);
+  const preparations = evidence.get(page)!.requests.filter((url) => url.includes("/prepare/")).length;
+
+  for (const [layout, width, height] of [["desktop", 1108, 879], ["mobile", 393, 852]] as const) {
+    await page.setViewportSize({ width, height });
+    for (let cycle = 0; cycle < 2; cycle++) {
+      const before = await media(page);
+      await player.getByRole("button", { name: "进入氛围模式", exact: true }).click();
+      await expect(page.getByRole("region", { name: "氛围模式", exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: "氛围暂停", exact: true })).toBeEnabled();
+      await expect(page.getByRole("slider", { name: "氛围音量", exact: true, includeHidden: true })).toHaveValue("31");
+      expect((await media(page)).src).toBe(initial.src);
+      await expect.poll(async () => (await media(page)).time).toBeGreaterThan(before.time + .3);
+      await page.getByRole("button", { name: "氛围待播清单", exact: true }).click();
+      expect(await player.locator(".np-queue-select").allTextContents()).toEqual(upcoming);
+      await expect(player.getByRole("button", { name: "关闭随机播放", exact: true })).toHaveAttribute("aria-pressed", "true");
+      await expect(player.getByRole("button", { name: "列表循环，点击切换单曲循环", exact: true })).toHaveAttribute("aria-pressed", "true");
+      if (cycle === 0) await page.screenshot({ path: info.outputPath(`shared-queue-${layout}.png`) });
+      await page.getByRole("button", { name: "收起待播清单", exact: true }).click();
+      await page.getByRole("button", { name: "返回播放页", exact: true }).click();
+      await expect(player.getByRole("button", { name: "暂停", exact: true })).toBeVisible();
+      await expect(player.getByRole("slider", { name: "音量", exact: true, includeHidden: true })).toHaveValue("31");
+    }
+  }
+  await player.getByRole("button", { name: "收起播放器", exact: true }).click();
+  const capsule = page.getByRole("contentinfo", { name: "底部播放器" });
+  await expect(capsule.getByRole("button", { name: "暂停", exact: true })).toBeVisible();
+  const beforeCapsule = await media(page);
+  await expect.poll(async () => (await media(page)).time).toBeGreaterThan(beforeCapsule.time + .5);
+  await capsule.getByRole("button", { name: /^打开沉浸播放器/ }).click();
+  const observed = await continuitySince(page, start);
+  fs.writeFileSync(info.outputPath("playback-continuity.json"), JSON.stringify(observed, null, 2));
+  expect(observed.sources).toBe(1);
+  expect(observed.events).toEqual([]);
+  expect(observed.samples.length).toBeGreaterThan(20);
+  expect(observed.samples.every((sample) => sample.sameElement && !sample.paused && sample.ready >= 3)).toBe(true);
+  expect(observed.samples.some((sample) => sample.rms > .005)).toBe(true);
+  for (let i = 1; i < observed.samples.length; i++) expect(observed.samples[i].time).toBeGreaterThanOrEqual(observed.samples[i - 1].time);
+  const first = observed.samples[0], last = observed.samples.at(-1)!;
+  expect(Math.abs((last.time - first.time) - (last.wall - first.wall) / 1000)).toBeLessThan(.25);
+  expect(evidence.get(page)!.requests.filter((url) => url.includes("/prepare/")).length).toBe(preparations);
+
+  await player.getByRole("button", { name: "暂停", exact: true }).click();
+  await expect.poll(async () => (await media(page)).paused).toBe(true);
+  const paused = (await media(page)).time;
+  await player.getByRole("button", { name: "进入氛围模式", exact: true }).click();
+  await expect(page.getByRole("button", { name: "氛围播放", exact: true })).toBeVisible();
+  expect((await media(page)).time).toBeCloseTo(paused, 1);
+  expect((await media(page)).paused).toBe(true);
+  await page.getByRole("button", { name: "返回播放页", exact: true }).click();
+  expect((await media(page)).time).toBeCloseTo(paused, 1);
+  expect((await media(page)).paused).toBe(true);
+});
 
 test.describe("鼓点现场", () => {
   test("四足のアルス真实起音带动灯组，自动编排与手机灯位保持正确", async ({ page }, info) => {
@@ -213,7 +330,7 @@ test("灯具安装坐标在全部灯光模式、音乐调度和手机投影中�
   await page.setViewportSize({ width: 393, height: 852 });
   for (const look of lightingLooks.filter((item) => addedLooks.includes(item.id))) {
     await page.getByRole("button", { name: "灯光编排", exact: true }).click();
-    await expect(page.locator(".av-look-grid > button")).toHaveCount(18);
+    await expect(page.locator(".av-look-grid > button")).toHaveCount(22);
     await page.getByRole("button", { name: look.name, exact: true }).click();
     await expect(page.locator(".atmosphere-mode")).toHaveAttribute("data-lighting-look", look.id);
     await page.waitForTimeout(1600);
@@ -232,7 +349,7 @@ test("灯具安装坐标在全部灯光模式、音乐调度和手机投影中�
   expect(observation.maxDisplacement).toBeLessThan(.00001);
 });
 
-test("真实三曲按声音调度灯光，跳转与播放时间一致，十八种灯光可选", async ({ page, request }, info) => {
+test("真实三曲按声音调度灯光，跳转与播放时间一致，二十二种灯光可选", async ({ page, request }, info) => {
   test.setTimeout(180_000);
   await enter(page);
   const programs: PreparedMusic[] = [];
@@ -243,7 +360,7 @@ test("真实三曲按声音调度灯光，跳转与播放时间一致，十八�
     programs.push(prepared);
     expect(prepared.track.id).toBe(track.id); expect(prepared.track.codec).toBe("ALAC");
     expect(prepared.sourceHash).toBe(beforeHashes[track.id]); expect(prepared.program).not.toBeNull();
-    expect(prepared.program!.version).toBe(4);
+    expect(prepared.program!.version).toBe(5);
     const cues = prepared.program!.cues;
     expect(new Set(cues.map((cue) => cue.look)).size).toBeGreaterThan(2);
     await choose(page, track.title);
@@ -272,11 +389,11 @@ test("真实三曲按声音调度灯光，跳转与播放时间一致，十八�
   expect(JSON.stringify(programs[0].program!.cues)).not.toBe(JSON.stringify(programs[1].program!.cues));
   const scheduledLooks = new Set(programs.flatMap((item) => item.program!.cues.map((cue) => cue.look)));
   for (const look of addedLooks) expect(scheduledLooks.has(look as typeof lightingLooks[number]["id"])).toBe(true);
-  expect(programs[0].program!.cues.some((cue) => ["horizon", "lattice", "burst"].includes(cue.look))).toBe(false);
+  expect(programs[0].program!.cues.some((cue) => ["horizon", "lattice", "burst", "fan", "relay"].includes(cue.look))).toBe(false);
   fs.writeFileSync(info.outputPath("three-track-programs.json"), JSON.stringify(programs, null, 2));
   await page.getByRole("button", { name: "灯光编排", exact: true }).click();
-  await expect(page.locator(".av-look-grid > button")).toHaveCount(18);
-  await page.screenshot({ path: info.outputPath("eighteen-lighting-looks.png") });
+  await expect(page.locator(".av-look-grid > button")).toHaveCount(22);
+  await page.screenshot({ path: info.outputPath("twenty-two-lighting-looks.png") });
   await page.keyboard.press("Escape");
   const frames = new Set<string>();
   for (const look of lightingLooks) {
@@ -287,7 +404,7 @@ test("真实三曲按声音调度灯光，跳转与播放时间一致，十八�
     frames.add(screenshot.toString("base64"));
     fs.writeFileSync(info.outputPath(`look-${look.id}.png`), screenshot);
   }
-  expect(frames.size).toBe(18);
+  expect(frames.size).toBe(22);
   await page.getByRole("button", { name: "跟随音乐", exact: true }).click();
   await seek(page, 30);
   const progress = page.getByRole("slider", { name: "氛围播放进度", exact: true });
@@ -324,7 +441,7 @@ test("真实三曲按声音调度灯光，跳转与播放时间一致，十八�
   await expect(page.locator(".av-now h1")).not.toHaveText(old, { timeout: 15_000 });
   await expect.poll(async () => (await media(page)).paused, { timeout: 90_000 }).toBe(false);
   await page.getByRole("button", { name: "返回播放页", exact: true }).click();
-  expect((await media(page)).paused).toBe(true);
+  expect((await media(page)).paused).toBe(false);
 });
 
 test("灯光编排升级重建旧缓存并保留已准备音频", async ({}, info) => {
@@ -336,16 +453,16 @@ test("灯光编排升级重建旧缓存并保留已准备音频", async ({}, inf
   const metadata = path.join(directory, files.find((file) => /^[a-f0-9]{64}\.json$/.test(file))!);
   const audioFile = path.join(directory, files.find((file) => /^[a-f0-9]{64}\.m4a$/.test(file))!);
   const audioBefore = { hash: await fileHash(audioFile), mtime: (await fsp.stat(audioFile)).mtimeMs };
-  const stale = { ...prepared, program: { ...prepared.program!, version: 3, cues: [] } };
+  const stale = { ...prepared, program: { ...prepared.program!, version: 4, cues: [] } };
   await fsp.writeFile(metadata, JSON.stringify(stale));
   const restarted = createMusicLibrary(root!, directory);
   const fresh = await restarted.prepare(representative[0].id);
-  expect(fresh.program!.version).toBe(4);
+  expect(fresh.program!.version).toBe(5);
   expect(fresh.program!.cues.length).toBeGreaterThan(2);
   expect(fresh.program!.cues.some((cue) => addedLooks.includes(cue.look))).toBe(true);
   expect({ hash: await fileHash(audioFile), mtime: (await fsp.stat(audioFile)).mtimeMs }).toEqual(audioBefore);
-  expect(JSON.parse(await fsp.readFile(metadata, "utf8")).program.version).toBe(4);
-  fs.writeFileSync(info.outputPath("program-upgrade.json"), JSON.stringify({ oldVersion: 3, newVersion: fresh.program!.version, audioUnchanged: true, cues: fresh.program!.cues }, null, 2));
+  expect(JSON.parse(await fsp.readFile(metadata, "utf8")).program.version).toBe(5);
+  fs.writeFileSync(info.outputPath("program-upgrade.json"), JSON.stringify({ oldVersion: 4, newVersion: fresh.program!.version, audioUnchanged: true, cues: fresh.program!.cues }, null, 2));
 });
 
 test("真实切歌晚到与准备故障可恢复，手机选曲和灯光面板可操作", async ({ page, request }, info) => {
@@ -360,22 +477,29 @@ test("真实切歌晚到与准备故障可恢复，手机选曲和灯光面板�
   await choose(page, representative[1].title);
   await choose(page, representative[2].title);
   await expect.poll(async () => (await media(page)).src).toContain(`/audio/${representative[2].id}`);
+  // 旧请求在退出氛围模式后返回，也不能覆盖共用音源。
+  await page.getByRole("button", { name: "返回播放页", exact: true }).click();
   release(); await page.unroute(`**/prepare/${representative[1].id}`);
   await expect.poll(async () => (await media(page)).paused).toBe(false);
   expect((await media(page)).src).toContain(`/audio/${representative[2].id}`);
+  await page.getByRole("button", { name: "进入氛围模式", exact: true }).click();
   await page.route(`**/prepare/${representative[1].id}`, (route) => route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "音源准备暂时失败，请重试。" }) }));
   await choose(page, representative[1].title);
   await expect(page.getByRole("alert")).toContainText("音源准备暂时失败");
   expect((await media(page)).paused).toBe(true);
   await page.screenshot({ path: info.outputPath("real-source-failure-mobile.png") });
+  await page.getByRole("button", { name: "返回播放页", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("这首歌暂时无法播放");
+  await page.screenshot({ path: info.outputPath("shared-source-failure-mobile.png") });
   await page.unroute(`**/prepare/${representative[1].id}`);
-  await page.getByRole("button", { name: "重试音频", exact: true }).click();
+  await page.getByRole("button", { name: "重新播放", exact: true }).click();
   await expect.poll(async () => (await media(page)).src).toContain(`/audio/${representative[1].id}`);
   await expect.poll(async () => (await media(page)).paused).toBe(false);
+  await page.getByRole("button", { name: "进入氛围模式", exact: true }).click();
   const before = await sound(page); await expect.poll(() => sound(page)).toBeGreaterThan(before + 4);
   await page.getByRole("button", { name: "灯光编排", exact: true }).click();
-  await expect(page.locator(".av-look-grid > button")).toHaveCount(12);
-  await page.screenshot({ path: info.outputPath("twelve-looks-mobile.png") });
+  await expect(page.locator(".av-look-grid > button")).toHaveCount(lightingLooks.length);
+  await page.screenshot({ path: info.outputPath("lighting-looks-mobile.png") });
   await page.getByRole("button", { name: "全场齐射", exact: true }).click();
   await page.screenshot({ path: info.outputPath("real-stage-mobile.png") });
   await page.getByRole("button", { name: "选择真实曲目", exact: true }).click();

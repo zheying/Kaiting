@@ -10,7 +10,7 @@ export const palettes = {
   silver: { a: [240, 246, 255], b: [48, 90, 175] }
 } as const;
 type Vec3 = [number, number, number];
-type Fixture = { readonly origin: Readonly<Vec3>; direction: Vec3; angle: number; intensity: number; tint: number; wash: number };
+type Fixture = { readonly origin: Readonly<Vec3>; direction: Vec3; angle: number; intensity: number; tint: number; wash: number; petals: number; windows: number };
 // 灯具的安装位置属于舞台，所有编排共用；模式只能控制灯头，不能重排灯位。
 const fixtureMounts: readonly Readonly<Vec3>[] = [
   ...Array.from({ length: 8 }, (_, i): Vec3 => [(i - 3.5) * 1.05, .16, -7]),
@@ -30,6 +30,7 @@ uniform float time;
 uniform vec4 sources[24];
 uniform vec4 directions[24];
 uniform vec4 tints[24];
+uniform vec2 gobos[24];
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float noise(vec2 p) {
   vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -40,19 +41,32 @@ float haze(vec3 p) {
   float cloud = noise(drift) * .72 + noise(drift * 2.7 + 4.1) * .28;
   return (.036 + cloud * .065) * exp(-max(p.y, 0.) * .18);
 }
-float cone(vec3 p, vec4 source, vec4 direction, float wash) {
+float projection(vec3 offset, vec3 axis, float radius, vec2 pattern, vec3 source) {
+  if (pattern.x + pattern.y < .001) return 1.;
+  vec3 right = normalize(cross(axis, abs(axis.y) < .8 ? vec3(0., 1., 0.) : vec3(1., 0., 0.)));
+  vec3 up = cross(axis, right);
+  vec2 uv = vec2(dot(offset, right), dot(offset, up)) / radius;
+  float rotation = mix(time * .15 + source.x * .3, .38 + sin(time * .13) * .15, pattern.y);
+  uv = mat2(cos(rotation), -sin(rotation), sin(rotation), cos(rotation)) * uv;
+  float r = length(uv), a = atan(uv.y, uv.x);
+  float petalEdge = .58 + .22 * cos(a * 6.);
+  float flower = (1. - smoothstep(petalEdge - .04, petalEdge + .04, r)) * smoothstep(.13, .2, r);
+  float slats = 1. - smoothstep(.08, .14, abs(fract(uv.x * 2.4 + .5) - .5));
+  return mix(1., flower, pattern.x) * mix(1., slats, pattern.y);
+}
+float cone(vec3 p, vec4 source, vec4 direction, float wash, vec2 pattern) {
   vec3 offset = p - source.xyz;
   float along = dot(offset, direction.xyz);
   float radius = .035 + max(0., along) * direction.w;
   float distance2 = max(0., dot(offset, offset) - along * along);
   float radial = distance2 / (radius * radius);
   float core = mix(1. - smoothstep(.15, 1.15, radial) + exp(-radial * 16.) * .25, exp(-radial * 2.), wash);
-  return core * smoothstep(0., .12, along) * exp(-along * .025) / (1. + along * along * .012);
+  return core * projection(offset, direction.xyz, radius, pattern, source.xyz) * smoothstep(0., .12, along) * exp(-along * .025) / (1. + along * along * .012);
 }
 vec3 lighting(vec3 p) {
   vec3 light = vec3(0.);
   for (int i = 0; i < 24; i++) {
-    if (sources[i].w > .001) light += tints[i].rgb * sources[i].w * cone(p, sources[i], directions[i], tints[i].a);
+    if (sources[i].w > .001) light += tints[i].rgb * sources[i].w * cone(p, sources[i], directions[i], tints[i].a, gobos[i]);
   }
   return light;
 }
@@ -87,16 +101,20 @@ void main() {
       // 宽幅铺光采用解析雾层，额外灯组不增加逐步体积采样。
       vec3 world = eye + ray * center;
       float density = haze(world);
-      scatter += tints[i].rgb * sources[i].w * cone(world, sources[i], directions[i], 1.) * density * (far - near) * .28 * exp(-density * center * .35);
+      scatter += tints[i].rgb * sources[i].w * cone(world, sources[i], directions[i], 1., gobos[i]) * density * (far - near) * .28 * exp(-density * center * .35);
       continue;
     }
-    float stepSize = (far - near) / 5.;
-    for (int step = 0; step < 5; step++) {
-      float distance = near + (float(step) + .5) * stepSize;
+    // 图案边缘需要更密的雾采样，避免花影在空间中出现离散的重复切片。
+    float samples = gobos[i].x + gobos[i].y > .01 ? 20. : 5.;
+    float stepSize = (far - near) / samples;
+    float offsetInStep = samples > 5. ? hash(gl_FragCoord.xy + float(i) * 19.) : .5;
+    for (int step = 0; step < 20; step++) {
+      if (float(step) >= samples) break;
+      float distance = near + (float(step) + offsetInStep) * stepSize;
       vec3 world = eye + ray * distance;
       float density = haze(world);
       float transmission = exp(-density * distance * .35);
-      scatter += tints[i].rgb * sources[i].w * cone(world, sources[i], directions[i], 0.) * density * stepSize * transmission;
+      scatter += tints[i].rgb * sources[i].w * cone(world, sources[i], directions[i], 0., gobos[i]) * density * stepSize * transmission;
     }
   }
   float transmission = exp(-haze(eye + ray * limit * .5) * limit * .35);
@@ -108,7 +126,7 @@ void main() {
     for (int i = 0; i < 24; i++) {
       vec3 mirror = vec3(sources[i].x, -sources[i].y, sources[i].z);
       float reflection = pow(max(0., dot(ray, normalize(mirror - eye))), 180.);
-      surface += tints[i].rgb * sources[i].w * reflection * .14;
+      surface += tints[i].rgb * sources[i].w * reflection * .14 * (1. - max(gobos[i].x, gobos[i].y) * .92);
     }
     surface *= .6 + .4 * exp(-length(floorPoint.xz) * .07);
   } else {
@@ -159,6 +177,7 @@ function createStage(canvas: HTMLCanvasElement) {
     gl.enableVertexAttribArray(point); gl.vertexAttribPointer(point, 2, gl.FLOAT, false, 0, 0);
     const resolution = gl.getUniformLocation(program, "resolution"), clock = gl.getUniformLocation(program, "time");
     const source = gl.getUniformLocation(program, "sources[0]"), direction = gl.getUniformLocation(program, "directions[0]"), tint = gl.getUniformLocation(program, "tints[0]");
+    const gobo = gl.getUniformLocation(program, "gobos[0]"), patterns = new Float32Array(lightCount * 2);
     const origins = new Float32Array(lightCount * 4), directions = new Float32Array(lightCount * 4), tints = new Float32Array(lightCount * 4);
     return {
       draw(time: number, fixtures: Fixture[], palette: AtmospherePalette) {
@@ -168,10 +187,12 @@ function createStage(canvas: HTMLCanvasElement) {
           origins.set([...fixture.origin, fixture.intensity], i * 4);
           directions.set([...fixture.direction, fixture.angle], i * 4);
           tints.set([...mix(colors.a, colors.b, fixture.tint).map((n) => n / 255), fixture.wash], i * 4);
+          patterns.set([fixture.petals, fixture.windows], i * 2);
         });
         gl.viewport(0, 0, canvas.width, canvas.height);
         gl.uniform2f(resolution, canvas.width, canvas.height); gl.uniform1f(clock, time);
         gl.uniform4fv(source, origins); gl.uniform4fv(direction, directions); gl.uniform4fv(tint, tints);
+        gl.uniform2fv(gobo, patterns);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
       },
       dispose() { gl.deleteBuffer(buffer); gl.deleteProgram(program); gl.deleteShader(vertex); gl.deleteShader(pixel); }
@@ -193,6 +214,7 @@ export function createAtmosphereScene(canvas: HTMLCanvasElement, lightCanvas: HT
   let selected: LightingLook = "spotlight";
   const weights = lightingLooks.map((_, i) => i === 0 ? 1 : 0);
   const onsets: number[] = [];
+  const relayTails = [0, 0, 0, 0];
   let disposed = false, contextLost = false;
   const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -218,10 +240,12 @@ export function createAtmosphereScene(canvas: HTMLCanvasElement, lightCanvas: HT
     const sway = Math.sin(time * .28) * force;
     const sweep = Math.sin(time * .3) * force;
     const breath = .5 + .5 * Math.sin(time * .32);
+    const opening = .3 + (.5 + .5 * Math.sin(time * .35)) * .85;
+    const relayGain = (group: number) => .02 + (group === beatCount % 4 ? .14 : 0) + relayTails[group] * .9;
     const chase = (phase: number) => .12 + .88 * Math.pow(.5 + .5 * Math.cos(time * (1.1 + level) - phase + beatCount * .18), 3);
     const layout = (look: LightingLook): Fixture[] => {
       const result: Fixture[] = [];
-      const response = ["afterglow", "stars", "duet", "spotlight"].includes(look) ? .18 : ["rain", "curtain", "canopy"].includes(look) ? .5 : 1;
+      const response = ["afterglow", "stars", "duet", "spotlight", "petals", "windows"].includes(look) ? .18 : ["rain", "curtain", "canopy"].includes(look) ? .5 : 1;
       const punch = accent * force * response, thump = lowAccent * force * response;
       const add = (target: Vec3, angle: number, gain: number, tint: number, wash = false) => {
         const index = result.length, origin = fixtureMounts[index];
@@ -234,7 +258,9 @@ export function createAtmosphereScene(canvas: HTMLCanvasElement, lightCanvas: HT
         const intensity = wash ? output * gain * (1 - punch * .22) : gain * (output + strike * (6.5 + level * 2));
         result.push({ origin, direction: vector.map((n) => n / length) as Vec3,
           angle: angle * (wash ? 1 : 1 - Math.min(.32, strike * .28)), intensity,
-          tint: tint * (wash ? 1 : 1 - Math.min(.5, strike * .35)), wash: wash ? 1 : 0 });
+          tint: tint * (wash ? 1 : 1 - Math.min(.5, strike * .35)), wash: wash ? 1 : 0,
+          petals: look === "petals" && index >= 8 && index < 16 ? 1 : 0,
+          windows: look === "windows" && index >= 8 && index < 16 ? 1 : 0 });
       };
       for (let i = 0; i < 8; i++) {
         const x = (i - 3.5) * 1.05;
@@ -259,6 +285,10 @@ export function createAtmosphereScene(canvas: HTMLCanvasElement, lightCanvas: HT
           case "horizon": target = [x * 1.55, .35 + sway * .15, 2]; gain = .6; angle = .022; tint = .8; break;
           case "lattice": target = [x + (i % 2 ? -2.9 : 2.9) + sway * .2, 4.3, -2]; gain = .85; angle = .012; tint = i % 2 ? .88 : .1; break;
           case "searchlights": target = [x + (i < 4 ? -1 : 1) * sweep * 3.2, 4.8, -1]; gain = .95; angle = .028; tint = i < 4 ? .08 : .78; break;
+          case "petals": target = [x * .4, 4.3, -6.4]; gain = i === 0 || i === 7 ? .06 : 0; angle = .012; tint = .7; break;
+          case "windows": target = [x, 4.8, -6.8]; gain = i % 2 ? .055 : 0; angle = .012; tint = .65; break;
+          case "fan": target = [x * (1 + opening * 1.4), 4.8, -5]; gain = .9; angle = .011; tint = .12; break;
+          case "relay": target = [x * .9, 3.8, -2.5]; gain = relayGain(i % 4); angle = .026; tint = .12 + (i % 4) * .22; break;
         }
         add(target, angle, gain, tint, look === "afterglow");
       }
@@ -286,6 +316,10 @@ export function createAtmosphereScene(canvas: HTMLCanvasElement, lightCanvas: HT
           case "horizon": gain = 0; break;
           case "lattice": target = [x + (column % 2 ? -3.2 : 3.2) - sway * .2, 0, -2 - row * 2]; gain = .8; angle = .012; tint = row ? .82 : .1; break;
           case "searchlights": target = [x - sweep * 3.2, 1, 1]; gain = row ? .65 : 0; angle = .028; tint = .15; break;
+          case "petals": target = [x * .85 + sway * .25, 0, -1.4 - row * 2.5]; gain = [1, 2, 4, 7].includes(i) ? .6 : 0; angle = .24; tint = .18 + row * .35; break;
+          case "windows": target = [x * 1.1 + sway * .25, 0, -1.6]; gain = row ? 0 : .55; angle = .23; tint = column % 2 ? .55 : .15; break;
+          case "fan": target = [-x * opening, .8, -6]; gain = row ? .5 : 0; angle = .012; tint = .8; break;
+          case "relay": target = [x * .8, 0, -1 - row * 2]; gain = relayGain(column) * .65; angle = .032; tint = .15 + row * .6; break;
         }
         add(target, angle, gain, tint, look === "afterglow");
       }
@@ -301,12 +335,13 @@ export function createAtmosphereScene(canvas: HTMLCanvasElement, lightCanvas: HT
         else if (look === "afterglow") { target = [-side * .5, 2, -6]; gain = .18; angle = .55; }
         else if (look === "horizon") { target = [-side * 4.4, 1.5 + row * 1.3 + sway * .12, -1 - row * 3.6]; gain = .85 + breath * .2; angle = .024; }
         else if (look === "lattice") { target = [-side * 3.8, row ? .55 : 3.9, -4 + row * 2]; gain = .65; angle = .015; }
-        else if (["stars", "spotlight", "particles", "curtain", "duet", "rain", "searchlights"].includes(look)) gain = 0;
+        else if (look === "relay") { target = [-side * 2, 1.4, -1.5 - row * 2]; gain = relayGain(row * 2 + (side > 0 ? 1 : 0)) * .35; angle = .025; }
+        else if (["stars", "spotlight", "particles", "curtain", "duet", "rain", "searchlights", "petals", "windows", "fan"].includes(look)) gain = 0;
         add(target, angle, gain, side > 0 ? .08 : .98, look === "afterglow");
       }
       for (let i = 0; i < 4; i++) {
         const side = i % 2 ? 1 : -1;
-        const gain = ["spotlight", "stars", "duet"].includes(look) ? .025 : look === "burst" ? .4 : look === "canopy" ? .22 : look === "afterglow" ? .5 + breath * .2 : look === "horizon" || look === "rain" ? .04 : .1;
+        const gain = ["spotlight", "stars", "duet", "petals", "windows", "fan", "relay"].includes(look) ? .025 : look === "burst" ? .4 : look === "canopy" ? .22 : look === "afterglow" ? .5 + breath * .2 : look === "horizon" || look === "rain" ? .04 : .1;
         add(look === "afterglow" ? [-side * 1.8, 2.6, -6.9] : [-side * 1.8, 1, -3.5], look === "afterglow" ? .72 : .46, gain, look === "afterglow" ? .55 + side * .2 : .9, true);
       }
       return result;
@@ -316,11 +351,12 @@ export function createAtmosphereScene(canvas: HTMLCanvasElement, lightCanvas: HT
       const weight = weights[k];
       if (weight < .001) continue;
       const lights = layout(lightingLooks[k].id);
-      if (!combined) combined = lights.map((l) => ({ ...l, direction: [0, 0, 0], angle: 0, intensity: 0, tint: 0, wash: 0 }));
+      if (!combined) combined = lights.map((l) => ({ ...l, direction: [0, 0, 0], angle: 0, intensity: 0, tint: 0, wash: 0, petals: 0, windows: 0 }));
       lights.forEach((light, i) => {
         const output = combined![i];
         for (let j = 0; j < 3; j++) output.direction[j] += light.direction[j] * weight;
         output.angle += light.angle * weight; output.intensity += light.intensity * weight; output.tint += light.tint * weight; output.wash += light.wash * weight;
+        output.petals += light.petals * weight; output.windows += light.windows * weight;
       });
     }
     return (combined ?? layout(selected)).map((light) => ({ ...light, direction: light.direction.map((n) => n / Math.max(.001, Math.hypot(...light.direction))) as Vec3 }));
@@ -359,7 +395,27 @@ export function createAtmosphereScene(canvas: HTMLCanvasElement, lightCanvas: HT
       }
       glow(source[0], source[1], 16 + light.wash * 12, color, .3 * light.intensity);
       ctx.save(); ctx.translate(target[0], target[1]); ctx.scale(1, .25);
-      glow(0, 0, radius * 2.5, color, .22 * light.intensity); ctx.restore();
+      const patterned = Math.max(light.petals, light.windows);
+      glow(0, 0, radius * 2.5, color, .22 * light.intensity * (1 - patterned * .92));
+      if (patterned > .01 && light.intensity > .001) {
+        const spin = (time * .15 + origin[0] * .3) * (1 - light.windows) + (.38 + Math.sin(time * .13) * .15) * light.windows;
+        ctx.rotate(spin); ctx.filter = "blur(1px)";
+        if (light.petals > .01) {
+          ctx.beginPath();
+          for (let j = 0; j <= 120; j++) {
+            const a = j / 120 * Math.PI * 2, r = radius * (.58 + .22 * Math.cos(a * 6));
+            if (j === 0) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r); else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+          }
+          ctx.closePath(); ctx.moveTo(radius * .17, 0); ctx.arc(0, 0, radius * .17, 0, Math.PI * 2);
+          ctx.fillStyle = rgba(color, light.intensity * .32 * light.petals); ctx.fill("evenodd");
+        }
+        if (light.windows > .01) {
+          ctx.beginPath(); ctx.arc(0, 0, Math.max(1, radius), 0, Math.PI * 2); ctx.clip();
+          ctx.fillStyle = rgba(color, light.intensity * .32 * light.windows);
+          for (let j = -2; j <= 2; j++) ctx.fillRect(radius * (j / 2.4 - .045), -radius, radius * .09, radius * 2);
+        }
+      }
+      ctx.restore();
     }
     ctx.filter = "none";
     for (let i = 0; i < 140; i++) {
@@ -384,7 +440,7 @@ export function createAtmosphereScene(canvas: HTMLCanvasElement, lightCanvas: HT
     previous = now;
     const target = readSound();
     if (soundEpoch !== target.epoch) {
-      soundEpoch = target.epoch; accent = lowAccent = 0; beatCount = 0; onsets.length = 0;
+      soundEpoch = target.epoch; accent = lowAccent = 0; beatCount = 0; onsets.length = 0; relayTails.fill(0);
       level = average = target.energy;
     }
     const gain = target.energy > level ? 2.8 : .9;
@@ -392,15 +448,16 @@ export function createAtmosphereScene(canvas: HTMLCanvasElement, lightCanvas: HT
     // 快起、快落；使用实际帧间隔，不让舞台慢速运动时钟拖慢鼓点。
     accent = Math.max(accent * Math.exp(-elapsed * (options.vivid ? 15 : 8)), target.pulse);
     lowAccent = Math.max(lowAccent * Math.exp(-elapsed * (options.vivid ? 12 : 7)), target.lowPulse);
-    if (options.playing && target.pulse > 0) { beatCount++; onsets.push(now / 1000); }
+    for (let i = 0; i < relayTails.length; i++) relayTails[i] *= Math.exp(-elapsed * 5);
+    if (options.playing && target.pulse > 0) { beatCount++; relayTails[beatCount % 4] = 1; onsets.push(now / 1000); }
     while (onsets.length && onsets[0] < now / 1000 - 6) onsets.shift();
     average += (target.energy - average) * (1 - Math.exp(-delta * .18));
     if (options.theme === "auto" && options.playing && time - lastLookChange > 8) {
       const density = onsets.length / 6;
-      const next: LightingLook = level < .025 ? "stars" : level < .085 ? "afterglow" : level < .18 ? "duet"
-        : level > average * 1.5 && level > .5 ? "searchlights" : level > .7 && density > 1.3 ? "lattice"
+      const next: LightingLook = level < .025 ? "stars" : level < .085 ? "afterglow" : level < .18 ? "duet" : level < .32 && density < 1.1 ? "petals"
+        : level > average * 1.5 && level > .5 ? "fan" : level > .7 && density > 1.3 ? "relay"
         : target.bass > .63 && level > .45 ? "horizon" : density > 1.6 ? "fluid"
-        : target.treble > .4 ? "orbit" : level > .4 ? "canopy" : density > .7 ? "rain" : "curtain";
+        : target.treble > .4 ? "orbit" : level > .4 ? "canopy" : density > .7 ? "rain" : "windows";
       select(next);
     } else if (options.theme !== "auto") select(options.theme);
     for (let i = 0; i < weights.length; i++) weights[i] += ((lightingLooks[i].id === selected ? 1 : 0) - weights[i]) * (1 - Math.exp(-delta * 2));

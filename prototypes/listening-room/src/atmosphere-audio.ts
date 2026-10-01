@@ -60,16 +60,16 @@ export class AtmosphereAudio {
     this.audio.pause(); this.audio.removeAttribute("src"); this.audio.load();
   }
 
-  /** 必须由进入、播放或重试的用户手势调用，保留浏览器的音频授权。 */
+  /** 由播放或重试的用户手势调用；切换画面不触碰音频授权。 */
   async unlock() {
     if (this.disposed) return;
     this.active = true;
     const revision = ++this.revision;
     try {
       await this.context.resume();
-      if (this.active && revision === this.revision) this.onError("");
+      // 授权完成不代表媒体已成功播放，不能清掉晚于点击发生的加载错误。
     } catch {
-      if (this.active) this.onError("浏览器尚未允许声音播放，点击重试音频。");
+      if (this.active && revision === this.revision) this.onError("浏览器尚未允许声音播放，点击重试音频。");
     }
   }
 
@@ -111,6 +111,8 @@ export class AtmosphereAudio {
   seek(position: number) {
     this.requestedPosition = position;
     this.resetTransients();
+    // 曲终后回到开头（如单曲循环），下一次 sync 需要重新启动媒体。
+    if (this.audio.ended) this.wantsPlay = false;
     if (Number.isFinite(this.audio.duration) && this.audio.duration > 0) this.audio.currentTime = this.looping ? position % this.audio.duration : Math.max(0, Math.min(position, this.audio.duration));
   }
 

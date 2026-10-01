@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from "react";
 import { ArrowLeft, Check, ChevronDown, Heart, ListMusic, LoaderCircle, Maximize, MessageSquareText, Minimize, Music2, Pause, Play, SkipBack, SkipForward, SlidersHorizontal, Sparkles, Grid2X2, Volume2, VolumeX, X } from "lucide-react";
 import { useSeekInput } from "../../../src/client/seek-input";
 import type { AtmosphereAudio } from "./atmosphere-audio";
+import { AtmospherePanel } from "./AtmospherePanel";
 import { createAtmosphereScene, type AtmospherePalette, type AtmosphereTheme } from "./atmosphere-scene";
 import { PlaybackFeedback } from "./StateComponents";
 import { playbackBusy, type PlaybackPhase } from "./prototype-state";
@@ -15,6 +16,10 @@ const pickerLooks = [...lightingLooks].sort((a, b) => Number("new" in b) - Numbe
 function LightingSketch({ look, index }: { look: LightingLook; index: number }) {
   let paths: string[];
   switch (look) {
+    case "petals": paths = Array.from({ length: 6 }, (_, i) => { const a = i * Math.PI / 3, x = 60 + Math.cos(a) * 26, y = 31 + Math.sin(a) * 17; return `M60 31 Q${x - 10} ${y - 10} ${x} ${y} Q${x + 10} ${y + 10} 60 31`; }); break;
+    case "windows": paths = Array.from({ length: 6 }, (_, i) => `M${18 + i * 15} 12 l-9 36 m4 -36 l-9 36`); break;
+    case "fan": paths = Array.from({ length: 9 }, (_, i) => `M${35 + i * 6} 52 L${5 + i * 14} 7`); break;
+    case "relay": paths = Array.from({ length: 4 }, (_, i) => `M${20 + i * 26} 8 v${i % 2 ? 25 : 42} m-4 0 h8`); break;
     case "duet": paths = ["M36 7 L18 51 M36 7 L49 51 M84 7 L71 51 M84 7 L102 51", "M18 51 Q34 58 49 51 M71 51 Q87 58 102 51"]; break;
     case "rain": paths = Array.from({ length: 8 }, (_, i) => `M${27 + i * 12} 7 l-22 46`); break;
     case "horizon": paths = Array.from({ length: 5 }, (_, i) => `M8 ${16 + i * 7} L112 ${17 + i * 7}`); break;
@@ -47,7 +52,7 @@ type Props = {
   onTogglePanel: (panel: "lyrics" | "queue") => void;
   onTogglePlay: () => void; onPrevious: () => void; onNext: () => void;
   onSeek: (position: number) => void; onVolume: (volume: number) => void;
-  onFavorite: () => void; onRetry: () => void; children: ReactNode;
+  onFavorite: () => void; onRetry: () => void; renderPanel: (kind: "lyrics" | "queue") => ReactNode;
 };
 
 export function AtmosphereMode(props: Props) {
@@ -70,6 +75,10 @@ export function AtmosphereMode(props: Props) {
   const idleTimer = useRef<number | null>(null);
   const lastVolume = useRef(props.volume || 70);
   const settingsButton = useRef<HTMLButtonElement>(null);
+  const settingsElement = useRef<HTMLElement>(null);
+  const pickerElement = useRef<HTMLElement>(null);
+  const pickerButtons = useRef<Partial<Record<"looks" | "music", HTMLButtonElement | null>>>({});
+  const panelButtons = useRef<Partial<Record<"lyrics" | "queue", HTMLButtonElement | null>>>({});
   const busy = playbackBusy(phase) || props.sourceBusy;
   const playbackRequested = playing && phase === "ready" && !props.sourceBusy;
   const active = playbackRequested && !audioError;
@@ -79,7 +88,7 @@ export function AtmosphereMode(props: Props) {
   const currentTheme = lightingLooks.find((item) => item.id === selectedLook)!;
   const matchingTracks = props.availableTracks.filter((item) => `${item.title} ${item.artist} ${item.album}`.toLocaleLowerCase().includes(query.toLocaleLowerCase().trim()));
   const canHide = useRef(false);
-  canHide.current = active && !panel && !settings && !picker && !sceneError && !fullscreenError;
+  canHide.current = active && panel !== "queue" && !settings && !picker && !sceneError && !fullscreenError;
 
   function wake() {
     setHidden(false);
@@ -91,7 +100,6 @@ export function AtmosphereMode(props: Props) {
     root.current?.focus();
     return () => { if (idleTimer.current) window.clearTimeout(idleTimer.current); };
   }, []);
-  useEffect(() => { audio?.sync(playbackRequested, props.position, props.volume, props.trackId); }, [audio, playbackRequested, props.position, props.volume, props.trackId]);
   useEffect(() => {
     if (!canvas.current || !flowCanvas.current) return;
     try {
@@ -112,7 +120,6 @@ export function AtmosphereMode(props: Props) {
   }, []);
 
   function togglePlay() {
-    if (!playing) void audio?.unlock();
     props.onTogglePlay(); wake();
   }
   async function toggleFullscreen() {
@@ -122,18 +129,38 @@ export function AtmosphereMode(props: Props) {
       setFullscreenError("");
     } catch { setFullscreenError("此浏览器暂时无法进入全屏，可以继续在当前页面观看。"); }
   }
-  function seek(value: number) { audio?.seek(value); props.onSeek(value); }
+  function seek(value: number) { props.onSeek(value); }
   function mute() {
     if (props.volume > 0) lastVolume.current = props.volume;
     props.onVolume(props.volume > 0 ? 0 : lastVolume.current);
   }
   function closeSettings() { setSettings(false); settingsButton.current?.focus(); }
+  function dismissOutside(event: PointerEvent<HTMLElement>) {
+    wake();
+    if ((!picker && !settings) || event.button !== 0 || !event.isPrimary || !(event.target instanceof Node)) return;
+    const target = event.target;
+    // 入口自己处理开关，避免 pointerdown 关闭后，随后的 click 又把浮窗打开。
+    const outsidePicker = picker && !pickerElement.current?.contains(target) && !Object.values(pickerButtons.current).some((button) => button?.contains(target));
+    const outsideSettings = settings && !settingsElement.current?.contains(target) && !settingsButton.current?.contains(target);
+    if (outsidePicker) setPicker(null);
+    if (outsideSettings) setSettings(false);
+    if ((outsidePicker && pickerElement.current?.contains(document.activeElement)) || (outsideSettings && settingsElement.current?.contains(document.activeElement))) {
+      root.current?.focus({ preventScroll: true });
+    }
+  }
+  function closePanel() {
+    if (panel) panelButtons.current[panel]?.focus({ preventScroll: true });
+    props.onClosePanel();
+  }
+  function togglePanel(kind: "lyrics" | "queue") {
+    setSettings(false); setPicker(null); props.onTogglePanel(kind);
+  }
 
-  return <section ref={root} tabIndex={-1} aria-label="氛围模式" className={`atmosphere-mode palette-${palette} ${hidden ? "av-hide-controls" : ""} ${panel ? "av-with-panel" : ""}`} data-theme={theme} data-lighting-look={selectedLook} data-source={props.realAudio ? "library" : "demo"} data-motion={active ? "playing" : "paused"} onPointerMove={wake} onPointerDown={wake} onFocusCapture={wake} onKeyDownCapture={(event) => {
+  return <section ref={root} tabIndex={-1} aria-label="氛围模式" className={`atmosphere-mode palette-${palette} ${hidden ? "av-hide-controls" : ""}`} data-panel={panel ?? "none"} data-theme={theme} data-lighting-look={selectedLook} data-source={props.realAudio ? "library" : "demo"} data-motion={active ? "playing" : "paused"} onPointerMove={wake} onPointerDown={dismissOutside} onFocusCapture={wake} onKeyDownCapture={(event) => {
     wake();
     if (event.key === "Escape") {
       event.preventDefault(); event.stopPropagation();
-      if (picker) { setPicker(null); root.current?.focus(); } else if (settings) closeSettings(); else if (panel) props.onClosePanel(); else props.onClose();
+      if (picker) { setPicker(null); root.current?.focus(); } else if (settings) closeSettings(); else if (panel) closePanel(); else props.onClose();
     }
     if (event.code === "Space" && event.target === root.current) { event.preventDefault(); event.stopPropagation(); togglePlay(); }
   }}>
@@ -144,43 +171,44 @@ export function AtmosphereMode(props: Props) {
       <span className="av-wordmark">开听<span>氛围模式</span></span>
       <div className="av-header-actions">
         {document.fullscreenEnabled && <button className="av-icon" onClick={() => void toggleFullscreen()} aria-label={fullscreen ? "退出全屏" : "进入全屏"} title={fullscreen ? "退出全屏" : "进入全屏"}>{fullscreen ? <Minimize /> : <Maximize />}</button>}
-        <button ref={settingsButton} className={`av-icon ${settings ? "av-selected" : ""}`} aria-label="画面设置" aria-expanded={settings} aria-controls={settings ? "av-settings" : undefined} onClick={() => setSettings((value) => !value)}><SlidersHorizontal /></button>
+        <button ref={settingsButton} className={`av-icon ${settings ? "av-selected" : ""}`} aria-label="画面设置" aria-expanded={settings} aria-controls={settings ? "av-settings" : undefined} onClick={() => { setSettings((value) => !value); setPicker(null); }}><SlidersHorizontal /></button>
       </div>
     </header>
     <div className="av-theme-nav av-hud" role="group" aria-label="视觉主题">
       <button aria-pressed={theme === "auto"} onClick={() => { props.onTheme("auto"); setPicker(null); }}><Sparkles size={16} /><span>跟随音乐</span></button>
-      <button aria-label="灯光编排" aria-expanded={picker === "looks"} aria-pressed={theme !== "auto"} onClick={() => { setPicker(picker === "looks" ? null : "looks"); setSettings(false); }}><Grid2X2 size={16} /><span>灯光编排</span><ChevronDown size={13} /></button>
-      {props.realAudio && <button aria-label="选择真实曲目" aria-expanded={picker === "music"} onClick={() => { setPicker(picker === "music" ? null : "music"); setSettings(false); }}><Music2 size={16} /><span>选曲</span></button>}
+      <button ref={(button) => { pickerButtons.current.looks = button; }} aria-label="灯光编排" aria-expanded={picker === "looks"} aria-pressed={theme !== "auto"} onClick={() => { setPicker(picker === "looks" ? null : "looks"); setSettings(false); }}><Grid2X2 size={16} /><span>灯光编排</span><ChevronDown size={13} /></button>
+      {props.realAudio && <button ref={(button) => { pickerButtons.current.music = button; }} aria-label="选择真实曲目" aria-expanded={picker === "music"} onClick={() => { setPicker(picker === "music" ? null : "music"); setSettings(false); }}><Music2 size={16} /><span>选曲</span></button>}
     </div>
     <div className="av-theme-caption av-hud"><span>{busy ? "正在准备真实音频与灯光" : theme === "auto" ? `${currentTheme.name} · ${cue?.reason ?? "实时跟随声音"}` : currentTheme.name}</span><p>{busy ? "初次播放会稍等片刻" : currentTheme.description}</p></div>
 
-    {picker && <aside className={`av-picker av-${picker}-picker`} aria-label={picker === "looks" ? "灯光编排面板" : "真实曲目面板"}>
+    {picker && <aside ref={pickerElement} className={`av-picker av-${picker}-picker`} aria-label={picker === "looks" ? "灯光编排面板" : "真实曲目面板"}>
       <div className="av-settings-heading"><div><strong>{picker === "looks" ? "给这一刻，换一场灯光" : "从曲库走进现场"}</strong><p>{picker === "looks" ? `${lightingLooks.length} 种灯光 · 明暗与运动仍跟随声音` : `${props.availableTracks.length.toLocaleString()} 首真实录音 · 选择后开始播放`}</p></div><button className="av-icon" aria-label="关闭选择面板" onClick={() => { setPicker(null); root.current?.focus(); }}><X /></button></div>
       {picker === "looks" ? <div className="av-look-grid">{pickerLooks.map((item, index) => <button key={item.id} aria-label={item.name} aria-pressed={theme === item.id} onClick={() => { props.onTheme(item.id); setPicker(null); root.current?.focus(); }}>
         <LightingSketch look={item.id} index={index} /><span>{item.name}{"new" in item && <em className="av-look-new">新增</em>}</span><small>{item.description}</small>{theme === item.id && <Check className="av-look-check" size={14} />}
       </button>)}</div> : <><input className="av-track-search" autoFocus placeholder="搜索歌曲、艺人、专辑" aria-label="搜索真实曲目" value={query} onChange={(event) => setQuery(event.currentTarget.value)} /><div className="av-track-list">{matchingTracks.slice(0, 60).map((item) => <button key={item.id} aria-label={`播放真实曲目 ${item.title}`} aria-current={item.id === props.trackId ? "true" : undefined} onClick={() => { props.onSelectTrack(item.id); setPicker(null); root.current?.focus(); }}><Music2 size={16} /><span><strong>{item.title}</strong><small>{item.artist} · {item.album}</small></span><small>{time(item.duration)}</small></button>)}{!matchingTracks.length && <p>没有找到匹配的曲目</p>}{matchingTracks.length > 60 && <p>已显示前 60 首，可输入曲名继续查找</p>}</div></>}
     </aside>}
 
-    {settings && <aside className="av-settings" id="av-settings" aria-label="画面设置面板">
+    {settings && <aside ref={settingsElement} className="av-settings" id="av-settings" aria-label="画面设置面板">
       <div className="av-settings-heading"><strong>画面设置</strong><button className="av-icon" onClick={closeSettings} aria-label="关闭画面设置"><X /></button></div>
       <span className="av-setting-label">动效强度</span><div className="av-choice" role="group" aria-label="动效强度"><button aria-pressed={!vivid} onClick={() => props.onVivid(false)}>轻柔</button><button aria-pressed={vivid} onClick={() => props.onVivid(true)}>鲜明</button></div>
       <span className="av-setting-label">色调</span><div className="av-color-choice" role="group" aria-label="色调">{colors.map((item) => <button className={`av-swatch-${item.id}`} aria-pressed={palette === item.id} key={item.id} onClick={() => props.onPalette(item.id)}><i aria-hidden="true">{palette === item.id && <Check size={12} />}</i>{item.label}</button>)}</div>
       <p>声音的起伏，决定画面的变化。</p>
     </aside>}
 
-    {panel && <aside className="av-companion" aria-label={panel === "lyrics" ? "氛围歌词面板" : "氛围待播面板"}><button className="av-panel-close av-icon" onClick={props.onClosePanel} aria-label={panel === "lyrics" ? "收起歌词" : "收起待播清单"}><X /></button>{props.children}</aside>}
+    <AtmospherePanel kind="lyrics" open={panel === "lyrics"} onClose={closePanel}>{props.renderPanel("lyrics")}</AtmospherePanel>
+    <AtmospherePanel kind="queue" open={panel === "queue"} onClose={closePanel}>{props.renderPanel("queue")}</AtmospherePanel>
 
     <footer className="av-footer av-hud">
       <div className="av-now"><span className="av-sound-label">{props.realAudio ? "曲库原曲" : "原创演示音源"}<span>{props.realAudio ? theme === "auto" ? props.program ? "本曲灯光编排" : "实时灯光" : "手动灯光" : "非本曲音频"}</span></span><h1 title={props.title}>{props.title}</h1><p>{props.artist}</p></div>
       <div className="av-seek"><input type="range" min={0} max={props.duration} value={seekInput.value} disabled={phase !== "ready" || props.sourceBusy} aria-label="氛围播放进度" aria-valuetext={`${time(props.position)}，共 ${time(props.duration)}`} style={{ "--av-progress": `${seekInput.value / Math.max(1, props.duration) * 100}%` } as CSSProperties} {...seekInput.inputProps} /><div><span>{time(props.position)}</span><span>{time(props.duration)}</span></div></div>
       <div className="av-controls">
-        <div className="av-secondary"><button className={`av-icon ${panel === "lyrics" ? "av-selected" : ""}`} aria-label="氛围歌词" aria-pressed={panel === "lyrics"} onClick={() => props.onTogglePanel("lyrics")}><MessageSquareText /></button><button className={`av-icon ${props.favorite ? "av-selected" : ""}`} aria-label={props.favorite ? "氛围取消收藏" : "氛围收藏"} aria-pressed={props.favorite} onClick={props.onFavorite}><Heart fill={props.favorite ? "currentColor" : "none"} /></button></div>
+        <div className="av-secondary"><button ref={(node) => { panelButtons.current.lyrics = node; }} className={`av-icon ${panel === "lyrics" ? "av-selected" : ""}`} aria-label="氛围歌词" aria-pressed={panel === "lyrics"} onClick={() => togglePanel("lyrics")}><MessageSquareText /></button><button className={`av-icon ${props.favorite ? "av-selected" : ""}`} aria-label={props.favorite ? "氛围取消收藏" : "氛围收藏"} aria-pressed={props.favorite} onClick={props.onFavorite}><Heart fill={props.favorite ? "currentColor" : "none"} /></button></div>
         <div className="av-transport"><button className="av-icon" aria-label="氛围上一首" onClick={props.onPrevious}><SkipBack fill="currentColor" /></button><button className="av-play" aria-label={busy ? "氛围正在准备音频" : playing ? "氛围暂停" : "氛围播放"} onClick={togglePlay} disabled={busy}>{busy ? <LoaderCircle className="button-spinner" /> : playing ? <Pause fill="currentColor" /> : <Play fill="currentColor" />}</button><button className="av-icon" aria-label="氛围下一首" onClick={props.onNext}><SkipForward fill="currentColor" /></button></div>
-        <div className="av-secondary av-right"><button className={`av-icon ${panel === "queue" ? "av-selected" : ""}`} aria-label="氛围待播清单" aria-pressed={panel === "queue"} onClick={() => props.onTogglePanel("queue")}><ListMusic /></button><div className="av-volume"><button className="av-icon" aria-label={props.volume ? "氛围静音" : "氛围恢复音量"} onClick={mute}>{props.volume ? <Volume2 /> : <VolumeX />}</button><input aria-label="氛围音量" aria-valuetext={`${props.volume}%`} type="range" min={0} max={100} value={props.volume} onChange={(event) => props.onVolume(Number(event.currentTarget.value))} /></div></div>
+        <div className="av-secondary av-right"><button ref={(node) => { panelButtons.current.queue = node; }} className={`av-icon ${panel === "queue" ? "av-selected" : ""}`} aria-label="氛围待播清单" aria-pressed={panel === "queue"} onClick={() => togglePanel("queue")}><ListMusic /></button><div className="av-volume"><button className="av-icon" aria-label={props.volume ? "氛围静音" : "氛围恢复音量"} onClick={mute}>{props.volume ? <Volume2 /> : <VolumeX />}</button><input aria-label="氛围音量" aria-valuetext={`${props.volume}%`} type="range" min={0} max={100} value={props.volume} onChange={(event) => props.onVolume(Number(event.currentTarget.value))} /></div></div>
       </div>
       {(audioError || sceneError || fullscreenError) && <div className="av-notice" role="alert"><span>{audioError || sceneError || fullscreenError}</span>{audioError && audio && <button onClick={props.onRetryAudio}>重试音频</button>}</div>}
       {props.analysisError && <p className="av-fallback" role="status">{props.analysisError}</p>}
-      {phase !== "ready" && phase !== "transcoding" && <PlaybackFeedback phase={phase} onRetry={props.onRetry} onNext={props.onNext} />}
+      {phase !== "ready" && phase !== "transcoding" && !props.sourceBusy && !audioError && <PlaybackFeedback phase={phase} onRetry={props.onRetry} onNext={props.onNext} />}
       {fallback && <p className="av-fallback" role="status">此设备使用简化画面</p>}
     </footer>
     <span className="av-wake-hint" aria-hidden="true"><ChevronDown size={14} />轻触画面，唤回控制</span>

@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import fs from "node:fs";
+import { observePanels, finishPanelObservation } from "./panel-observation.js";
 import { observeBeats, beatObservation, resetBeatObservation, brightest, percussionReference, referenceHits, type LightSample } from "./beat-observation.js";
 
 type Probe = { reads: number; nonzero: number; maximum: number; gain: GainNode | null };
@@ -51,7 +52,7 @@ const playing = (page: Page) => page.locator("audio").evaluate((element) => !(el
 const visualFrame = (page: Page) => page.locator(".av-visual").screenshot({ mask: [page.locator(".av-hud"), page.locator(".av-wake-hint")] });
 
 test("重拍迅速响应并回落，持续低音不连闪，轻柔与静音保留正确力度", async ({ page }, info) => {
-  test.setTimeout(80_000);
+  test.setTimeout(100_000);
   const reference = percussionReference();
   await page.route("**/audio/atmosphere-demo.wav", (route) => route.fulfill({ contentType: "audio/wav", body: reference }));
   await observeBeats(page);
@@ -122,6 +123,18 @@ test("重拍迅速响应并回落，持续低音不连闪，轻柔与静音保�
   const stable = jumped.samples.filter((f) => f.time >= 10 && f.time <= 10.4).map(brightest);
   expect(Math.max(...startup)).toBeLessThan(Math.max(...stable) * 1.2);
   fs.writeFileSync(info.outputPath("seek-into-sustain.json"), JSON.stringify(jumped.samples, null, 2));
+  await page.getByRole("button", { name: "灯光编排", exact: true }).click();
+  await page.getByRole("button", { name: "节拍接力", exact: true }).click();
+  const relay = await playThrough(1, 4.4);
+  const group = (sample: LightSample) => sample.power.slice(0, 8).indexOf(Math.max(...sample.power.slice(0, 8))) % 4;
+  const groups = referenceHits.filter((t) => t >= 2 && t <= 4).map((hit) => {
+    const peak = relay.samples.filter((f) => f.time >= hit && f.time < hit + .15).sort((a, b) => brightest(b) - brightest(a))[0];
+    return group(peak);
+  });
+  expect(new Set(groups).size).toBeGreaterThanOrEqual(3);
+  const held = await playThrough(9, 10.5);
+  expect(new Set(held.samples.filter((f) => f.time > 9.4).map(group)).size).toBe(1);
+  fs.writeFileSync(info.outputPath("beat-relay.json"), JSON.stringify({ groups, samples: relay.samples, sustained: held.samples }, null, 2));
 });
 
 test("播放页同步正式版的转换提示、错误反馈与无歌词状态", async ({ page }, info) => {
@@ -132,7 +145,7 @@ test("播放页同步正式版的转换提示、错误反馈与无歌词状态",
     const player = page.getByRole("dialog", { name: "沉浸播放器" });
     await expect(player.locator(".np-play")).toBeDisabled();
     await expect(player.locator(".playback-feedback")).toHaveCount(0);
-    await expect(player.locator(".np-quality")).toHaveText("ALAC 无损");
+    await expect(player.locator(".np-quality")).toHaveText("原创演示音源 · 非本曲音频");
     await page.screenshot({ path: info.outputPath(`transcoding-${layout}.png`) });
     await player.getByRole("button", { name: "进入氛围模式", exact: true }).click();
     await expect(player.getByRole("button", { name: "氛围正在准备音频", exact: true })).toBeDisabled();
@@ -160,10 +173,62 @@ test("播放页同步正式版的转换提示、错误反馈与无歌词状态",
   }
 });
 
+test("原型歌词同步正式版逐行规则，暂停、跳转、跟随和切歌保持正确", async ({ page }, info) => {
+  test.setTimeout(60_000);
+  for (const [layout, width, height] of [["desktop", 1280, 900], ["mobile", 393, 852]] as const) {
+    await page.setViewportSize({ width, height });
+    if (layout === "mobile") await page.reload();
+    await page.goto("/#/playing");
+    const player = page.getByRole("dialog", { name: "沉浸播放器" });
+    await expect(player.getByRole("button", { name: "播放", exact: true })).toBeEnabled();
+    await player.getByRole("button", { name: "歌词", exact: true }).click();
+    await expect(player.getByText("原创演示 · 非本曲歌词", { exact: true })).toBeVisible();
+    // 只有行时间的示例不能再把整句均分给各字，冒充逐词时间。
+    await expect(player.locator(".np-lyric-word")).toHaveCount(0);
+    const lines = player.getByRole("button", { name: /^跳转到 / });
+    const labels = await lines.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("aria-label")!));
+    const current = player.locator(".np-lyric-line.is-current");
+    await lines.first().click();
+    await expect(current).toHaveAttribute("aria-label", labels[0]);
+    await expect(player.getByRole("slider", { name: "播放进度", exact: true })).toHaveValue("0");
+    await lines.nth(1).click();
+    await expect(current).toHaveAttribute("aria-label", labels[1]);
+    await player.getByRole("button", { name: "播放", exact: true }).click();
+    await expect.poll(() => playing(page)).toBe(true);
+    await player.getByRole("button", { name: "暂停", exact: true }).click();
+    await expect.poll(() => playing(page)).toBe(false);
+    const stopped = await current.getAttribute("aria-label");
+    await page.waitForTimeout(300);
+    await expect(current).toHaveAttribute("aria-label", stopped!);
+    await player.getByRole("button", { name: "进入氛围模式", exact: true }).click();
+    await expect(current).toHaveAttribute("aria-label", stopped!);
+    await expect(player.locator(".np-lyric-word")).toHaveCount(0);
+    await lines.nth(2).click();
+    await expect(current).toHaveAttribute("aria-label", labels[2]);
+    await player.locator(".np-lyrics-scroll").hover();
+    await page.mouse.wheel(0, 350);
+    await expect(player.getByRole("button", { name: "回到当前歌词", exact: true })).toBeVisible();
+    await player.getByRole("button", { name: "回到当前歌词", exact: true }).click();
+    await expect(player.locator(".np-synced-lyrics")).toHaveClass(/is-following/);
+    await expect(current).toBeInViewport();
+    await page.screenshot({ path: info.outputPath(`line-lyrics-atmosphere-${layout}.png`) });
+    await player.getByRole("button", { name: "返回播放页", exact: true }).click();
+    await expect(current).toHaveAttribute("aria-label", labels[2]);
+    await player.getByRole("button", { name: "下一首", exact: true }).click();
+    await expect(player.getByRole("button", { name: "暂停", exact: true })).toBeEnabled();
+    await player.getByRole("button", { name: "暂停", exact: true }).click();
+    await expect(current).toHaveAttribute("aria-label", labels[0]);
+    await expect(player.locator(".np-lyric-word")).toHaveCount(0);
+    await expect(current.locator(".np-lyric-text")).toHaveCSS("filter", "blur(0px)");
+    await page.screenshot({ path: info.outputPath(`line-lyrics-normal-${layout}.png`) });
+  }
+});
+
 test("播放进度在手势结束后提交，切歌不带入旧进度", async ({ page }, info) => {
   await page.goto("/#/playing");
   const player = page.getByRole("dialog", { name: "沉浸播放器" });
   const slider = player.getByRole("slider", { name: "播放进度", exact: true });
+  await expect(slider).toBeEnabled();
   const displayedTime = player.locator(".np-progress > div > span").first();
   const initialTime = await displayedTime.innerText();
   const box = (await slider.boundingBox())!;
@@ -263,11 +328,146 @@ test("三种主题使用真实声音，切换、暂停、跳转和退出保持�
   await expect(page.getByLabel("氛围音量", { exact: true })).toHaveValue("70");
   await page.getByRole("button", { name: "返回播放页", exact: true }).click();
   await expect(page.getByRole("button", { name: "进入氛围模式", exact: true })).toBeFocused();
-  expect(await playing(page)).toBe(false);
+  expect(await playing(page)).toBe(true);
   await expect(page.getByRole("dialog", { name: "沉浸播放器" }).getByRole("button", { name: "暂停", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "进入氛围模式", exact: true }).click();
   await expect.poll(() => playing(page)).toBe(true);
   await expect(page.locator("audio")).toHaveCount(1);
+});
+
+for (const mobile of [false, true]) test.describe(mobile ? "手机浮窗" : "桌面浮窗", () => {
+  test.use({ viewport: mobile ? { width: 393, height: 852 } : { width: 1108, height: 879 }, hasTouch: mobile });
+  test("氛围浮窗点击外部关闭，内部操作与入口切换不误触", async ({ page }, info) => {
+    await enter(page);
+    const activate = async (name: string) => {
+      const button = page.getByRole("button", { name, exact: true });
+      if (mobile) await button.tap(); else await button.click();
+    };
+    const outside = async () => {
+      const bounds = (await page.locator(".av-picker, .av-settings").boundingBox())!;
+      const point = { x: Math.min(12, bounds.x / 2), y: bounds.y + bounds.height / 2 };
+      if (mobile) await page.touchscreen.tap(point.x, point.y); else await page.mouse.click(point.x, point.y);
+    };
+    const looks = page.getByRole("complementary", { name: "灯光编排面板" });
+    const settings = page.getByRole("complementary", { name: "画面设置面板" });
+    const lyrics = page.getByRole("complementary", { name: "氛围歌词面板" });
+    await activate("氛围播放");
+    await expect.poll(() => playing(page)).toBe(true);
+    await activate("氛围歌词");
+    await activate("灯光编排");
+    await expect(looks).toBeVisible();
+    await page.getByText("给这一刻，换一场灯光", { exact: true }).click();
+    await expect(looks).toBeVisible();
+    if (!mobile) {
+      await looks.hover(); await page.mouse.wheel(0, 180);
+      await expect.poll(() => looks.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+      await expect(looks).toBeVisible();
+    }
+    const source = await page.locator("audio").evaluate((node) => (node as HTMLAudioElement).currentSrc);
+    const stage = await page.locator(".av-visual").boundingBox();
+    await page.screenshot({ path: info.outputPath("outside-before.png") });
+    await outside();
+    await expect(looks).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "灯光编排", exact: true })).toHaveAttribute("aria-expanded", "false");
+    await expect(lyrics).toBeVisible();
+    expect(await page.locator(".av-visual").boundingBox()).toEqual(stage);
+    expect(await playing(page)).toBe(true);
+    expect(await page.locator("audio").evaluate((node) => (node as HTMLAudioElement).currentSrc)).toBe(source);
+    await page.screenshot({ path: info.outputPath("outside-after.png") });
+
+    // 入口必须一次就能开关，不能因外侧 pointerdown 和按钮 click 各处理一次而重开。
+    await activate("灯光编排"); await activate("灯光编排");
+    await expect(looks).toHaveCount(0);
+    await activate("灯光编排"); await activate("花影流转");
+    await expect(looks).toHaveCount(0);
+    await expect(page.locator(".atmosphere-mode")).toHaveAttribute("data-theme", "petals");
+
+    // 相邻浮窗使用同一外侧关闭规则，切到另一入口仍只执行一次。
+    await activate("灯光编排"); await activate("画面设置");
+    await expect(looks).toHaveCount(0); await expect(settings).toBeVisible();
+    await activate("暗红");
+    await expect(settings).toBeVisible();
+    await expect(page.locator(".atmosphere-mode")).toHaveClass(/palette-ember/);
+    await outside(); await expect(settings).toHaveCount(0);
+    await activate("画面设置"); await activate("画面设置");
+    await expect(settings).toHaveCount(0);
+    await activate("画面设置");
+    // 手机设置浮窗覆盖导航，先点外侧回到舞台，再使用可见入口。
+    if (mobile) { await outside(); await expect(settings).toHaveCount(0); }
+    await activate("灯光编排");
+    await expect(settings).toHaveCount(0); await expect(looks).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(looks).toHaveCount(0); await expect(lyrics).toBeVisible();
+    expect(await playing(page)).toBe(true);
+
+    await activate("画面设置"); await activate("氛围暂停");
+    await expect(settings).toHaveCount(0);
+    await expect.poll(() => playing(page)).toBe(false);
+    await expect(page.getByRole("button", { name: "氛围播放", exact: true })).toBeVisible();
+  });
+});
+
+test("氛围面板轻柔开关，舞台与控件不位移，快速互切和键盘关闭保持连续", async ({ page }, info) => {
+  test.setTimeout(60_000);
+  for (const [layout, width, height] of [["desktop", 1280, 900], ["mobile", 393, 852]] as const) {
+    await page.setViewportSize({ width, height });
+    if (layout === "mobile") await page.reload();
+    await enter(page);
+    await page.getByRole("button", { name: "氛围播放", exact: true }).click();
+    await expect.poll(() => playing(page)).toBe(true);
+    await expect.poll(() => page.evaluate(() => (window as unknown as ObservedWindow).soundProbe.nonzero)).toBeGreaterThan(5);
+    await observePanels(page);
+    const lyrics = page.getByRole("complementary", { name: "氛围歌词面板" });
+    const queue = page.getByRole("complementary", { name: "氛围待播面板" });
+    const lyricButton = page.getByRole("button", { name: "氛围歌词", exact: true });
+    const queueButton = page.getByRole("button", { name: "氛围待播清单", exact: true });
+    await lyricButton.click();
+    await expect(lyrics).toHaveCSS("opacity", "1");
+    await page.screenshot({ path: info.outputPath(`floating-lyrics-${layout}.png`) });
+    await queueButton.click();
+    await expect(queue).toHaveCSS("opacity", "1");
+    await expect(lyrics).toHaveCount(0);
+    await page.screenshot({ path: info.outputPath(`floating-queue-${layout}.png`) });
+    await page.getByRole("button", { name: "收起待播清单", exact: true }).click();
+    await expect(page.locator(".av-companion")).toHaveCount(0);
+    const frames = await finishPanelObservation(page);
+    fs.writeFileSync(info.outputPath(`panel-motion-${layout}.json`), JSON.stringify(frames, null, 2));
+    const first = frames[0];
+    expect(frames.length).toBeGreaterThan(12);
+    for (const frame of frames) {
+      expect(frame.stage).toEqual(first.stage);
+      expect(frame.canvas).toEqual(first.canvas);
+      expect(frame.footer).toEqual(first.footer);
+      expect(frame.nav).toEqual(first.nav);
+      expect(frame.stageOpacity).toBe(1);
+      expect(frame.playing).toBe(true);
+    }
+    // 进入与离开都存在中间透明度，排除硬切或仅给入场加动画。
+    for (const label of ["氛围歌词面板", "氛围待播面板"]) {
+      const alpha = frames.flatMap((frame) => frame.panels.filter((panel) => panel.label === label).map((panel) => panel.opacity));
+      expect(alpha.some((value) => value > .05 && value < .95)).toBe(true);
+      const peak = alpha.findIndex((value) => value >= .99);
+      expect(peak).toBeGreaterThanOrEqual(0);
+      expect(alpha.slice(peak + 1).some((value) => value > .02 && value < .95)).toBe(true);
+    }
+    await expect(queueButton).toBeFocused();
+    await lyricButton.click(); await queueButton.click(); await lyricButton.click();
+    await expect(lyrics).toHaveCSS("opacity", "1");
+    await expect(page.locator(".av-companion")).toHaveCount(1);
+    await expect(queue).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await expect(lyricButton).toBeFocused();
+    await expect(page.locator(".av-companion")).toHaveCount(0);
+    // 关闭后的歌词/队列不能留在键盘或辅助功能导航中。
+    await expect(page.getByRole("button", { name: /^跳转到 / })).toHaveCount(0);
+    expect(await playing(page)).toBe(true);
+  }
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.getByRole("button", { name: "氛围歌词", exact: true }).click();
+  await expect(page.getByRole("complementary", { name: "氛围歌词面板" })).toHaveCSS("opacity", "1");
+  expect(await page.locator(".av-companion").evaluate((node) => node.getAnimations().filter((animation) => animation.playState === "running").length)).toBe(0);
+  await page.getByRole("button", { name: "收起歌词", exact: true }).click();
+  await expect(page.locator(".av-companion")).toHaveCount(0);
 });
 
 test("歌词、队列、设置与 Escape 按层关闭并恢复原播放页", async ({ page }, info) => {
@@ -275,6 +475,12 @@ test("歌词、队列、设置与 Escape 按层关闭并恢复原播放页", asy
   await page.getByRole("dialog", { name: "沉浸播放器" }).getByRole("button", { name: "歌词", exact: true }).click();
   await page.getByRole("button", { name: "进入氛围模式", exact: true }).click();
   await expect(page.getByRole("complementary", { name: "氛围歌词面板" })).toBeVisible();
+  const line = page.getByRole("button", { name: /^跳转到 / }).nth(1);
+  const timestamp = (await line.getAttribute("aria-label"))!.match(/跳转到 (\d+):(\d+)/)!;
+  const seconds = Number(timestamp[1]) * 60 + Number(timestamp[2]);
+  await line.click();
+  await expect(page.getByRole("slider", { name: "氛围播放进度", exact: true })).toHaveValue(String(seconds));
+  await expect.poll(() => page.locator("audio").evaluate((node) => (node as HTMLAudioElement).currentTime)).toBeCloseTo(seconds, 0);
   await page.getByRole("button", { name: "画面设置", exact: true }).click();
   await page.getByRole("button", { name: "暗红", exact: true }).click();
   await page.getByRole("button", { name: "轻柔", exact: true }).click();
@@ -297,11 +503,15 @@ test("歌词、队列、设置与 Escape 按层关闭并恢复原播放页", asy
   await expect(page.getByRole("button", { name: "轻柔", exact: true })).toHaveAttribute("aria-pressed", "true");
 });
 
-test("闲置隐藏控制，指针与键盘唤回，暂停时保持可用", async ({ page }) => {
+test("闲置隐藏控制，指针与键盘唤回，暂停时保持可用", async ({ page }, info) => {
   await enter(page);
   await page.getByRole("button", { name: "氛围播放", exact: true }).click();
+  await page.getByRole("button", { name: "氛围歌词", exact: true }).click();
   await page.mouse.click(250, 400);
   await expect(page.locator(".av-header")).toHaveCSS("opacity", "0", { timeout: 7000 });
+  await expect(page.getByRole("complementary", { name: "氛围歌词面板" })).toHaveCSS("opacity", "1");
+  await expect(page.locator(".np-lyric-line.is-current")).toHaveCSS("opacity", "1");
+  await page.screenshot({ path: info.outputPath("lyrics-without-controls.png") });
   await page.mouse.move(260, 410);
   await expect(page.locator(".av-header")).toHaveCSS("opacity", "1");
   await page.mouse.click(250, 400);
@@ -328,6 +538,17 @@ test("手机三主题、歌词、队列和设置保持可操作且无横向溢�
   await expect(page.getByRole("complementary", { name: "氛围歌词面板" })).toBeVisible();
   await page.screenshot({ path: info.outputPath("lyrics-mobile.png") });
   await page.getByRole("button", { name: "氛围待播清单", exact: true }).click();
+  await expect(page.getByRole("complementary", { name: "氛围待播面板" })).toHaveCSS("opacity", "1");
+  const queueTitles = page.locator(".av-companion-queue .np-queue-select strong");
+  const before = await queueTitles.allTextContents();
+  expect(before.length).toBeGreaterThan(2);
+  await page.getByRole("button", { name: `编辑待播歌曲 ${before[0]}`, exact: true }).click();
+  await page.getByRole("button", { name: `下移 ${before[0]}`, exact: true }).click();
+  await expect(queueTitles).toHaveText([before[1], before[0], ...before.slice(2)]);
+  await page.screenshot({ path: info.outputPath("queue-edit-mobile.png") });
+  await page.getByRole("button", { name: `移除 ${before[0]}`, exact: true }).click();
+  await expect(queueTitles).toHaveText(before.slice(1));
+  expect(await playing(page)).toBe(true);
   await page.screenshot({ path: info.outputPath("queue-mobile.png") });
   await page.getByRole("button", { name: "收起待播清单", exact: true }).click();
   await page.getByRole("button", { name: "画面设置", exact: true }).click();
@@ -337,6 +558,19 @@ test("手机三主题、歌词、队列和设置保持可操作且无横向溢�
   expect(await page.locator(".av-controls").evaluate((element) => element.getBoundingClientRect().right)).toBeLessThanOrEqual(320);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
   await page.screenshot({ path: info.outputPath("compact-mobile.png") });
+  for (const [name, panelName, file] of [["氛围歌词", "氛围歌词面板", "lyrics"], ["氛围待播清单", "氛围待播面板", "queue"]] as const) {
+    await page.getByRole("button", { name, exact: true }).click();
+    const panel = page.getByRole("complementary", { name: panelName });
+    await expect(panel).toHaveCSS("opacity", "1");
+    const bounds = (await panel.boundingBox())!;
+    const footer = (await page.locator(".av-footer").boundingBox())!;
+    const nav = (await page.locator(".av-theme-nav").boundingBox())!;
+    expect(bounds.x).toBeGreaterThanOrEqual(0);
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(320);
+    expect(bounds.y).toBeGreaterThanOrEqual(nav.y + nav.height);
+    expect(bounds.y + bounds.height).toBeLessThanOrEqual(footer.y);
+    await page.screenshot({ path: info.outputPath(`compact-${file}-mobile.png`) });
+  }
 });
 
 test("减少动态效果保持静止，WebGL 不可用仍可观看灯光", async ({ page }, info) => {
@@ -359,7 +593,7 @@ test("减少动态效果保持静止，WebGL 不可用仍可观看灯光", async
   await page.getByRole("button", { name: "灯阵呼吸", exact: true }).click();
   await expect(page.getByText("此设备使用简化画面")).toBeVisible();
   await page.screenshot({ path: info.outputPath("fluid-fallback.png") });
-  for (const name of ["双束对望", "斜落光雨", "余晖漫场", "低空光海", "交错织光", "探照巡游"]) {
+  for (const name of ["花影流转", "百叶光窗", "扇屏开合", "节拍接力"]) {
     await page.getByRole("button", { name: "灯光编排", exact: true }).click();
     await page.getByRole("button", { name, exact: true }).click();
     const frame = await canvas.evaluate((element) => (element as HTMLCanvasElement).toDataURL());
@@ -374,7 +608,7 @@ test("舞台灯光在减少动态效果与图形上下文丢失恢复后保持�
   await enter(page);
   await page.getByRole("button", { name: "氛围播放", exact: true }).click();
   await expect.poll(() => playing(page)).toBe(true);
-  for (const name of ["雾中侧光", "逆光开场", "灯阵呼吸", "双束对望", "斜落光雨", "余晖漫场", "低空光海", "交错织光", "探照巡游"]) {
+  for (const name of ["雾中侧光", "逆光开场", "灯阵呼吸", "花影流转", "百叶光窗", "扇屏开合", "节拍接力"]) {
     await page.getByRole("button", { name: "灯光编排", exact: true }).click();
     await page.getByRole("button", { name, exact: true }).click();
     await expect(page.locator(".av-fallback")).toHaveCount(0);

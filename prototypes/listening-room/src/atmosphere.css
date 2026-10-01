@@ -3,7 +3,7 @@
 .atmosphere-mode.palette-silver { --av-accent: #b8c7dc; }
 .atmosphere-mode button { font-family: inherit; color: inherit; }
 .atmosphere-mode button:focus-visible, .atmosphere-mode input:focus-visible { outline: 2px solid var(--av-accent); outline-offset: 4px; }
-.av-visual { position: absolute; inset: 0; transition: right .65s ease; }
+.av-visual { position: absolute; inset: 0; }
 .av-visual canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .av-visual canvas[hidden] { display: none; }
 .av-shade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, var(--av-shade-top), transparent 24%, transparent 55%, var(--av-shade-bottom) 80%, var(--av-shade-end)); }
@@ -66,28 +66,48 @@
 .av-swatch-ember i { background: #c56e52; }
 .av-swatch-silver i { background: #9eafc5; }
 .av-settings > p { margin-top: 20px; font-size: 10px; color: var(--av-soft); }
-.av-companion { position: absolute; right: 26px; top: 94px; bottom: 30px; width: min(400px, 35%); padding: 24px 18px 14px; border-left: 1px solid var(--av-line); background: var(--av-panel); backdrop-filter: blur(20px); z-index: 2; border-radius: 14px; }
-.av-panel-close { position: absolute; right: 9px; top: 9px; z-index: 3; }
+.av-companion { position: absolute; z-index: 2; opacity: 0; transform: translateY(8px); isolation: isolate; text-shadow: 0 2px 16px #000b; }
+.av-companion[data-state=closing] { pointer-events: none; }
+.av-companion::before { content: ""; position: absolute; z-index: -1; pointer-events: none; }
+.av-companion-queue { right: 26px; top: 180px; bottom: 238px; width: min(360px, calc(100% - 48px)); padding: 10px 8px 0 20px; }
+.av-companion-queue::before { inset: -42px -46px -40px -72px; background: radial-gradient(ellipse at 76% 48%, #090a0ddb 10%, #090a0d99 46%, transparent 75%); }
+.av-companion-lyrics { left: 0; right: 0; bottom: 244px; margin-inline: auto; width: min(680px, calc(100% - 80px)); height: min(286px, calc(100% - 390px)); }
+.av-companion-lyrics::before { inset: -22px -54px; background: radial-gradient(ellipse, #05060866, transparent 72%); }
+.av-panel-close { position: absolute; right: -5px; top: -4px; z-index: 3; }
 .av-companion .np-companion { display: flex; width: 100%; height: 100%; margin: 0; animation: none; }
-.av-companion .np-panel-heading { min-height: 36px; padding-right: 28px; }
-.av-companion .np-panel-heading h2 { font-size: 18px; }
+.av-companion .np-panel-heading { min-height: 38px; padding-right: 36px; margin-bottom: 0; }
+.av-companion .np-panel-heading h2 { font-size: 14px; font-weight: 450; letter-spacing: 2px; }
 .av-companion .np-panel-heading h2 small { display: none; }
-.av-companion .np-queue-modes { margin-right: 8px; }
-.av-companion .np-queue-modes .np-icon { width: 30px; height: 36px; }
+.av-companion .np-queue-modes { margin-right: 0; }
+.av-companion .np-queue-modes .np-icon { width: 34px; height: 38px; }
 .av-companion .np-icon { color: var(--av-muted); }
+.av-companion .np-state-toggle[aria-pressed=true] { color: var(--av-accent); }
 .av-companion .np-icon:hover, .av-companion .np-queue-item:hover, .av-companion .np-queue-item:focus-within { background: var(--av-hover); }
-.av-companion .np-queue-actions { background: var(--av-panel); box-shadow: -8px 0 10px var(--av-panel); }
-.av-companion .np-queue-select { gap: 10px; }
-.av-companion .np-queue-select strong { font-size: 12px; }
-.av-companion .np-queue-select small { color: var(--np-muted); }
-.av-companion .np-lyric-line { color: var(--av-soft); font-size: 29px; padding: 16px 10px; }
-.av-companion .np-lyric-line.is-current { color: var(--av-ink); }
-.av-companion .np-lyric-word { background-image: linear-gradient(90deg, var(--av-ink) calc(var(--word-fill) - 15%), var(--av-soft) calc(var(--word-fill) + 15%)); }
-.av-companion .np-lyrics-toolbar { padding-right: 32px; padding-left: 10px; }
+.av-companion .np-queue-summary { border: 0; padding: 0 3px 9px; color: var(--av-soft); font-size: 10px; }
+.av-companion .np-queue-list { padding-block: 0 22px; color-scheme: dark; scrollbar-color: #b7a99755 transparent; mask-image: linear-gradient(transparent, #000 8px, #000 calc(100% - 24px), transparent); }
+.av-companion .np-queue-actions { background: #111216e6; box-shadow: -8px 0 14px #111216aa; top: 12px; }
+.av-companion .np-queue-select { gap: 10px; min-height: 64px; padding: 9px 5px; }
+.av-companion .np-queue-select > img { width: 34px; height: 34px; border-radius: 4px; opacity: .8; }
+.av-companion .np-queue-select strong { font-size: 12px; font-weight: 450; }
+.av-companion .np-queue-select small { color: var(--av-soft); font-size: 10px; margin-top: 4px; }
+.av-companion .np-queue-number, .av-companion .np-queue-duration { color: var(--av-soft); font-size: 10px; }
+.av-companion .np-queue-duration { margin-inline: 3px; }
+.av-companion .np-empty h3 { font-size: 17px; font-weight: 450; }
 .av-companion .np-empty-action, .av-companion .np-lyrics-follow > button { background: var(--av-hover); }
-.av-with-panel .av-visual { right: min(435px, 38%); }
-.av-with-panel .av-theme-nav, .av-with-panel .av-theme-caption, .av-with-panel .av-footer { left: calc((100% - min(435px, 38%)) / 2); }
-.av-with-panel .av-footer { width: min(540px, calc(62% - 44px)); }
+.av-companion-lyrics .np-lyrics-scroll { mask-image: linear-gradient(transparent, #000 23%, #000 68%, transparent); }
+.av-companion-lyrics .np-lyric-line { text-align: center; color: var(--av-soft); font-size: clamp(20px, 2.3vw, 28px); font-weight: 400; line-height: 1.65; letter-spacing: 2px; padding: 10px 6px; opacity: .42; transition: opacity .6s, color .6s; }
+.av-companion-lyrics .np-lyric-text { transform-origin: center; }
+.av-companion-lyrics .np-lyric-line.is-current { color: var(--av-ink); opacity: 1; }
+.av-companion-lyrics .np-lyric-line:hover, .av-companion-lyrics .np-lyric-line:focus-visible { opacity: 1; background: transparent; }
+.av-companion-lyrics .np-lyric-word { background-image: linear-gradient(90deg, var(--av-ink) var(--word-fill), var(--av-soft) var(--word-fill)); }
+.av-companion-lyrics .np-lyrics-toolbar { justify-content: center; padding-inline: 48px; position: relative; }
+.av-companion-lyrics .np-lyrics-toolbar small { font-size: 9px; color: var(--av-soft); letter-spacing: 1px; }
+.av-companion-lyrics .np-lyrics-toolbar > button { position: absolute; right: 40px; font-size: 9px; }
+.av-companion-lyrics .np-lyrics-follow { height: 34px; color: var(--av-soft); }
+.av-companion-lyrics .np-lyrics-follow > span { opacity: .6; }
+.av-companion-lyrics .np-lyrics-toolbar, .av-companion-lyrics .np-lyrics-follow, .av-companion-lyrics .av-panel-close { transition: opacity .6s; }
+.av-hide-controls .av-companion-lyrics :is(.np-lyrics-toolbar, .np-lyrics-follow, .av-panel-close) { opacity: 0; pointer-events: none; }
+.atmosphere-mode[data-panel=lyrics] .av-theme-caption { opacity: 0; }
 .av-notice { margin-top: 12px; display: flex; gap: 12px; align-items: center; justify-content: center; color: var(--av-accent); font-size: 11px; }
 .av-notice button { min-height: 44px; text-decoration: underline; text-underline-offset: 4px; white-space: nowrap; }
 .av-fallback { margin-top: 8px; text-align: center; font-size: 10px; color: var(--av-soft); }
@@ -97,9 +117,8 @@
 .av-hide-controls .av-wake-hint { opacity: .65; }
 .av-hide-controls:has(.av-hud :focus-visible) .av-hud { opacity: 1; pointer-events: auto; }
 .av-hide-controls:has(.av-hud :focus-visible) .av-wake-hint { opacity: 0; }
-.av-entry { justify-self: end; display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 0 12px; font-size: 11px; color: var(--np-muted); border: 1px solid var(--np-line); border-radius: 999px; }
-.av-entry:hover { color: var(--np-ink); background: #ffffff35; }
-.av-entry svg { width: 15px; height: 15px; }
+.av-entry { justify-self: end; color: var(--np-muted); }
+.av-entry:hover { color: var(--np-ink); }
 @media (max-width: 760px) {
   .av-header { inset: 9px 14px auto; }
   .av-back { width: 44px; justify-content: center; }
@@ -125,17 +144,20 @@
   .av-volume input { display: none; }
   .av-secondary > .av-icon[aria-label^=氛围取消], .av-secondary > .av-icon[aria-label=氛围收藏] { display: none; }
   .av-settings { right: 14px; top: 62px; }
-  .av-companion { inset: 136px 14px 202px; width: auto; padding: 16px 14px 8px; border: 1px solid var(--av-line); }
-  .av-companion .np-companion { height: 100%; }
-  .av-with-panel .av-visual { right: 0; opacity: .4; }
-  .av-with-panel .av-theme-nav, .av-with-panel .av-theme-caption, .av-with-panel .av-footer { left: 50%; }
-  .av-with-panel .av-footer { width: calc(100% - 40px); }
-  .av-with-panel .av-theme-caption { opacity: 0; }
-  .av-companion .np-lyric-line { font-size: 25px; padding-block: 14px; }
-  .av-companion .np-lyrics-toolbar small { font-size: 9px; }
-  .av-companion .np-queue-select { min-height: 64px; }
-  .av-entry { padding: 0 8px; border: 0; font-size: 10px; }
-  .av-entry > span { display: none; }
+  .av-companion-queue { inset: 150px 20px 220px; width: auto; padding: 6px 0 0; }
+  .av-companion-queue::before { inset: -34px -48px; background: radial-gradient(ellipse, #090a0dd9 10%, #090a0d88 48%, transparent 77%); }
+  .av-companion-lyrics { bottom: 236px; width: calc(100% - 40px); height: min(250px, calc(100% - 390px)); }
+  .av-companion-lyrics .np-lyric-line { font-size: 21px; padding-block: 9px; letter-spacing: 1px; }
+  .av-companion-lyrics .np-lyrics-toolbar { justify-content: start; padding-inline: 6px 92px; }
+  .av-companion-lyrics .np-lyrics-toolbar small { font-size: 8px; letter-spacing: 0; }
+  .av-companion .np-queue-select { padding-right: 36px; }
+  .av-companion .np-queue-more { display: grid; position: absolute; right: 0; top: 10px; width: 36px; height: 44px; }
+  .av-companion .np-queue-more svg { width: 17px; height: 17px; }
+  .av-companion .np-queue-item .np-queue-actions { display: none; position: static; justify-content: flex-end; background: none; box-shadow: none; padding: 0 0 5px; }
+  .av-companion .np-queue-editing .np-queue-actions { display: flex; }
+  .av-companion .np-queue-actions .np-icon { width: 44px; height: 44px; }
+  .av-companion .np-queue-item:hover .np-queue-duration, .av-companion .np-queue-item:focus-within .np-queue-duration { visibility: visible; }
+  .atmosphere-mode:not([data-panel=none]) .av-theme-caption { opacity: 0; }
 }
 @media (max-width: 360px) {
   .av-theme-nav button { padding: 0 9px; }
@@ -144,9 +166,11 @@
   .av-wordmark > span { display: none; }
   .av-footer { width: calc(100% - 24px); }
   .av-transport { gap: 2px; }
-  .av-companion { bottom: 195px; }
+  .av-companion-queue { bottom: 198px; }
 }
 @media (max-height: 670px) {
+  .av-companion-queue { top: 145px; bottom: 180px; }
+  .av-companion-lyrics { bottom: 190px; height: min(240px, calc(100% - 330px)); }
   .av-theme-caption { display: none; }
   .av-now { margin-bottom: 6px; }
   .av-now > p { display: none; }
@@ -157,6 +181,12 @@
 }
 .av-theme-caption > span { font-size: 10px; letter-spacing: 2px; color: var(--av-accent); text-shadow: 0 1px 12px #000; }
 .av-picker { position: absolute; z-index: 5; left: 50%; top: 157px; transform: translateX(-50%); width: min(720px, calc(100% - 48px)); max-height: calc(100% - 200px); overflow: auto; padding: 22px; border: 1px solid var(--av-line); border-radius: 20px; background: #111216f5; backdrop-filter: blur(28px); box-shadow: 0 24px 90px #0008; }
+.av-picker, .av-track-list { color-scheme: dark; scrollbar-width: thin; scrollbar-color: #b7a99770 transparent; overscroll-behavior: contain; }
+:is(.av-picker, .av-track-list)::-webkit-scrollbar { width: 8px; height: 8px; }
+:is(.av-picker, .av-track-list)::-webkit-scrollbar-track { background: transparent; margin-block: 16px; }
+:is(.av-picker, .av-track-list)::-webkit-scrollbar-thumb { min-height: 36px; border: 2px solid transparent; border-radius: 999px; background: #b7a99770; background-clip: padding-box; }
+:is(.av-picker, .av-track-list)::-webkit-scrollbar-thumb:hover { background-color: #b7a997aa; }
+:is(.av-picker, .av-track-list)::-webkit-scrollbar-corner { background: transparent; }
 .av-picker .av-settings-heading { margin-bottom: 16px; }
 .av-picker .av-settings-heading strong { font-size: 16px; font-weight: 500; letter-spacing: 1px; }
 .av-picker .av-settings-heading p { font-size: 11px; color: var(--av-soft); margin-top: 7px; }

@@ -11,14 +11,18 @@ export const lightingLooks = [
   { id: "stars", name: "星点夜空", description: "稀疏的点光，留给安静的细节" },
   { id: "tunnel", name: "纵深光廊", description: "成排光束，向节奏深处延伸" },
   { id: "burst", name: "全场齐射", description: "在能量高点，打开整个舞台" },
-  { id: "duet", new: true, name: "双束对望", description: "两束追光，慢慢靠近又分开" },
-  { id: "rain", new: true, name: "斜落光雨", description: "斜斜落下的细光，依次亮起" },
-  { id: "afterglow", new: true, name: "余晖漫场", description: "让温暖的颜色，缓缓铺满舞台" },
-  { id: "horizon", new: true, name: "低空光海", description: "层层横光，贴着舞台涌来" },
-  { id: "lattice", new: true, name: "交错织光", description: "细密交叉的光网，随重拍舒展" },
-  { id: "searchlights", new: true, name: "探照巡游", description: "成组光柱，整齐扫过上空" }
+  { id: "duet", name: "双束对望", description: "两束追光，慢慢靠近又分开" },
+  { id: "rain", name: "斜落光雨", description: "斜斜落下的细光，依次亮起" },
+  { id: "afterglow", name: "余晖漫场", description: "让温暖的颜色，缓缓铺满舞台" },
+  { id: "horizon", name: "低空光海", description: "层层横光，贴着舞台涌来" },
+  { id: "lattice", name: "交错织光", description: "细密交叉的光网，随重拍舒展" },
+  { id: "searchlights", name: "探照巡游", description: "成组光柱，整齐扫过上空" },
+  { id: "petals", new: true, name: "花影流转", description: "花瓣状的光影，在地面缓缓旋转" },
+  { id: "windows", new: true, name: "百叶光窗", description: "光穿过百叶，在雾中留下明暗纹理" },
+  { id: "fan", new: true, name: "扇屏开合", description: "两层细光扇面，随着旋律舒展" },
+  { id: "relay", new: true, name: "节拍接力", description: "一次起音，一组灯光接过下一拍" }
 ] as const;
-export const LIGHTING_PROGRAM_VERSION = 4;
+export const LIGHTING_PROGRAM_VERSION = 5;
 export type LightingLook = typeof lightingLooks[number]["id"];
 export type LightingTheme = LightingLook | "auto";
 export type AudioFeature = { time: number; rms: number; bass: number; treble: number; onset: number };
@@ -65,19 +69,19 @@ export function buildLightingProgram(frames: AudioFeature[], duration: number): 
     let look: LightingLook, reason: string;
     if (rms < .0008) { look = "stars"; reason = "留白与尾音"; }
     else if (energy < .12 && rise < -.16) { look = "afterglow"; reason = "余音收束"; }
-    else if ((quiet && density < .6) || (softRecording && energy < .4)) { look = brightness > .18 ? "stars" : second < 16 ? "duet" : energy < .1 ? "afterglow" : "curtain"; reason = "轻奏留白"; }
-    else if (softRecording) { look = brightness > .15 ? "orbit" : density > 1.45 ? "rain" : "canopy"; reason = "旋律舒展"; }
-    else if (rise > .23 && energy < .75) { look = density > 1.3 ? "searchlights" : "particles"; reason = "渐强展开"; }
-    else if (energy > .76 && (density > 1.1 || rise > .16)) { look = density > 2.4 ? "lattice" : "burst"; reason = "高能释放"; }
-    else if (density > 2.0 && energy > .42) { look = brightness > .2 ? "lattice" : brightness > .17 ? "fluid" : "tunnel"; reason = "密集节奏"; }
+    else if ((quiet && density < .6) || (softRecording && energy < .4)) { look = brightness > .18 ? "stars" : second < 16 ? "duet" : energy < .1 ? "afterglow" : "windows"; reason = "轻奏留白"; }
+    else if (softRecording) { look = brightness > .15 ? "orbit" : density > 1.45 ? "rain" : "petals"; reason = "旋律舒展"; }
+    else if (rise > .23 && energy < .75) { look = density > 1.8 ? "searchlights" : "fan"; reason = "渐强展开"; }
+    else if (energy > .76 && (density > 1.1 || rise > .16)) { look = rise > .16 ? "fan" : density > 2.4 ? "lattice" : "burst"; reason = "高能释放"; }
+    else if (density > 2.0 && energy > .42) { look = density > 2.3 && bass > .45 ? "relay" : brightness > .2 ? "lattice" : brightness > .17 ? "fluid" : "tunnel"; reason = "密集节奏"; }
     else if (bass > .48 && density > .65) { look = energy > .55 && bass > .6 ? "horizon" : energy > .5 ? "wings" : "geometry"; reason = "低频回应"; }
     else if (energy > .5 && density > .9) { look = "wave"; reason = "节奏推进"; }
-    else if (brightness > .2 && density < 1.1) { look = "orbit"; reason = "明亮旋律"; }
-    else if (energy > .32 && density < 1.1) { look = "canopy"; reason = "旋律舒展"; }
+    else if (brightness > .2 && density < 1.1) { look = energy < .55 ? "petals" : "orbit"; reason = "明亮旋律"; }
+    else if (energy > .32 && density < 1.1) { look = energy > .55 ? "windows" : "canopy"; reason = "旋律舒展"; }
     else { look = brightness < .1 ? "curtain" : "geometry"; reason = "平稳铺陈"; }
     // 同类声音长时间维持时，沿相同意图换一个构图；变化只在特征差异处发生。
     if (prior && second - prior.start > 20 && contrast > .18 && look === previous) {
-      const companion: Partial<Record<LightingLook, LightingLook>> = { canopy: "duet", duet: "canopy", rain: "curtain", afterglow: "stars", horizon: "wings", lattice: "fluid", searchlights: "particles", geometry: "curtain", fluid: "tunnel", wings: "geometry", wave: "particles", curtain: "stars", burst: "wave" };
+      const companion: Partial<Record<LightingLook, LightingLook>> = { petals: "canopy", windows: "curtain", fan: "particles", relay: "fluid", canopy: "duet", duet: "canopy", rain: "curtain", afterglow: "stars", horizon: "wings", lattice: "fluid", searchlights: "particles", geometry: "curtain", fluid: "tunnel", wings: "geometry", wave: "particles", curtain: "stars", burst: "wave" };
       look = companion[look] ?? look;
     }
     const canChange = second >= holdUntil || (quiet && rms < .0008) || (look === "burst" && rise > .28 && second - (prior?.start ?? 0) >= 4);

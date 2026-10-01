@@ -9,6 +9,7 @@ import {
 import library from "./library.json";
 import { CapsulePlayer } from "./CapsulePlayer";
 import { NowPlaying } from "./NowPlaying";
+import { usePrototypeAudio } from "./usePrototypeAudio";
 import { PlaylistOrderEditor } from "./PlaylistOrderEditor";
 import { LoginScreen } from "./LoginScreen";
 import { AccountAvatar, AccountPages } from "./AccountPages";
@@ -148,7 +149,6 @@ export function App() {
   const [queue, setQueue] = useState(initialQueue);
   const [currentId, setCurrentId] = useState(initialQueue[0].id);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [atmosphereAudioClock, setAtmosphereAudioClock] = useState(false);
   const [position, setPosition] = useState(38);
   const [volume, setVolume] = useState(70);
   const [shuffle, setShuffle] = useState(false);
@@ -187,7 +187,6 @@ export function App() {
   const [scan, setScan] = useState<ScanState>(idleScan);
   const [scanHeld, setScanHeld] = useState(false);
   const [phase, setPhase] = useState<PlaybackPhase>("ready");
-  const playbackTimer = useRef<number | null>(null);
   const [writeState, setWriteState] = useState<"idle" | "saving" | "error">("idle");
   const [writeLabel, setWriteLabel] = useState("");
   const pendingWrite = useRef<(() => void) | null>(null);
@@ -213,6 +212,10 @@ export function App() {
   const initialSetup = !directoryConfigured;
   const directoryUnavailable = section === "directory-unavailable" || (section === "preview" && routeId === "directory-unavailable");
   const partialScan = scan.status === "partial";
+  const playback = usePrototypeAudio({ trackId: hasCurrent && !loginRoute ? currentId : "", playing: isPlaying && phase === "ready", position, volume, onPosition: setPosition, onEnded: () => nextTrack(true) });
+  const playerPhase: PlaybackPhase = phase !== "ready" ? phase : playback.sourceBusy ? "loading" : playback.audioError ? "decode" : "ready";
+  const playbackDuration = playback.prepared?.track.duration ?? current.duration;
+  const demoAudio = playback.catalog?.enabled === false;
 
   function announce(message: string) { setToast(""); window.setTimeout(() => setToast(message), 0); }
   function switchAccount(id: string | null) {
@@ -223,7 +226,6 @@ export function App() {
     collectionOwner.current = owner; setFavorites(new Set(personal.favorites)); setPlaylists(personal.playlists);
     setAuthenticated(Boolean(id)); setAccountId(id ?? "room-admin");
     setQueue([]); setCurrentId(""); setPosition(0); setIsPlaying(false); setQueueOpen(false); setPhase("ready");
-    if (playbackTimer.current) window.clearTimeout(playbackTimer.current);
     if (id) setAccountSessions((previous) => ({ ...previous, [id]: previous[id]?.some((session) => session.current) ? previous[id] : initialSessions().slice(0, 1) }));
   }
   function updateAccount(next: AccountUser) {
@@ -291,6 +293,7 @@ export function App() {
     </div>;
   }
   function retryPlayback() {
+    if (playback.audioError && phase === "ready") { playback.retryAudio(); return; }
     if (phase === "missing") { closePlayer(); navigate("directory-unavailable"); return; }
     play(current);
   }
@@ -318,25 +321,25 @@ export function App() {
   function closePlayer() { if (section === "preview" && (routeId?.startsWith("lyrics-") || routeId === "queue-empty")) { navigate("preview"); return; } window.location.hash = `/${backgroundRoute.current === "playing" ? "home" : backgroundRoute.current}`; }
   function play(track: Track, source?: Track[]) {
     if (!track) return;
+    playback.unlock();
     if (source?.length) setQueue(source);
     else if (!queue.some((item) => item.id === track.id)) setQueue((items) => [...items, track]);
-    setCurrentId(track.id); setPosition(0); setIsPlaying(false);
-    if (playbackTimer.current) window.clearTimeout(playbackTimer.current);
-    setPhase(track.format === "ALAC" ? "transcoding" : "loading");
-    playbackTimer.current = window.setTimeout(() => { setPhase("ready"); setIsPlaying(true); }, 700);
+    if (track.id === currentId) playback.seek(0);
+    setCurrentId(track.id); setPosition(0);
+    setPhase("ready"); setIsPlaying(true);
   }
-  function togglePlay() { if (!hasCurrent) return; if (phase !== "ready") { if (!playbackBusy(phase)) retryPlayback(); return; } setIsPlaying((value) => !value); }
+  function togglePlay() { if (!hasCurrent) return; if (playerPhase !== "ready") { if (!playbackBusy(playerPhase)) retryPlayback(); return; } playback.unlock(); setIsPlaying((value) => !value); }
   function nextTrack(auto = false) {
     if (!queue.length) return;
-    if (auto && repeat === 2) { setPosition(0); return; }
+    if (auto && repeat === 2) { playback.seek(0); return; }
     const index = queue.findIndex((track) => track.id === currentId);
-    if (auto && index >= queue.length - 1 && repeat === 0 && !shuffle) { setIsPlaying(false); setPosition(current.duration); return; }
+    if (auto && index >= queue.length - 1 && repeat === 0 && !shuffle) { setIsPlaying(false); setPosition(playbackDuration); return; }
     const next = shuffle && queue.length > 1 ? (index + 1 + Math.floor(Math.random() * (queue.length - 1))) % queue.length : (index + 1) % queue.length;
     play(queue[next]);
   }
   function previousTrack() {
     if (!hasCurrent) return;
-    if (position > 3) { setPosition(0); return; }
+    if (position > 3) { playback.seek(0); return; }
     play(queue[(Math.max(currentIndex, 0) - 1 + queue.length) % queue.length] ?? current);
   }
   function toggleFavorite(id: string) {
@@ -376,7 +379,6 @@ export function App() {
     scenarioRef.current = route;
     cancelWrite();
     if (requestTimer.current) window.clearTimeout(requestTimer.current);
-    if (playbackTimer.current) window.clearTimeout(playbackTimer.current);
     setModal(null); setQueueOpen(false); setIsPlaying(false); setPhase("ready"); setOrderDraft(null);
     setRequestState("ready"); setMoreState("ready"); setScanHeld(false); setScan(idleScan); setPosition(38);
     setLibraryMode("ready"); setDirectoryConfigured(true); setMusicDirectory("/music");
@@ -437,7 +439,6 @@ export function App() {
     announce(scan.status === "empty" ? "扫描完成，未发现可播放文件" : scan.status === "partial" ? "扫描部分完成，可以查看失败详情" : "扫描完成，音乐已经准备好");
   }, [scan.status]);
   useEffect(() => () => {
-    if (playbackTimer.current) window.clearTimeout(playbackTimer.current);
     if (requestTimer.current) window.clearTimeout(requestTimer.current);
     if (writeTimer.current) window.clearTimeout(writeTimer.current);
   }, []);
@@ -472,8 +473,8 @@ export function App() {
     previousPage.current = pageRoute;
   }, [route, pageRoute]);
   useEffect(() => { if (!toast) return; const id = window.setTimeout(() => setToast(""), 3200); return () => window.clearTimeout(id); }, [toast]);
-  useEffect(() => { if (atmosphereAudioClock || !isPlaying || !hasCurrent || phase !== "ready") return; const timer = window.setInterval(() => setPosition((value) => Math.min(value + 1, current.duration)), 1000); return () => window.clearInterval(timer); }, [isPlaying, hasCurrent, phase, current.duration, atmosphereAudioClock]);
-  useEffect(() => { if (!atmosphereAudioClock && isPlaying && position >= current.duration) nextTrack(true); }, [position, current.duration, isPlaying, atmosphereAudioClock]);
+  useEffect(() => { if (playback.realAudio || !isPlaying || !hasCurrent || playerPhase !== "ready") return; const timer = window.setInterval(() => setPosition((value) => Math.min(value + 1, current.duration)), 1000); return () => window.clearInterval(timer); }, [isPlaying, hasCurrent, playerPhase, current.duration, playback.realAudio]);
+  useEffect(() => { if (!playback.realAudio && isPlaying && position >= current.duration) nextTrack(true); }, [position, current.duration, isPlaying, playback.realAudio]);
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
       if (loginRoute) return;
@@ -484,7 +485,7 @@ export function App() {
       if (event.code === "Space") { event.preventDefault(); togglePlay(); }
     };
     window.addEventListener("keydown", keydown); return () => window.removeEventListener("keydown", keydown);
-  }, [modal, queueOpen, searchSuggestionsOpen, searching, section, phase, hasCurrent, loginRoute]);
+  }, [modal, queueOpen, searchSuggestionsOpen, searching, section, playerPhase, phase, hasCurrent, currentId, loginRoute, playback.audio, playback.audioError]);
   useEffect(() => {
     if (!searchFocused) return;
     const close = (event: MouseEvent) => {
@@ -918,10 +919,10 @@ export function App() {
 
   if (loginRoute) {
     const issue = section === "preview" ? routeId.slice(6) : new URLSearchParams(route.split("?")[1]).get("reason") ?? "";
-    return <LoginScreen key={route} issue={issue} users={accounts} isMobile={isMobile} onSuccess={(user) => { updateAccount(user); switchAccount(user.id); const destination = loginReturn.current; navigate(!directoryConfigured && user.role === "admin" ? "setup" : destination === "preview" || destination.startsWith("preview/login-") ? "account" : destination); announce(`欢迎回来，${user.displayName}`); }} onDemo={() => { switchAccount(null); setLibraryMode("ready"); setDirectoryConfigured(true); navigate("home"); announce("已进入演示音乐室"); }} onPreview={() => navigate("preview")} />;
+    return <>{playback.mediaElement}<LoginScreen key={route} issue={issue} users={accounts} isMobile={isMobile} onSuccess={(user) => { updateAccount(user); switchAccount(user.id); const destination = loginReturn.current; navigate(!directoryConfigured && user.role === "admin" ? "setup" : destination === "preview" || destination.startsWith("preview/login-") ? "account" : destination); announce(`欢迎回来，${user.displayName}`); }} onDemo={() => { switchAccount(null); setLibraryMode("ready"); setDirectoryConfigured(true); navigate("home"); announce("已进入演示音乐室"); }} onPreview={() => navigate("preview")} /></>;
   }
 
-  return <div className={`app ${isMobile ? "mobile-layout" : "desktop-layout"} ${dense ? "dense-layout" : ""} ${darkMode ? "dark-theme" : ""} library-surface ${homePage ? "home-surface" : ""} ${catalogPage ? "catalog-surface" : ""}`}>
+  return <>{playback.mediaElement}<div className={`app ${isMobile ? "mobile-layout" : "desktop-layout"} ${dense ? "dense-layout" : ""} ${darkMode ? "dark-theme" : ""} library-surface ${homePage ? "home-surface" : ""} ${catalogPage ? "catalog-surface" : ""}`}>
     <a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); mainRef.current?.focus(); }}>跳到主要内容</a>
     <aside className={`sidebar ${mobileNavOpen ? "sidebar-open" : ""}`} aria-label="音乐库导航" inert={isMobile && !mobileNavOpen}>
       <button className="brand" aria-label="开听首页" onClick={() => navigate("home")}><span className="brand-mark" aria-hidden="true"><BrandGlyph /></span><span>开听</span></button>
@@ -944,17 +945,17 @@ export function App() {
     <div className="global-feedback-stack">
       {canManageLibrary && scan.status !== "idle" && section !== "scan" && !(section === "preview" && routeId?.startsWith("scan-")) && <button className="scan-status-link" onClick={() => navigate("scan")}>{scan.status === "running" ? <LoaderCircle className="button-spinner" /> : <Disc3 />}<span>{scan.status === "running" ? `正在扫描 · ${Math.round(scan.processed / scan.total * 100)}%` : ["failed", "interrupted"].includes(scan.status) ? "扫描需要处理" : "扫描已完成"}</span><span>查看{scan.status === "running" ? "进度" : "结果"}</span><ChevronRight /></button>}
       {!modal && route !== "playing" && renderWriteFeedback(true)}
-      {hasCurrent && route !== "playing" && <PlaybackFeedback compact isMobile={isMobile} phase={phase} onRetry={retryPlayback} onNext={() => nextTrack()} />}
+      {hasCurrent && route !== "playing" && <PlaybackFeedback compact isMobile={isMobile} phase={playerPhase} onRetry={retryPlayback} onNext={() => nextTrack()} />}
     </div>
     {hasCurrent ? <CapsulePlayer
       trackId={current.id}
-      phase={phase}      title={current.title} artist={current.artist} album={currentAlbum.title} cover={currentAlbum.cover}
-      isMobile={isMobile} playing={isPlaying} position={position} duration={current.duration}
+      phase={playerPhase} title={current.title} artist={demoAudio ? "原创演示音源" : current.artist} album={demoAudio ? "非本曲音频" : currentAlbum.title} cover={currentAlbum.cover}
+      isMobile={isMobile} playing={isPlaying} position={position} duration={playbackDuration}
       volume={volume} shuffle={shuffle} repeat={repeat} queueOpen={queueOpen}
       onTogglePlay={togglePlay} onPrevious={previousTrack} onNext={() => nextTrack()}
       onToggleShuffle={() => setShuffle((value) => !value)}
       onToggleRepeat={() => setRepeat((value) => ((value + 1) % 3) as 0 | 1 | 2)}
-      onSeek={setPosition} onVolumeChange={setVolume} onOpenPlayer={openPlayer}
+      onSeek={playback.seek} onVolumeChange={setVolume} onOpenPlayer={openPlayer}
       onOpenQueue={() => setQueueOpen(true)}
       onOpenArtist={() => navigate(`artist/${encodeURIComponent(current.artist)}`)}
       onOpenAlbum={() => navigate(`album/${currentAlbum.id}`)}
@@ -963,15 +964,15 @@ export function App() {
     {hasCurrent && (route === "playing" || (section === "preview" && (routeId?.startsWith("lyrics-") || routeId === "queue-empty"))) && <Modal key={route === "playing" ? "player" : routeId} className="now-playing-dialog" label="沉浸播放器" onClose={closePlayer}>
       {renderWriteFeedback(true)}
       <NowPlaying
-        onAudioClock={setAtmosphereAudioClock} onEnded={() => nextTrack(true)}
-        phase={phase} onRetry={retryPlayback}
+        playback={playback}
+        phase={playerPhase} onRetry={retryPlayback}
         initialPanel={routeId === "queue-empty" ? "queue" : routeId?.startsWith("lyrics-") ? "lyrics" : undefined}
-        initialLyrics={routeId === "lyrics-loading" ? "loading" : routeId === "lyrics-error" ? "error" : routeId === "lyrics-empty" ? "empty" : "ready"}        track={{ ...current, title: displayTitle(current), cover: currentAlbum.cover }} album={currentAlbum}
+        initialLyrics={routeId === "lyrics-loading" ? "loading" : routeId === "lyrics-error" ? "error" : routeId === "lyrics-empty" ? "empty" : "ready"}        track={{ ...current, title: displayTitle(current), duration: playbackDuration, cover: currentAlbum.cover }} album={currentAlbum}
         queue={queue.map((track) => ({ ...track, title: displayTitle(track), cover: albumMap.get(track.albumId)!.cover }))}
         isMobile={isMobile} playing={isPlaying} position={position} volume={volume}
         favorite={favorites.has(currentId)} shuffle={shuffle} repeat={repeat}
         onClose={closePlayer} onTogglePlay={togglePlay} onPrevious={previousTrack} onNext={() => nextTrack()}
-        onSeek={setPosition} onVolumeChange={setVolume} onToggleFavorite={() => toggleFavorite(currentId)}
+        onSeek={playback.seek} onVolumeChange={setVolume} onToggleFavorite={() => toggleFavorite(currentId)}
         onToggleShuffle={() => setShuffle((value) => !value)}
         onToggleRepeat={() => setRepeat((value) => ((value + 1) % 3) as 0 | 1 | 2)}
         onOpenAlbum={() => navigate(`album/${currentAlbum.id}`)}
@@ -1028,11 +1029,11 @@ export function App() {
         <div className="setting-row"><span><strong>深色主题</strong><small>降低环境光下的亮度，保留红色强调</small></span><button className={`toggle ${darkMode ? "on" : ""}`} role="switch" aria-checked={darkMode} aria-label="深色主题" onClick={() => setDarkMode((value) => !value)}><span /></button></div>
         <div className="setting-row"><span><strong>曲库快照</strong><small>{directoryUnavailable ? "目录恢复后才能读取快照" : initialSetup ? "选择目录并完成扫描后生成" : scan.status === "running" && libraryMode !== "ready" ? "正在准备首份曲库快照" : libraryDirectoryNeedsScan ? "等待目录扫描后建立快照" : partialScan ? `已载入 ${tracks.length.toLocaleString()} 首歌曲 · 仍有 ${scanFailures.length} 个文件失败` : `${tracks.length.toLocaleString()} 首歌曲 · ${albums.length} 张专辑`}</small></span><span className={`setting-badge ${directoryUnavailable ? "is-error" : initialSetup || libraryDirectoryNeedsScan || partialScan ? "is-pending" : ""}`}>{directoryUnavailable ? "不可用" : initialSetup ? "未生成" : scan.status === "running" && libraryMode !== "ready" ? "生成中" : libraryDirectoryNeedsScan ? "待生成" : partialScan ? "部分" : "已载入"}</span></div>
         <div className="setting-row"><span><strong>设计状态预览</strong><small>查看空态、异常与完整交互流程</small></span><button className="text-button" onClick={() => { setModal(null); navigate("preview"); }}>查看全部<ChevronRight /></button></div>
-        <div className="prototype-explanation"><Info /><p>当前为独立交互演示，扫描、登录与播放使用模拟状态。演示不会扫描真实目录、发送密码或修改音乐文件。</p></div>
+        <div className="prototype-explanation"><Info /><p>当前为独立交互演示，扫描和登录使用模拟状态。配置本地曲库后，播放器只读播放真实音乐；未配置时使用明确标注的原创演示音源。音乐文件不会被修改。</p></div>
         <button className="button primary full-width" onClick={() => setModal(null)}>就这样，很好</button>
       </>}
     </fieldset>{renderWriteFeedback()}</Modal>}
     {menu && <><button className="menu-backdrop" aria-label="关闭歌曲操作菜单" onClick={() => setMenu(null)} /><div className="track-menu" role="menu" aria-label="歌曲操作" style={{ left: Math.max(12, menu.x), top: Math.max(12, menu.y) }}><button role="menuitem" autoFocus onClick={() => enqueue(menu.track, true)}><SkipForward /> 下一首播放</button><button role="menuitem" onClick={() => enqueue(menu.track)}><ListMusic /> 加入待播清单</button><button role="menuitem" onClick={() => { setModal({ type: "add", trackId: menu.track.id }); setMenu(null); }}><Plus /> 添加到歌单</button><button role="menuitem" onClick={() => { toggleFavorite(menu.track.id); setMenu(null); }}><Heart />{favorites.has(menu.track.id) ? "取消收藏" : "收藏歌曲"}</button><button role="menuitem" onClick={() => navigate(`album/${menu.track.albumId}`)}><Disc3 /> 前往专辑</button></div></>}
     <div className={`toast ${toast ? "visible" : ""}`} role="status" aria-live="polite">{toast && <><Check size={16} />{toast}</>}</div>
-  </div>;
+  </div></>;
 }
