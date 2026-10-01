@@ -7,6 +7,7 @@
     "dev": "vite --host 127.0.0.1 --port 4173 --strictPort",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort"
+    "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
+    "test:atmosphere": "node scripts/verify-atmosphere.mjs"
   }
 }

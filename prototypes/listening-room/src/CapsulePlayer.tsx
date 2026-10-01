@@ -1,12 +1,14 @@
 import { useRef, useState, type CSSProperties } from "react";
 import { FastForward, ListMusic, LoaderCircle, Maximize2, Pause, Play, Rewind } from "lucide-react";
 import { PlayerMarquee } from "../../../src/client/PlayerMarquee";
+import { useSeekInput } from "../../../src/client/seek-input";
 import { PlayerRepeatIcon, PlayerRepeatOneIcon, PlayerShuffleIcon, PlayerVolumeIcon } from "./PlayerIcons";
 
 import { Artwork } from "./StateComponents";
 import { playbackBusy, playbackCopy, type PlaybackPhase } from "./prototype-state";
 
 type CapsulePlayerProps = {
+  trackId?: string;
   phase?: PlaybackPhase;
   title: string;
   artist: string;
@@ -38,7 +40,8 @@ const time = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.flo
 // 外观沿用正式客户端，交互仍由原型的模拟播放状态驱动。
 export function CapsulePlayer(props: CapsulePlayerProps) {
   const { title, artist, album, cover, isMobile, playing, position, duration, volume, shuffle, repeat } = props;
-  const [seeking, setSeeking] = useState(false);
+  const seekInput = useSeekInput({ position, duration, trackId: props.trackId, onSeek: props.onSeek });
+  const seeking = seekInput.seeking;
   const [volumeExpanded, setVolumeExpanded] = useState(false);
   const [volumeDragging, setVolumeDragging] = useState(false);
   const lastVolume = useRef(volume || 70);
@@ -77,10 +80,8 @@ export function CapsulePlayer(props: CapsulePlayerProps) {
       </div>
       <span className="mini-progress-time current-time" aria-hidden="true">{time(position)}</span>
       <span className="mini-progress-time remaining-time" aria-hidden="true">−{time(Math.max(0, duration - position))}</span>
-      <input className="mini-progress" type="range" disabled={busy || props.phase !== "ready"} min="0" max={duration} value={position} aria-label="播放进度" aria-valuetext={`${time(position)}，共 ${time(duration)}`} style={{ "--progress": `${duration ? position / duration * 100 : 0}%` } as CSSProperties}
-        onPointerDown={(event) => { setSeeking(true); event.currentTarget.setPointerCapture(event.pointerId); }}
-        onPointerUp={() => setSeeking(false)} onPointerCancel={() => setSeeking(false)} onLostPointerCapture={() => setSeeking(false)}
-        onChange={(event) => props.onSeek(Number(event.currentTarget.value))} />
+      <input className="mini-progress" type="range" disabled={busy || props.phase !== "ready"} min="0" max={duration} value={seekInput.value} aria-label="播放进度" aria-valuetext={`${time(position)}，共 ${time(duration)}`} style={{ "--progress": `${duration ? seekInput.value / duration * 100 : 0}%` } as CSSProperties}
+        {...seekInput.inputProps} />
     </div>}
     <div className="player-actions">
       <button className={`player-utility-button ${props.queueOpen ? "active" : ""}`} type="button" aria-expanded={props.queueOpen} onClick={props.onOpenQueue} aria-label="打开待播清单" title="待播清单"><ListMusic /></button>

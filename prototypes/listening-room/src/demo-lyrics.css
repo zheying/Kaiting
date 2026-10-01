@@ -7,12 +7,12 @@
 .np-lyrics-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-width: none; mask-image: linear-gradient(to bottom, transparent, black 12%, black 80%, transparent); }
 .np-lyrics-scroll::-webkit-scrollbar { display: none; }
 .np-lyrics-lines { padding-inline: 4px; }
-.np-lyric-line { display: block; width: 100%; min-height: 44px; padding: 20px 18px; text-align: left; color: #667d7a; font-size: clamp(30px, 3.1vw, 43px); font-weight: 720; line-height: 1.35; letter-spacing: -.8px; border-radius: 10px; overflow-wrap: anywhere; transition: color .45s, background .2s; }
+.np-lyric-line { display: block; width: 100%; min-height: 44px; padding: 20px 18px; text-align: left; color: var(--np-muted); font-size: clamp(30px, 3.1vw, 43px); font-weight: 720; line-height: 1.35; letter-spacing: -.8px; border-radius: 10px; overflow-wrap: anywhere; transition: color .45s, background .2s; }
 .np-lyric-text { display: block; transform: scale(.98); transform-origin: left center; transition: transform .5s cubic-bezier(.2,.8,.2,1), filter .5s; }
 .is-following .np-lyric-text { filter: blur(var(--lyric-blur, 0px)); }
-.np-lyric-line.is-current { color: #203b3c; }
+.np-lyric-line.is-current { color: var(--np-ink); }
 .np-lyric-line.is-current > span { transform: scale(1); }
-.np-lyric-word { background: linear-gradient(90deg, #203b3c calc(var(--word-fill) - 15%), #657d79 calc(var(--word-fill) + 15%)); background-clip: text; -webkit-background-clip: text; color: transparent; }
+.np-lyric-word { background: linear-gradient(90deg, var(--np-ink) calc(var(--word-fill) - 15%), var(--np-muted) calc(var(--word-fill) + 15%)); background-clip: text; -webkit-background-clip: text; color: transparent; }
 .is-playing .np-lyric-word { transition: --word-fill .85s linear; }
 .np-lyric-line:hover, .np-lyric-line:focus-visible { color: var(--np-ink); background: #ffffff24; }
 .np-lyric-line:hover .np-lyric-text, .np-lyric-line:focus-visible .np-lyric-text, .is-browsing .np-lyric-text { filter: none; }

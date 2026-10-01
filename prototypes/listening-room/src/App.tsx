@@ -18,14 +18,14 @@ import { advanceScan, beginScan, idleScan, playbackBusy, previewGroups, readable
 import { useMobileLayout } from "../../../src/client/mobile-layout";
 
 type Album = (typeof library.albums)[number];
-type Track = (typeof library.tracks)[number];
+type Track = (typeof library.tracks)[number] & { lossless: boolean };
 type Playlist = { id: string; name: string; description: string; trackIds: string[] };
 type ModalState = { type: "create"; trackId?: string } | { type: "add"; trackId: string } | { type: "playlist-add"; playlistId: string } | { type: "info" } | { type: "settings" } | { type: "directory"; returnTo?: "settings" | "directory-unavailable" } | { type: "scan-failures" } | { type: "rename" | "delete"; playlistId: string } | null;
 type StateAction = { label: string; onClick: () => void; variant?: "primary" | "subtle"; disabled?: boolean; busy?: boolean };
 type CheckKind = "service" | "directory" | "partial";
 type CheckStatus = "idle" | "checking" | "failed" | "complete";
 const albums = library.albums.map((album) => ({ ...album, name: readable(album.name, "未命名专辑"), title: readable(album.title, "未命名专辑"), artist: readable(album.artist, "未知艺人"), genre: readable(album.genre, "未分类") }));
-const tracks = library.tracks.map((track) => ({ ...track, title: readable(track.title, "未命名歌曲"), artist: readable(track.artist, "未知艺人") }));
+const tracks = library.tracks.map((track) => ({ ...track, title: readable(track.title, "未命名歌曲"), artist: readable(track.artist, "未知艺人"), lossless: ["ALAC", "FLAC"].includes(track.format.toUpperCase()) }));
 const sourceAlbums = albums;
 const sourceTracks = tracks;
 const albumMap = new Map(albums.map((album) => [album.id, album]));
@@ -148,6 +148,7 @@ export function App() {
   const [queue, setQueue] = useState(initialQueue);
   const [currentId, setCurrentId] = useState(initialQueue[0].id);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [atmosphereAudioClock, setAtmosphereAudioClock] = useState(false);
   const [position, setPosition] = useState(38);
   const [volume, setVolume] = useState(70);
   const [shuffle, setShuffle] = useState(false);
@@ -471,8 +472,8 @@ export function App() {
     previousPage.current = pageRoute;
   }, [route, pageRoute]);
   useEffect(() => { if (!toast) return; const id = window.setTimeout(() => setToast(""), 3200); return () => window.clearTimeout(id); }, [toast]);
-  useEffect(() => { if (!isPlaying || !hasCurrent || phase !== "ready") return; const timer = window.setInterval(() => setPosition((value) => Math.min(value + 1, current.duration)), 1000); return () => window.clearInterval(timer); }, [isPlaying, hasCurrent, phase, current.duration]);
-  useEffect(() => { if (isPlaying && position >= current.duration) nextTrack(true); }, [position, current.duration, isPlaying]);
+  useEffect(() => { if (atmosphereAudioClock || !isPlaying || !hasCurrent || phase !== "ready") return; const timer = window.setInterval(() => setPosition((value) => Math.min(value + 1, current.duration)), 1000); return () => window.clearInterval(timer); }, [isPlaying, hasCurrent, phase, current.duration, atmosphereAudioClock]);
+  useEffect(() => { if (!atmosphereAudioClock && isPlaying && position >= current.duration) nextTrack(true); }, [position, current.duration, isPlaying, atmosphereAudioClock]);
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
       if (loginRoute) return;
@@ -946,6 +947,7 @@ export function App() {
       {hasCurrent && route !== "playing" && <PlaybackFeedback compact isMobile={isMobile} phase={phase} onRetry={retryPlayback} onNext={() => nextTrack()} />}
     </div>
     {hasCurrent ? <CapsulePlayer
+      trackId={current.id}
       phase={phase}      title={current.title} artist={current.artist} album={currentAlbum.title} cover={currentAlbum.cover}
       isMobile={isMobile} playing={isPlaying} position={position} duration={current.duration}
       volume={volume} shuffle={shuffle} repeat={repeat} queueOpen={queueOpen}
@@ -961,6 +963,7 @@ export function App() {
     {hasCurrent && (route === "playing" || (section === "preview" && (routeId?.startsWith("lyrics-") || routeId === "queue-empty"))) && <Modal key={route === "playing" ? "player" : routeId} className="now-playing-dialog" label="沉浸播放器" onClose={closePlayer}>
       {renderWriteFeedback(true)}
       <NowPlaying
+        onAudioClock={setAtmosphereAudioClock} onEnded={() => nextTrack(true)}
         phase={phase} onRetry={retryPlayback}
         initialPanel={routeId === "queue-empty" ? "queue" : routeId?.startsWith("lyrics-") ? "lyrics" : undefined}
         initialLyrics={routeId === "lyrics-loading" ? "loading" : routeId === "lyrics-error" ? "error" : routeId === "lyrics-empty" ? "empty" : "ready"}        track={{ ...current, title: displayTitle(current), cover: currentAlbum.cover }} album={currentAlbum}
@@ -991,7 +994,7 @@ export function App() {
         const available = tracks.filter((track) => !playlist.trackIds.includes(track.id) && `${displayTitle(track)} ${track.artist} ${albumMap.get(track.albumId)?.name ?? ""}`.toLocaleLowerCase().includes(term)).slice(0, 60);
         return <><h2>添加歌曲</h2><p>从曲库挑选歌曲，加入「{playlist.name}」。</p><label className="form-field playlist-track-search">搜索歌曲<input autoFocus value={playlistTrackQuery} placeholder="输入歌曲、艺人或专辑" aria-label="搜索要添加的歌曲" onChange={(event) => setPlaylistTrackQuery(event.target.value)} /></label><div className="add-playlist-list track-picker-list">{available.map((track) => <button key={track.id} onClick={() => addToPlaylist(playlist.id, track.id)}><Cover className="playlist-track-cover" album={albumMap.get(track.albumId)!} /><span><strong>{displayTitle(track)}</strong><small>{track.artist} · {albumMap.get(track.albumId)?.name}</small></span><Plus /></button>)}{!available.length && <div className="picker-empty"><Music2 /><span>{!tracks.length ? "曲库还没有歌曲，先连接音乐目录吧。" : term ? "没有匹配的未添加歌曲" : "这个歌单已经收下曲库里的歌曲了"}</span></div>}</div></>;
       })()}
-      {modal.type === "info" && <><span className="eyebrow">MUSIC LIBRARY · DESIGN CONCEPT 01</span><h2>属于你的，私人音乐空间</h2><p>以唱片收藏为灵感，让浏览、发现与聆听都慢下来。</p><div className="about-stats"><span><strong>{tracks.length.toLocaleString()}</strong>首歌曲</span><span><strong>{albums.length}</strong>张真实专辑</span><span><strong>01</strong>私人音乐室</span></div><div className="prototype-explanation"><Info /><p>这是独立交互原型，使用本地曲库的元数据与封面快照。播放、进度及音量为交互演示，不输出音频；收藏和歌单在刷新后重置。原曲库与现有应用保持不变。</p></div><button className="button primary full-width" onClick={() => setModal(null)}>开始逛逛 <ArrowRight /></button></>}
+      {modal.type === "info" && <><span className="eyebrow">MUSIC LIBRARY · DESIGN CONCEPT 01</span><h2>属于你的，私人音乐空间</h2><p>以唱片收藏为灵感，让浏览、发现与聆听都慢下来。</p><div className="about-stats"><span><strong>{tracks.length.toLocaleString()}</strong>首歌曲</span><span><strong>{albums.length}</strong>张真实专辑</span><span><strong>01</strong>私人音乐室</span></div><div className="prototype-explanation"><Info /><p>这是独立交互原型，使用本地曲库的元数据与封面快照。常规播放为交互演示；氛围模式可播放配置目录中的真实音乐，并根据声音编排灯光。未配置曲库时使用标注的原创演示音源。收藏和歌单在刷新后重置。原曲库与现有应用保持不变。</p></div><button className="button primary full-width" onClick={() => setModal(null)}>开始逛逛 <ArrowRight /></button></>}
       {modal.type === "directory" && <>
         <h2>选择音乐目录</h2>
         <p>选择一个本地或 NAS 挂载目录，开听会以只读方式扫描其中的音乐文件。</p>
