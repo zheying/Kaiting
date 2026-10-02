@@ -164,6 +164,9 @@ function createStage(canvas: HTMLCanvasElement) {
     return handle;
   };
   try {
+    const rendererInfo = gl.getExtension("WEBGL_debug_renderer_info");
+    const renderer = rendererInfo ? String(gl.getParameter(rendererInfo.UNMASKED_RENDERER_WEBGL)) : "";
+    const software = /swiftshader|llvmpipe|softpipe|software rasterizer/i.test(renderer);
     vertex = shader(gl.VERTEX_SHADER, "attribute vec2 point; void main() { gl_Position = vec4(point, 0., 1.); }");
     pixel = shader(gl.FRAGMENT_SHADER, fragment);
     program = gl.createProgram();
@@ -180,6 +183,8 @@ function createStage(canvas: HTMLCanvasElement) {
     const gobo = gl.getUniformLocation(program, "gobos[0]"), patterns = new Float32Array(lightCount * 2);
     const origins = new Float32Array(lightCount * 4), directions = new Float32Array(lightCount * 4), tints = new Float32Array(lightCount * 4);
     return {
+      // 软件渲染逐像素使用 CPU；单独限制灯光画布，避免拖慢音频时钟和页面交互。
+      pixelBudget: software ? 20_000 : Infinity,
       draw(time: number, fixtures: Fixture[], palette: AtmospherePalette) {
         const colors = palettes[palette];
         origins.fill(0); directions.fill(0); tints.fill(0);
@@ -222,7 +227,7 @@ export function createAtmosphereScene(canvas: HTMLCanvasElement, lightCanvas: HT
     const rect = canvas.parentElement!.getBoundingClientRect();
     const nextWidth = Math.round(rect.width), nextHeight = Math.round(rect.height);
     // 体积光的分辨率单独限制，避免大屏幕和高 DPR 放大逐像素采样成本。
-    const budget = nextWidth < 600 ? 400_000 : 550_000;
+    const budget = Math.min(stage?.pixelBudget ?? 80_000, nextWidth < 600 ? 400_000 : 550_000);
     const nextRatio = Math.min(window.devicePixelRatio || 1, 1.4, Math.sqrt(budget / Math.max(1, nextWidth * nextHeight)));
     if (width === nextWidth && height === nextHeight && ratio === nextRatio) return;
     width = nextWidth; height = nextHeight; ratio = nextRatio;
@@ -474,7 +479,7 @@ export function createAtmosphereScene(canvas: HTMLCanvasElement, lightCanvas: HT
     if (!motion.matches && (options.playing || settling > 0)) frame = requestAnimationFrame(tick);
   }
   function lost(event: Event) { event.preventDefault(); contextLost = true; onFallback(true); draw(); }
-  function restored() { stage?.dispose(); stage = createStage(lightCanvas); contextLost = false; onFallback(!stage); resume(); }
+  function restored() { stage?.dispose(); stage = createStage(lightCanvas); contextLost = false; onFallback(!stage); size(); resume(); }
   const observer = new ResizeObserver(size);
   observer.observe(canvas.parentElement!);
   motion.addEventListener("change", resume);

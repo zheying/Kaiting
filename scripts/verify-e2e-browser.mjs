@@ -14,7 +14,7 @@ function check(name, verify) {
   catch (error) { results.push({ name, status: "failed", error: String(error) }); }
 }
 // 用隔离的 Playwright 进程边界观察启动次数，不为了重现故障而让真实浏览器崩溃。
-function invoke({ scenario = "success", sandbox = "", channel = "", headed = false } = {}) {
+function invoke({ scenario = "success", sandbox = "", channel = "", headed = false, software = false } = {}) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "music-browser-check-"));
   try {
     fs.copyFileSync(path.join(root, "scripts/e2e-browser.mjs"), path.join(directory, "e2e-browser.mjs"));
@@ -32,7 +32,8 @@ function invoke({ scenario = "success", sandbox = "", channel = "", headed = fal
           if (process.env.SCENARIO === 'launch-failed') throw new Error('simulated browser launch failure');
           return {
             version: () => '153.fixture',
-            newPage: async () => ({ evaluate: async () => process.env.SCENARIO === 'no-aac' ? '' : 'probably' }),
+            newPage: async () => ({ evaluate: async (read) => read.toString().includes('canPlayType')
+              ? process.env.SCENARIO === 'no-aac' ? '' : 'probably' : { renderer: 'fixture renderer', version: 'WebGL 1.0' } }),
             close: async () => { record({ type: 'close' }); }
           };
         }
@@ -48,7 +49,7 @@ function invoke({ scenario = "success", sandbox = "", channel = "", headed = fal
     const reportDirectory = path.join(directory, "report");
     const result = spawnSync(process.execPath, ["run.mjs"], {
       cwd: directory, encoding: "utf8", timeout: 10_000,
-      env: { ...process.env, SCENARIO: scenario, CODEX_SANDBOX: sandbox, E2E_BROWSER_CHANNEL: channel, E2E_REPORT_DIR: reportDirectory }
+      env: { ...process.env, SCENARIO: scenario, CODEX_SANDBOX: sandbox, E2E_BROWSER_CHANNEL: channel, E2E_SOFTWARE_RENDERING: software ? "1" : "", E2E_REPORT_DIR: reportDirectory }
     });
     const callsPath = path.join(directory, "calls.jsonl");
     const calls = fs.existsSync(callsPath) ? fs.readFileSync(callsPath, "utf8").trim().split("\n").map((line) => JSON.parse(line)) : [];
@@ -90,6 +91,15 @@ for (const headed of [false, true]) check(`${headed ? "有头" : "无头"}预检
   assert.ok(options.timeout > 0 && options.timeout <= 30_000);
   assert.equal(options.executablePath, undefined); assert.equal(options.userDataDir, undefined);
   assert.equal(result.report.status, "passed"); assert.equal(result.report.version, "153.fixture"); assert.equal(result.report.aac, "probably");
+  assert.deepEqual(result.report.webgl, { renderer: "fixture renderer", version: "WebGL 1.0" });
+});
+check("软件渲染诊断仍使用独立浏览器并记录实际渲染器", () => {
+  const result = invoke({ software: true });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(result.calls[0].options.args, ["--use-angle=swiftshader"]);
+  assert.equal(result.calls[0].options.channel, "chromium");
+  assert.equal(result.report.softwareRequested, true);
+  assert.deepEqual(result.report.webgl, { renderer: "fixture renderer", version: "WebGL 1.0" });
 });
 check("仅预览 E2E 范围不触发浏览器预检", () => {
   const result = spawnSync(process.execPath, ["scripts/e2e.mjs", "selected", "playback", "--list"], {

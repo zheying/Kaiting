@@ -1,13 +1,13 @@
 import type { Page } from "@playwright/test";
 
 export type LightSample = { time: number; wall: number; rms: number; power: number[]; angles: number[]; origins: number[] };
-type BeatProbe = { fixedOrigins: number[]; maxDisplacement: number; samples: LightSample[]; capture: boolean; brightest: number; dimmest: number; peak: string; rest: string };
+type BeatProbe = { fixedOrigins: number[]; maxDisplacement: number; samples: LightSample[] };
 type BeatWindow = Window & { beatProbe: BeatProbe };
 
 /** 只观察实际音频采样和提交给 WebGL 的灯具数据，不访问或改写应用状态。 */
 export async function observeBeats(page: Page) {
   await page.addInitScript(() => {
-    const probe: BeatProbe = { fixedOrigins: [], maxDisplacement: 0, samples: [], capture: false, brightest: 0, dimmest: Infinity, peak: "", rest: "" };
+    const probe: BeatProbe = { fixedOrigins: [], maxDisplacement: 0, samples: [] };
     (window as unknown as BeatWindow).beatProbe = probe;
     let rms = 0, power: number[] = [], angles: number[] = [], origins: number[] = [];
     const read = AnalyserNode.prototype.getFloatTimeDomainData;
@@ -40,20 +40,15 @@ export async function observeBeats(page: Page) {
       const audio = (window as unknown as { atmosphereObservation: { media: HTMLAudioElement[] } }).atmosphereObservation.media.find((item) => !item.paused && item.currentSrc);
       if (!audio || audio.paused || !power.length) return;
       if (probe.samples.length < 12_000) probe.samples.push({ time: audio.currentTime, wall: performance.now(), rms, power, angles, origins });
-      if (probe.capture) {
-        const total = power.reduce((sum, value) => sum + value, 0);
-        if (total > probe.brightest) { probe.brightest = total; probe.peak = (this.canvas as HTMLCanvasElement).toDataURL(); }
-        if (total < probe.dimmest) { probe.dimmest = total; probe.rest = (this.canvas as HTMLCanvasElement).toDataURL(); }
-      }
     };
   });
 }
 
-export async function resetBeatObservation(page: Page, capture = false) {
-  await page.evaluate((capture) => {
+export async function resetBeatObservation(page: Page) {
+  await page.evaluate(() => {
     const probe = (window as unknown as BeatWindow).beatProbe;
-    probe.samples = []; probe.capture = capture; probe.brightest = 0; probe.dimmest = Infinity; probe.peak = probe.rest = "";
-  }, capture);
+    probe.samples = [];
+  });
 }
 export const beatObservation = (page: Page) => page.evaluate(() => (window as unknown as BeatWindow).beatProbe);
 export const brightest = (sample: LightSample) => Math.max(...sample.power);

@@ -9,7 +9,8 @@ export default defineConfig({
   timeout: 90_000,
   expect: { timeout: 12_000 },
   fullyParallel: true,
-  workers: process.env.CI ? 2 : 1,
+  // 软件渲染共享 CI 的 CPU；并发场景会污染真实音频与重拍的时序测量。
+  workers: 1,
   forbidOnly: true,
   retries: 0,
   maxFailures: 1,
@@ -24,7 +25,7 @@ export default defineConfig({
     // 使用 Playwright 管理的独立浏览器，避免启动用户日常使用的 Chrome。
     // 全局预检使用相同通道，验证启动与 AAC 能力；不复用个人 profile。
     channel: "chromium",
-    launchOptions: { timeout: 20_000 },
+    launchOptions: { timeout: 20_000, ...(process.env.E2E_SOFTWARE_RENDERING === "1" ? { args: ["--use-angle=swiftshader"] } : {}) },
     viewport: { width: 1440, height: 1000 },
     locale: "zh-CN",
     reducedMotion: "reduce",

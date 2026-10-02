@@ -8,7 +8,8 @@ function unavailable(code, message) {
 /** 启动能力属于环境前提；只检查一次，不让测试 worker 轮流重试崩溃的浏览器。 */
 export async function checkE2EBrowser({ headless = true, reportDirectory = process.env.E2E_REPORT_DIR ?? "artifacts/e2e/manual" } = {}) {
   fs.mkdirSync(reportDirectory, { recursive: true });
-  const report = { checkedAt: new Date().toISOString(), channel: "chromium", headless, status: "failed" };
+  const software = process.env.E2E_SOFTWARE_RENDERING === "1";
+  const report = { checkedAt: new Date().toISOString(), channel: "chromium", headless, softwareRequested: software, status: "failed" };
   try {
     if (process.env.E2E_BROWSER_CHANNEL && process.env.E2E_BROWSER_CHANNEL !== "chromium") {
       throw unavailable("unsupported-channel", "E2E 只使用 Playwright 管理的测试浏览器。请移除 E2E_BROWSER_CHANNEL；不会回退到系统 Chrome。");
@@ -24,16 +25,22 @@ export async function checkE2EBrowser({ headless = true, reportDirectory = proce
     }
     let browser;
     try {
-      browser = await chromium.launch({ channel: "chromium", headless, timeout: 20_000 });
+      browser = await chromium.launch({ channel: "chromium", headless, timeout: 20_000, ...(software ? { args: ["--use-angle=swiftshader"] } : {}) });
       report.version = browser.version();
       const page = await browser.newPage();
       report.aac = await page.evaluate(() => document.createElement("audio").canPlayType('audio/mp4; codecs="mp4a.40.2"'));
       if (!report.aac) throw unavailable("aac-unavailable", "独立测试浏览器缺少 AAC 解码能力，已停止验收；不能跳过直传播放测试。");
+      report.webgl = await page.evaluate(() => {
+        const gl = document.createElement("canvas").getContext("webgl");
+        if (!gl) return null;
+        const info = gl.getExtension("WEBGL_debug_renderer_info");
+        return { renderer: String(gl.getParameter(info?.UNMASKED_RENDERER_WEBGL ?? gl.RENDERER)), version: String(gl.getParameter(gl.VERSION)) };
+      });
     } finally {
       await browser?.close();
     }
     report.status = "passed";
-    console.log(`浏览器预检通过：独立 ${report.channel} ${report.version}，AAC ${report.aac}。`);
+    console.log(`浏览器预检通过：独立 ${report.channel} ${report.version}，AAC ${report.aac}，WebGL ${report.webgl?.renderer ?? "不可用（使用降级画面）"}。`);
     return report;
   } catch (error) {
     report.code = error.code ?? "browser-launch-failed";

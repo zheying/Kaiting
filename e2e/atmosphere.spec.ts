@@ -4,7 +4,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { observeBeats, beatObservation, resetBeatObservation, brightest } from "./helpers/lighting-observation.js";
 
-test.use({ reducedMotion: "no-preference", roomOptions: { audioDuration: 45, rhythmic: true } });
+// 连续录屏会同步回读软件渲染画面，干扰声音和重拍时序；各关键状态另存截图。
+test.use({ reducedMotion: "no-preference", roomOptions: { audioDuration: 45, rhythmic: true }, trace: { mode: "on", screenshots: false, snapshots: true } });
 
 for (const [format, width, height] of [["aac", 1280, 900], ["alac", 393, 852]] as const) {
   test(`氛围 ${format.toUpperCase()} ${width} 普通页往返连续播放，共用队列与歌词时钟`, async ({ page, room }, info) => {
@@ -274,7 +275,9 @@ test("正式音源重拍迅速提亮并回落，暂停后停止运动", async ({
   await stage.getByRole("button", { name: "灯光编排", exact: true }).click();
   await stage.getByRole("button", { name: "交错织光", exact: true }).click();
   await stage.getByRole("slider", { name: "氛围播放进度" }).press("Home");
-  await resetBeatObservation(page, true);
+  await info.attach("lighting-before-play.png", { body: await stage.screenshot(), contentType: "image/png" });
+  // 测量窗口只读取灯具数据；同步导出画布会阻塞软件渲染并污染重拍时序。
+  await resetBeatObservation(page);
   await stage.getByRole("button", { name: "氛围播放" }).click();
   await expect.poll(async () => (await soundSnapshot(page)).time ?? 0).toBeGreaterThan(5.8);
   await page.mouse.move(25, 25);
@@ -295,5 +298,5 @@ test("正式音源重拍迅速提亮并回落，暂停后停止运动", async ({
   const stopped = await visual();
   await page.waitForTimeout(250);
   expect((await visual()).equals(stopped)).toBe(true);
-  await info.attach("beat-peak.png", { body: Buffer.from(data.peak.split(",")[1], "base64"), contentType: "image/png" });
+  await info.attach("paused-lighting.png", { body: stopped, contentType: "image/png" });
 });
