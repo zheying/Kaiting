@@ -372,6 +372,8 @@ npx playwright install --with-deps chromium --no-shell
 
 排查无硬件加速环境中的氛围画面时，可用 `E2E_SOFTWARE_RENDERING=1 npm run test:e2e -- atmosphere` 在同一独立浏览器中启用 SwiftShader。先加 `--list` 核对范围；该选项不改变用例、断言、超时或重试规则。氛围画面对软件渲染和 Canvas 降级画面限制灯光分辨率，硬件 WebGL 保留原有分辨率预算。浏览器用例使用单 worker 顺序执行，避免多个软件渲染页面争用 CPU，干扰真实音频和重拍时序测量。
 
+需要核对 Linux 软件渲染时，可在 GitHub Actions 手动运行「氛围重拍诊断」。该流程只运行真实音源的重拍用例，记录各时间窗口的采样数量、帧间隔、截图与 trace；推送触发的完整 CI 仍执行全部检查。
+
 AAC 直传及 ALAC/FLAC 转码仍以实际播放验收；手机/iPad 为 Chrome 设备模拟，不能替代真实 iOS Safari 验收。`npm run test:browser` 单独检查启动保护与失败处理，不启动真实浏览器，报告位于 `artifacts/browser-isolation/`。
 
 每次生成 `artifacts/e2e/<时间>-<范围>/`，包含 HTML/JSON/JUnit 报告、逐例 trace/截图、网络与服务日志、音乐哈希和 SQLite 校验。`browser-preflight.json` 记录启动检查、浏览器版本、WebGL 渲染器和失败原因，`run.json` 记录命令、Git HEAD 与源码/构建 SHA-256，可核对未提交工作区。预检失败时不会生成逐例截图或启动业务服务。查看方式：

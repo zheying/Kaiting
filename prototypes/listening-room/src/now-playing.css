@@ -1,5 +1,7 @@
 /* The fullscreen player is independent from the original capsule player. */
-.now-playing-dialog { width: 100vw; height: 100dvh; max-width: none; max-height: none; inset: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: #e7eeed; overflow: hidden; }
+/* 全屏内容已遮住页面，无需继续计算底层模糊和窗外阴影。 */
+.now-playing-dialog { width: 100vw; height: 100dvh; max-width: none; max-height: none; inset: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: #e7eeed; box-shadow: none; overflow: hidden; }
+.now-playing-dialog::backdrop { background: transparent; backdrop-filter: none; }
 .now-playing-screen { --np-ink: #253c3d; --np-muted: #637a79; --np-line: #29474a1a; --np-accent: #a85848; color: var(--np-ink); position: relative; isolation: isolate; height: 100%; display: grid; grid-template-rows: 76px minmax(0, 1fr); padding-bottom: 30px; overflow: hidden; }
 .np-atmosphere { position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; background: #e6eeee; }
 .np-atmosphere > img { position: absolute; inset: -15%; width: 130%; height: 130%; object-fit: cover; filter: blur(95px) saturate(1.1); opacity: .62; transform: scale(1.1); animation: np-atmosphere-drift 26s ease-in-out infinite alternate; animation-play-state: paused; }
