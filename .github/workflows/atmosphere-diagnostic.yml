@@ -27,6 +27,10 @@ jobs:
           npx playwright install --with-deps chromium --no-shell
       - name: 核对定向范围
         run: npm run test:e2e -- atmosphere -g '正式音源重拍' --list
+      - name: 隔离绘制与合成开销
+        env:
+          E2E_SOFTWARE_RENDERING: "1"
+        run: node scripts/diagnose-atmosphere-rendering.mjs
       - name: 验证软件渲染重拍
         env:
           E2E_SOFTWARE_RENDERING: "1"
@@ -36,6 +40,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: atmosphere-diagnostic
-          path: artifacts/e2e/
+          path: artifacts/
           retention-days: 14
           if-no-files-found: warn
