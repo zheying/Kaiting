@@ -1,5 +1,5 @@
 import { test, expect, titles } from "./helpers/room.js";
-import { observeAtmosphere, soundSnapshot } from "./helpers/atmosphere-observation.js";
+import { observeAtmosphere, soundSnapshot, waitForSoundTime } from "./helpers/atmosphere-observation.js";
 import fs from "node:fs";
 import path from "node:path";
 import { observeBeats, beatObservation, resetBeatObservation, brightest } from "./helpers/lighting-observation.js";
@@ -281,7 +281,7 @@ test("正式音源重拍迅速提亮并回落，暂停后停止运动", async ({
   // 测量窗口只读取灯具数据；同步导出画布会阻塞软件渲染并污染重拍时序。
   await resetBeatObservation(page);
   await stage.getByRole("button", { name: "氛围播放" }).click();
-  await expect.poll(async () => (await soundSnapshot(page)).time ?? 0).toBeGreaterThan(5.8);
+  await waitForSoundTime(page, 5.8);
   await page.mouse.move(25, 25);
   await stage.getByRole("button", { name: "氛围暂停" }).click();
   const data = await beatObservation(page);

@@ -43,3 +43,12 @@ export const soundSnapshot = (page: Page) => page.evaluate(() => {
   }
   return { index: media ? state.media.indexOf(media) : -1, src: media?.currentSrc, time: media?.currentTime, paused: media?.paused, rms, connections: state.connections, at: performance.now(), events: state.events, gains: state.gains.map((gain) => gain.gain.value), samples: state.samples };
 });
+
+/** 页面内等待原生音频时钟，避免计时期间反复跨进程读取并触发 trace 快照。 */
+export async function waitForSoundTime(page: Page, seconds: number) {
+  const reached = await page.waitForFunction((target) => {
+    const state = (window as unknown as ObservedWindow).atmosphereObservation;
+    return state.media.some((media) => !media.paused && media.currentSrc && media.currentTime > target);
+  }, seconds, { timeout: 12_000, polling: "raf" });
+  await reached.dispose();
+}
