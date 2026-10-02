@@ -9,8 +9,17 @@ test("选择真实目录完成扫描，增量重扫跳过未修改音频", async
   const first = await room.api(page.request, "/api/scan");
   expect(first).toMatchObject({ status: "completed", parsedFiles: 4, skippedFiles: 0, errorCount: 0 });
   await page.getByRole("button", { name: "音乐室设置", exact: true }).click();
+  // 扫描可能先完成，再收到启动响应；保留这个外部延迟来覆盖页面与后台的时序差异。
+  await page.route("**/api/scan", async (route) => {
+    if (route.request().method() !== "POST") { await route.continue(); return; }
+    const response = await route.fetch();
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await route.fulfill({ response });
+  });
   await page.getByRole("button", { name: "重新扫描", exact: true }).click();
   await expect.poll(async () => await room.api(page.request, "/api/scan")).toMatchObject({ status: "completed", parsedFiles: 0, skippedFiles: 4 });
+  await expect(page.getByRole("dialog", { name: "音乐室设置", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "曲库已经准备好" })).toBeVisible();
   await page.goto(room.url + "/#/songs");
   await expect(page.locator(".main-content .track-row")).toHaveCount(4);
 });
