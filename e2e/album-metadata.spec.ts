@@ -30,6 +30,9 @@ test("默认在后台完成扫描补全，无需打开页面；人工修正和�
   expect(room.upstream.requests.length).toBeGreaterThan(0);
 
   await page.goto(`${room.url}/#/albums`); await edit(page, ALBUM);
+  const references = page.getByRole("region", { name: "发行参考", exact: true });
+  // 弹窗也会查询上游；先完成该查询，避免把它的迟到请求计入后续重扫。
+  await expect(references.getByRole("button", { name: "采用此版本", exact: true })).toBeVisible();
   await expect(page.getByLabel("发行年份", { exact: true })).toHaveValue("2018");
   await expect(page.getByRole("link", { name: "查看自动补全的 MusicBrainz 来源" })).toHaveAttribute("href", /^https:\/\/musicbrainz.org\/release\//);
   await info.attach("automatic-source-desktop.png", { body: await page.screenshot(), contentType: "image/png" });
@@ -42,6 +45,7 @@ test("默认在后台完成扫描补全，无需打开页面；人工修正和�
   await expect(card(page, ALBUM).locator(".album-metadata-line")).toContainText("2020 · 个人精选");
   await edit(page, ALBUM);
   await expect(page.getByText("已保留人工设置，后台不会自动修改。", { exact: true })).toBeVisible();
+  await expect(references.getByRole("button", { name: "采用此版本", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "恢复扫描信息", exact: true }).click();
   await page.getByRole("button", { name: "保存信息", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
