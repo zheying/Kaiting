@@ -37,9 +37,14 @@ float noise(vec2 p) {
   return mix(mix(hash(i), hash(i + vec2(1., 0.)), f.x), mix(hash(i + vec2(0., 1.)), hash(i + vec2(1.)), f.x), f.y);
 }
 float haze(vec3 p) {
+#ifdef SOFTWARE_RENDERER
+  // CPU 光栅化使用平滑雾层，避免每条光束反复计算分形噪声。
+  return .0685 * exp(-max(p.y, 0.) * .18);
+#else
   vec2 drift = vec2(p.x * .55 + p.y * .21 - time * .035, p.z * .42 + p.y * .13 + time * .025);
   float cloud = noise(drift) * .72 + noise(drift * 2.7 + 4.1) * .28;
   return (.036 + cloud * .065) * exp(-max(p.y, 0.) * .18);
+#endif
 }
 float projection(vec3 offset, vec3 axis, float radius, vec2 pattern, vec3 source) {
   if (pattern.x + pattern.y < .001) return 1.;
@@ -105,7 +110,15 @@ void main() {
       continue;
     }
     // 图案边缘需要更密的雾采样，避免花影在空间中出现离散的重复切片。
-    float samples = gobos[i].x + gobos[i].y > .01 ? 20. : 5.;
+    bool patterned = gobos[i].x + gobos[i].y > .01;
+#ifdef SOFTWARE_RENDERER
+    // 最接近灯轴的一点近似窄光束积分；图案仍保留多点采样。
+    float samples = patterned ? 4. : 1.;
+    float integration = patterned ? 1. : .36;
+#else
+    float samples = patterned ? 20. : 5.;
+    float integration = 1.;
+#endif
     float stepSize = (far - near) / samples;
     float offsetInStep = samples > 5. ? hash(gl_FragCoord.xy + float(i) * 19.) : .5;
     for (int step = 0; step < 20; step++) {
@@ -114,7 +127,7 @@ void main() {
       vec3 world = eye + ray * distance;
       float density = haze(world);
       float transmission = exp(-density * distance * .35);
-      scatter += tints[i].rgb * sources[i].w * cone(world, sources[i], directions[i], 0., gobos[i]) * density * stepSize * transmission;
+      scatter += tints[i].rgb * sources[i].w * cone(world, sources[i], directions[i], 0., gobos[i]) * density * stepSize * transmission * integration;
     }
   }
   float transmission = exp(-haze(eye + ray * limit * .5) * limit * .35);
@@ -168,7 +181,7 @@ function createStage(canvas: HTMLCanvasElement) {
     const renderer = rendererInfo ? String(gl.getParameter(rendererInfo.UNMASKED_RENDERER_WEBGL)) : "";
     const software = /swiftshader|llvmpipe|softpipe|software rasterizer/i.test(renderer);
     vertex = shader(gl.VERTEX_SHADER, "attribute vec2 point; void main() { gl_Position = vec4(point, 0., 1.); }");
-    pixel = shader(gl.FRAGMENT_SHADER, fragment);
+    pixel = shader(gl.FRAGMENT_SHADER, (software ? "#define SOFTWARE_RENDERER\n" : "") + fragment);
     program = gl.createProgram();
     if (!program) throw new Error("灯光画面不可用");
     gl.attachShader(program, vertex); gl.attachShader(program, pixel); gl.linkProgram(program);
