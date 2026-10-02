@@ -31,6 +31,10 @@ for (const [format, atmosphere, width, height] of [["aac", false, 1280, 900], ["
     await panel.getByRole("button", { name: atmosphere ? "氛围歌词" : "歌词", exact: true }).click();
     const play = panel.getByRole("button", { name: atmosphere ? "氛围播放" : "播放", exact: true });
     const pause = panel.getByRole("button", { name: atmosphere ? "氛围暂停" : "暂停", exact: true });
+    const pausePlayback = async () => {
+      if (atmosphere) await page.mouse.move(24, 24);
+      await pause.click();
+    };
     const progress = panel.getByRole("slider", { name: atmosphere ? "氛围播放进度" : "播放进度", exact: true });
     const scroller = panel.getByLabel("可滚动歌词，点击任一句跳转播放进度", { exact: true });
     const lyricLines = panel.locator(".np-lyric-line");
@@ -76,7 +80,7 @@ for (const [format, atmosphere, width, height] of [["aac", false, 1280, 900], ["
     await expect.poll(async () => (await soundSnapshot(page)).time!).toBeGreaterThan(browsingTime + .4);
     await expect(returnToLyrics).toBeVisible();
     expect((await geometry(0)).distance).toBeGreaterThan(150);
-    await pause.click();
+    await pausePlayback();
 
     // 间奏不应高亮已唱完的歌词，也不能因为没有当前行而停在用户浏览的位置或跳回开头。
     await lyricLines.nth(1).click();
@@ -94,7 +98,7 @@ for (const [format, atmosphere, width, height] of [["aac", false, 1280, 900], ["
     await expect.poll(async () => (await geometry(1)).distance, { timeout: 1000 }).toBeLessThan(3);
     await expect(panel.locator(".np-lyric-line.is-current")).toHaveCount(0);
     evidence.interlude = { geometry: await geometry(1), progress: await progress.inputValue() };
-    await pause.click();
+    await pausePlayback();
 
     // 前奏也应马上回到开头，不能一直等到第一句的 12 秒时间点。
     await scroller.press("End");
@@ -112,7 +116,9 @@ for (const [format, atmosphere, width, height] of [["aac", false, 1280, 900], ["
     expect(Number(await progress.inputValue())).toBeLessThan(12);
     evidence.intro = { geometry: await geometry(0), progress: await progress.inputValue(), sound: await soundSnapshot(page) };
     await info.attach("intro-following.png", { body: await panel.screenshot(), contentType: "image/png" });
-    await pause.click();
+    // 真实闲置后先唤回控制栏，不把截图耗时导致的自动隐藏误判为暂停失效。
+    if (atmosphere) await expect(panel).toHaveClass(/av-hide-controls/);
+    await pausePlayback();
     await info.attach("lyrics-following.json", { body: JSON.stringify(evidence, null, 2), contentType: "application/json" });
   });
 }

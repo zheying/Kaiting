@@ -32,6 +32,7 @@ for (const [format, width, height] of [["aac", 1280, 900], ["alac", 393, 852]] a
     const samples = after.samples.filter((sample) => sample.at > before.at);
     expect(samples.length).toBeGreaterThan(0);
     expect(samples.every((sample) => sample.index === before.index && sample.rms > .0001)).toBe(true);
+    await page.mouse.move(24, 24);
     await atmosphere.getByRole("button", { name: "氛围暂停", exact: true }).click();
     const lyricsToggle = atmosphere.getByRole("button", { name: "氛围歌词", exact: true });
     await lyricsToggle.click();
@@ -78,6 +79,7 @@ for (const [format, width, height] of [["aac", 1280, 900], ["alac", 393, 852]] a
     await expect(lyricHint).toHaveText("");
     await expect.poll(async () => (await soundSnapshot(page)).time).toBeGreaterThan(1.2);
     await info.attach(`lyrics-playing-${width}.png`, { body: await atmosphere.screenshot(), contentType: "image/png" });
+    await page.mouse.move(24, 24);
     await atmosphere.getByRole("button", { name: "氛围暂停", exact: true }).click();
     await expect(lyricHint).toHaveText("");
     await atmosphere.getByRole("button", { name: "跳转到 0:01，第一句测试歌词" }).click();
