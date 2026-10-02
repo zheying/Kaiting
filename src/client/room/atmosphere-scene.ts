@@ -197,7 +197,7 @@ function createStage(canvas: HTMLCanvasElement) {
     const origins = new Float32Array(lightCount * 4), directions = new Float32Array(lightCount * 4), tints = new Float32Array(lightCount * 4);
     return {
       // 软件渲染逐像素使用 CPU；单独限制灯光画布，避免拖慢音频时钟和页面交互。
-      pixelBudget: software ? 20_000 : Infinity,
+      pixelBudget: software ? 5_000 : Infinity,
       draw(time: number, fixtures: Fixture[], palette: AtmospherePalette) {
         const colors = palettes[palette];
         origins.fill(0); directions.fill(0); tints.fill(0);

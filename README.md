@@ -370,9 +370,9 @@ npx playwright install --with-deps chromium --no-shell
 
 运行前统一检查浏览器启动与 AAC 解码能力；检查失败即停止，不让每个用例重复启动。测试保持零重试，首个用例失败后停止后续用例。旧的 `E2E_BROWSER_CHANNEL=chrome` 配置会明确报错，应移除；不会自动回退到系统浏览器。macOS 的受限 seatbelt 执行环境会在启动前被拦截，应从普通终端或获准的执行环境运行同一命令，不要清除环境标志重试。
 
-排查无硬件加速环境中的氛围画面时，可用 `E2E_SOFTWARE_RENDERING=1 npm run test:e2e -- atmosphere` 在同一独立浏览器中启用 SwiftShader。先加 `--list` 核对范围；该选项不改变用例、断言、超时或重试规则。氛围画面对软件渲染和 Canvas 降级画面限制灯光分辨率，硬件 WebGL 保留原有分辨率预算。浏览器用例使用单 worker 顺序执行，避免多个软件渲染页面争用 CPU，干扰真实音频和重拍时序测量。
+排查无硬件加速环境中的氛围画面时，可用 `E2E_SOFTWARE_RENDERING=1 npm run test:e2e -- atmosphere` 在同一独立浏览器中启用 SwiftShader。先加 `--list` 核对范围；该选项不改变用例、断言、超时或重试规则。软件渲染使用较低分辨率和平滑雾层，减少体积光采样以保持重拍响应；硬件 WebGL 保留原有分辨率和完整雾效。浏览器用例使用单 worker 顺序执行，避免多个软件渲染页面争用 CPU，干扰真实音频和重拍时序测量。
 
-需要核对 Linux 软件渲染时，可在 GitHub Actions 手动运行「氛围重拍诊断」。该流程只运行真实音源的重拍用例，记录各时间窗口的采样数量、帧间隔、截图与 trace；推送触发的完整 CI 仍执行全部检查。
+需要核对 Linux 软件渲染时，可在 GitHub Actions 手动运行「氛围重拍诊断」。该流程先用固定信号分离绘制与页面合成耗时，再运行真实音源的重拍用例，记录各时间窗口的采样数量、帧间隔、截图与 trace。固定信号的性能数据不替代播放验收；推送触发的完整 CI 仍执行全部检查。
 
 AAC 直传及 ALAC/FLAC 转码仍以实际播放验收；手机/iPad 为 Chrome 设备模拟，不能替代真实 iOS Safari 验收。`npm run test:browser` 单独检查启动保护与失败处理，不启动真实浏览器，报告位于 `artifacts/browser-isolation/`。
 
