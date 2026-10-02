@@ -1,0 +1,41 @@
+name: 氛围重拍诊断
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: atmosphere-diagnostic-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  atmosphere:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: 安装音频与浏览器依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          npx playwright install --with-deps chromium --no-shell
+      - name: 核对定向范围
+        run: npm run test:e2e -- atmosphere -g '正式音源重拍' --list
+      - name: 验证软件渲染重拍
+        env:
+          E2E_SOFTWARE_RENDERING: "1"
+        run: npm run test:e2e -- atmosphere -g '正式音源重拍'
+      - name: 保存采样与浏览器证据
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: atmosphere-diagnostic
+          path: artifacts/e2e/
+          retention-days: 14
+          if-no-files-found: warn

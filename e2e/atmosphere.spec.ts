@@ -290,10 +290,19 @@ test("正式音源重拍迅速提亮并回落，暂停后停止运动", async ({
     const attack = data.samples.filter((sample) => sample.time >= hit && sample.time <= hit + .15);
     const after = data.samples.filter((sample) => sample.time >= hit + .25 && sample.time <= hit + .38);
     const base = Math.max(...before.map(brightest)), peak = Math.max(...attack.map(brightest));
-    return { hit, contrast: peak / base, recovery: Math.min(...after.map(brightest)) / peak };
+    return { hit, contrast: peak / base, recovery: Math.min(...after.map(brightest)) / peak,
+      samples: { before: before.length, attack: attack.length, after: after.length } };
   });
-  await info.attach("beats.json", { body: JSON.stringify({ hits, samples: data.samples }), contentType: "application/json" });
-  for (const hit of hits) { expect(hit.contrast).toBeGreaterThan(1.65); expect(hit.recovery).toBeLessThan(.72); }
+  const longestFrames = data.samples.slice(1).map((sample, index) => ({
+    from: data.samples[index].time, to: sample.time, milliseconds: sample.wall - data.samples[index].wall
+  })).sort((a, b) => b.milliseconds - a.milliseconds).slice(0, 5);
+  const diagnostics = { hits, longestFrames, sampleCount: data.samples.length };
+  console.log("重拍采样诊断", JSON.stringify(diagnostics));
+  await info.attach("beats.json", { body: JSON.stringify({ ...diagnostics, samples: data.samples }), contentType: "application/json" });
+  for (const hit of hits) {
+    const detail = JSON.stringify(hit);
+    expect(hit.contrast, detail).toBeGreaterThan(1.65); expect(hit.recovery, detail).toBeLessThan(.72);
+  }
   expect(data.maxDisplacement).toBe(0);
   await page.waitForTimeout(850);
   const visual = () => stage.locator(".av-visual").screenshot({ mask: [stage.locator(".av-hud"), stage.locator(".av-wake-hint")] });
